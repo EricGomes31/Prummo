@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-journal
+*.bak
+uploads/
+# Configuração local do Claude Code de cada máquina
+.claude/settings.local.json

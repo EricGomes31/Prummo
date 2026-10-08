@@ -1,0 +1,573 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // conexão com pool, usada pela API
+  directUrl = env("DIRECT_URL") // conexão direta, usada pelo Prisma para criar e alterar tabelas
+}
+
+// Valores monetários são inteiros em centavos. Quantidades são inteiras.
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senhaHash String
+  perfil    String   @default("OPERADOR") // ADMIN | OPERADOR: perfil de fábrica, vale quando não há perfilId
+  // Perfil de acesso personalizado. Com ele, as permissões vêm do perfil e `perfil` fica OPERADOR.
+  perfilId     Int?
+  perfilAcesso PerfilAcesso? @relation(fields: [perfilId], references: [id])
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now())
+
+  entregas   Entrega[]
+  pedidos     Pedido[]
+  movimentos  MovimentoFinanceiro[]
+  devolucoes  Devolucao[]
+  usosCredito CreditoUso[]
+  historicoEntregas EntregaHistorico[]
+  despesas          Despesa[]
+  extratos          ExtratoBancario[]
+}
+
+// Perfil de acesso personalizado: conjunto de permissões (ver api/src/permissoes.ts) e de dashboards.
+model PerfilAcesso {
+  id         Int      @id @default(autoincrement())
+  nome       String   @unique
+  descricao  String?
+  permissoes String[]
+  dashboards String[] // COMERCIAL | FINANCEIRO
+  ativo      Boolean  @default(true)
+  criadoEm   DateTime @default(now())
+
+  usuarios Usuario[]
+}
+
+model Pessoa {
+  id           Int      @id @default(autoincrement())
+  nome         String
+  nomeFantasia String?
+  documento    String? // CPF ou CNPJ
+  rgIe         String? // RG ou inscrição estadual
+  email        String?
+  telefone     String?
+  celular      String?
+  cep          String?
+  logradouro   String?
+  numero       String?
+  complemento  String?
+  bairro       String?
+  cidade       String?
+  uf           String?
+  // Classificações: uma pessoa pode ter várias ao mesmo tempo.
+  cliente      Boolean  @default(false)
+  fornecedor   Boolean  @default(false)
+  prestador    Boolean  @default(false)
+  paciente     Boolean  @default(false)
+  medico       Boolean  @default(false)
+  vendedor     Boolean  @default(false)
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+
+  pedidos         Pedido[]         @relation("PedidoCliente")
+  pedidosVendedor Pedido[]         @relation("PedidoVendedor")
+  pedidosMedico   Pedido[]         @relation("PedidoMedico")
+  pedidosPaciente Pedido[]         @relation("PedidoPaciente")
+  creditos        Credito[]
+  usosCredito     CreditoUso[]     @relation("CreditoUsoPessoa")
+  despesas        Despesa[]        @relation("DespesaFornecedor")
+  entradas      EntradaEstoque[]
+  contasReceber ContaReceber[]
+  contasPagar   ContaPagar[]
+}
+
+model Produto {
+  id              Int      @id @default(autoincrement())
+  sku             String   @unique // código interno; gerado quando não informado
+  nome            String // descrição do produto
+  ean             String?  @unique // código de barras
+  unidade         String   @default("UN") // unidade base: estoque, custo e preço são nela
+  // Produtos que não controlam estoque (serviços, por exemplo) são vendidos sem conferir nem baixar saldo.
+  controlaEstoque Boolean  @default(true)
+  precoCusto      Int      @default(0)
+  precoVenda      Int      @default(0)
+  estoqueMinimo   Int      @default(0) // em unidades base
+  // O saldo é contado em "partes": 1 unidade base = `divisor` partes. O divisor é o mínimo múltiplo
+  // comum dos fatores das unidades do produto, de modo que qualquer unidade vale um número inteiro
+  // de partes e o saldo fracionado é exato. Sem unidades extras o divisor é 1 e parte = unidade base.
+  saldo           Int      @default(0)
+  divisor         Int      @default(1)
+  ativo           Boolean  @default(true)
+  criadoEm        DateTime @default(now())
+
+  unidades     ProdutoUnidade[]
+  movimentos   MovimentoEstoque[]
+  itensPedido  PedidoItem[]
+  itensEntrada EntradaItem[]
+  promocoes    PromocaoItem[]
+}
+
+// Unidade extra de entrada e venda. `fator` = quantas dela cabem em 1 unidade base (1 CX = 4 AMP).
+model ProdutoUnidade {
+  id         Int     @id @default(autoincrement())
+  produtoId  Int
+  produto    Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  sigla      String
+  fator      Int
+  precoVenda Int? // preço próprio; vazio = preço da unidade base dividido pelo fator
+
+  @@unique([produtoId, sigla])
+}
+
+// Arquivo anexado a um registro do sistema. O conteúdo fica em disco, na pasta de uploads, com um
+// nome aleatório (`arquivo`); o nome original é só para exibição e download.
+model Documento {
+  id       Int      @id @default(autoincrement())
+  origem   String // ENTRADA_ESTOQUE | PEDIDO | CONTA_PAGAR | CONTA_RECEBER
+  origemId Int
+  nome     String
+  tamanho  Int // bytes
+  arquivo  String   @unique
+  criadoEm DateTime @default(now())
+
+  @@index([origem, origemId])
+}
+
+// Campanha promocional. Cada modalidade usa parte dos campos:
+// PERCENTUAL -> percentual | PRECO -> preco (unitário) | LEVE_PAGUE -> leve, pague
+// COMBO -> preco (do conjunto) | BRINDE -> itens com papel COMPRA e BRINDE
+model Promocao {
+  id         Int      @id @default(autoincrement())
+  nome       String
+  modalidade String
+  inicio     DateTime
+  fim        DateTime
+  percentual Int? // centésimos de ponto percentual: 1250 = 12,5%
+  preco      Int? // centavos
+  leve       Int?
+  pague      Int?
+  ativo      Boolean  @default(true)
+  criadoEm   DateTime @default(now())
+
+  itens   PromocaoItem[]
+  pedidos Pedido[]
+}
+
+model PromocaoItem {
+  id         Int      @id @default(autoincrement())
+  promocaoId Int
+  promocao   Promocao @relation(fields: [promocaoId], references: [id], onDelete: Cascade)
+  produtoId  Int
+  produto    Produto  @relation(fields: [produtoId], references: [id])
+  quantidade Int      @default(1) // mínima (percentual, preço) ou por conjunto (combo, brinde)
+  papel      String   @default("COMPRA") // COMPRA | BRINDE
+}
+
+model MovimentoEstoque {
+  id         Int      @id @default(autoincrement())
+  produtoId  Int
+  produto    Produto  @relation(fields: [produtoId], references: [id])
+  tipo       String // ENTRADA | SAIDA | AJUSTE
+  // Em partes do produto (ver Produto.divisor). Sempre positiva, exceto AJUSTE, que guarda a diferença com sinal.
+  quantidade Int
+  saldoApos  Int
+  origem     String // ENTRADA_ESTOQUE | PEDIDO | CANCELAMENTO | AJUSTE
+  origemId   Int?
+  observacao String?
+  criadoEm   DateTime @default(now())
+
+  @@index([produtoId])
+}
+
+model EntradaEstoque {
+  id                Int      @id @default(autoincrement())
+  fornecedorId      Int?
+  fornecedor        Pessoa?  @relation(fields: [fornecedorId], references: [id])
+  natureza          String   @default("COMPRA_REVENDA") // COMPRA_REVENDA | BONIFICACAO
+  numeroDocumento   String?
+  data              DateTime
+  condicaoPagamento String? // prazos em dias: "0", "30", "30/60/90"
+  frete             Int      @default(0)
+  outrasDespesas    Int      @default(0)
+  cfop              String?
+  total             Int // itens + frete + outras despesas
+  criadoEm          DateTime @default(now())
+
+  itens       EntradaItem[]
+  contasPagar ContaPagar[]
+}
+
+model EntradaItem {
+  id            Int            @id @default(autoincrement())
+  entradaId     Int
+  entrada       EntradaEstoque @relation(fields: [entradaId], references: [id], onDelete: Cascade)
+  produtoId     Int
+  produto       Produto        @relation(fields: [produtoId], references: [id])
+  // Quantidade e custo são na unidade do lançamento; `fator` é o dela na data (1 = unidade base).
+  quantidade    Int
+  custoUnitario Int
+  unidade       String? // vazio em lançamentos antigos: vale a unidade base do produto
+  fator         Int            @default(1)
+}
+
+model Pedido {
+  id               Int       @id @default(autoincrement())
+  clienteId        Int
+  cliente          Pessoa    @relation("PedidoCliente", fields: [clienteId], references: [id])
+  // Quem lançou o pedido. O vendedor, o médico e o paciente são pessoas do cadastro, todos opcionais.
+  usuarioId        Int?
+  usuario          Usuario?  @relation(fields: [usuarioId], references: [id])
+  vendedorId       Int?
+  vendedor         Pessoa?   @relation("PedidoVendedor", fields: [vendedorId], references: [id])
+  medicoId         Int?
+  medico           Pessoa?   @relation("PedidoMedico", fields: [medicoId], references: [id])
+  pacienteId       Int?
+  paciente         Pessoa?   @relation("PedidoPaciente", fields: [pacienteId], references: [id])
+  // VENDA | BONIFICACAO | PERDA. Só a venda gera contas a receber e conta como faturamento.
+  natureza         String    @default("VENDA")
+  motivoPerda      String? // AVARIA | VENCIMENTO | QUEBRA | EXTRAVIO | OUTROS
+  status           String    @default("ABERTO") // ABERTO | FATURADO | CANCELADO
+  subtotal         Int // itens pelo preço cheio
+  descontoItens    Int       @default(0) // soma dos descontos lançados nos itens
+  desconto         Int       @default(0) // desconto no total do pedido
+  frete            Int       @default(0)
+  promocaoId       Int?
+  promocao         Promocao? @relation(fields: [promocaoId], references: [id])
+  descontoPromocao Int       @default(0) // calculado pelo servidor ao salvar o pedido
+  total            Int // subtotal - descontoItens - desconto - descontoPromocao + frete
+  observacao       String?
+  criadoEm         DateTime  @default(now())
+  faturadoEm       DateTime?
+  // DINHEIRO | PIX | CARTAO_CREDITO | CARTAO_DEBITO | BOLETO | TRANSFERENCIA; definida ao faturar
+  formaPagamento   String?
+
+  itens         PedidoItem[]
+  contasReceber ContaReceber[]
+  entregas      Entrega[]
+  devolucoes    Devolucao[]
+
+  @@index([status])
+}
+
+// O endereço é copiado do cliente na criação, para que a entrega não mude se o cadastro mudar.
+model Entrega {
+  id           Int       @id @default(autoincrement())
+  pedidoId     Int
+  pedido       Pedido    @relation(fields: [pedidoId], references: [id])
+  entregadorId Int?
+  entregador   Usuario?  @relation(fields: [entregadorId], references: [id])
+  status       String    @default("PENDENTE") // PENDENTE | EM_ROTA | ENTREGUE | FALHOU | CANCELADA
+  dataPrevista DateTime
+  destinatario String
+  telefone     String?
+  cep          String?
+  logradouro   String
+  numero       String?
+  complemento  String?
+  bairro       String?
+  cidade       String
+  uf           String?
+  observacao   String?
+  saiuEm       DateTime?
+  concluidaEm  DateTime?
+  recebedor    String?
+  motivoFalha  String?
+  criadoEm     DateTime  @default(now())
+  // Dados para montar a rota: peso da carga, coordenadas e janela em que o destinatário recebe ("HH:MM").
+  pesoKg            Float?
+  latitude          Float?
+  longitude         Float?
+  inicioRecebimento String?
+  fimRecebimento    String?
+  rotaId            Int?
+  rota              Rota?   @relation(fields: [rotaId], references: [id])
+  sequencia         Int? // ordem da parada dentro da rota
+
+  historico EntregaHistorico[]
+
+  @@index([status])
+  @@index([pedidoId])
+  @@index([rotaId])
+}
+
+// Cada mudança de situação da entrega, feita no sistema ou pelo entregador no link da rota.
+model EntregaHistorico {
+  id         Int      @id @default(autoincrement())
+  entregaId  Int
+  entrega    Entrega  @relation(fields: [entregaId], references: [id], onDelete: Cascade)
+  status     String
+  observacao String?
+  origem     String   @default("SISTEMA") // SISTEMA | ENTREGADOR
+  usuarioId  Int?
+  usuario    Usuario? @relation(fields: [usuarioId], references: [id])
+  criadoEm   DateTime @default(now())
+
+  @@index([entregaId])
+}
+
+model Motorista {
+  id          Int       @id @default(autoincrement())
+  nome        String
+  telefone    String?
+  cnh         String?
+  validadeCnh DateTime?
+  ativo       Boolean   @default(true)
+  criadoEm    DateTime  @default(now())
+
+  rotas Rota[]
+}
+
+model Veiculo {
+  id           Int      @id @default(autoincrement())
+  placa        String   @unique
+  descricao    String?
+  capacidadeKg Float
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+
+  rotas Rota[]
+}
+
+// Viagem de um motorista com um veículo em um dia, com as entregas em sequência.
+model Rota {
+  id             Int       @id @default(autoincrement())
+  nome           String
+  data           DateTime
+  motoristaId    Int
+  motorista      Motorista @relation(fields: [motoristaId], references: [id])
+  veiculoId      Int
+  veiculo        Veiculo   @relation(fields: [veiculoId], references: [id])
+  pontoSaida     String
+  latitudeSaida  Float?
+  longitudeSaida Float?
+  // Link do entregador: só o hash da chave fica no banco, com a validade.
+  linkHash       String?
+  linkExpiraEm   DateTime?
+  criadoEm       DateTime  @default(now())
+
+  entregas Entrega[]
+}
+
+model PedidoItem {
+  id            Int     @id @default(autoincrement())
+  pedidoId      Int
+  pedido        Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produtoId     Int
+  produto       Produto @relation(fields: [produtoId], references: [id])
+  quantidade    Int
+  precoUnitario Int
+  desconto      Int     @default(0) // por unidade do lançamento; o preço cobrado é precoUnitario - desconto
+  // Custo do produto no momento do faturamento, para a margem não mudar quando o custo mudar.
+  custoUnitario Int     @default(0)
+  // Quantidade, preço e custo são na unidade do lançamento; `fator` é o dela na data (1 = unidade base).
+  unidade       String? // vazio em lançamentos antigos: vale a unidade base do produto
+  fator         Int     @default(1)
+
+  devolucoes DevolucaoItem[]
+}
+
+// Devolução de itens de uma venda faturada: devolve o estoque e gera um crédito para o cliente.
+model Devolucao {
+  id           Int      @id @default(autoincrement())
+  pedidoId     Int
+  pedido       Pedido   @relation(fields: [pedidoId], references: [id])
+  observacao   String?
+  valorCredito Int // soma do valor líquido dos itens devolvidos
+  usuarioId    Int?
+  usuario      Usuario? @relation(fields: [usuarioId], references: [id])
+  criadoEm     DateTime @default(now())
+
+  itens   DevolucaoItem[]
+  credito Credito?
+
+  @@index([pedidoId])
+}
+
+model DevolucaoItem {
+  id            Int        @id @default(autoincrement())
+  devolucaoId   Int
+  devolucao     Devolucao  @relation(fields: [devolucaoId], references: [id], onDelete: Cascade)
+  pedidoItemId  Int
+  pedidoItem    PedidoItem @relation(fields: [pedidoItemId], references: [id])
+  quantidade    Int // na unidade do lançamento do item
+  valorUnitario Int // valor líquido por unidade na venda, já com os descontos do pedido
+
+  @@index([pedidoItemId])
+}
+
+// Crédito do cliente. Pode ser usado para baixar contas a receber do cliente, do médico, do vendedor
+// ou do paciente da venda que o originou.
+model Credito {
+  id            Int        @id @default(autoincrement())
+  pessoaId      Int
+  pessoa        Pessoa     @relation(fields: [pessoaId], references: [id])
+  devolucaoId   Int?       @unique
+  devolucao     Devolucao? @relation(fields: [devolucaoId], references: [id])
+  valorOriginal Int
+  saldo         Int
+  status        String     @default("DISPONIVEL") // DISPONIVEL | ESGOTADO
+  criadoEm      DateTime   @default(now())
+
+  usos CreditoUso[]
+
+  @@index([status])
+}
+
+model CreditoUso {
+  id             Int          @id @default(autoincrement())
+  creditoId      Int
+  credito        Credito      @relation(fields: [creditoId], references: [id])
+  contaReceberId Int
+  contaReceber   ContaReceber @relation(fields: [contaReceberId], references: [id])
+  pessoaId       Int // pessoa elegível que usou o crédito
+  pessoa         Pessoa       @relation("CreditoUsoPessoa", fields: [pessoaId], references: [id])
+  valor          Int
+  usuarioId      Int?
+  usuario        Usuario?     @relation(fields: [usuarioId], references: [id])
+  criadoEm       DateTime     @default(now())
+
+  @@index([contaReceberId])
+}
+
+model ContaReceber {
+  id         Int       @id @default(autoincrement())
+  pessoaId   Int?
+  pessoa     Pessoa?   @relation(fields: [pessoaId], references: [id])
+  pedidoId   Int?
+  pedido     Pedido?   @relation(fields: [pedidoId], references: [id])
+  descricao  String
+  valor      Int
+  // Soma dos recebimentos não estornados. A conta fica ABERTA enquanto houver saldo (valor - valorPago).
+  valorPago  Int       @default(0)
+  vencimento DateTime
+  status     String    @default("ABERTA") // ABERTA | PAGA | CANCELADA
+  pagoEm     DateTime? // data do recebimento que quitou a conta
+  criadoEm   DateTime  @default(now())
+
+  movimentos   MovimentoFinanceiro[]
+  usosCredito  CreditoUso[]
+
+  @@index([status])
+}
+
+// Caixa, conta bancária ou carteira digital por onde entram os recebimentos e saem os pagamentos.
+model ContaFinanceira {
+  id               Int      @id @default(autoincrement())
+  nome             String   @unique
+  tipo             String   @default("CONTA_CORRENTE") // CAIXA | CONTA_CORRENTE | CONTA_POUPANCA | CARTEIRA_DIGITAL
+  instituicao      String?
+  codigoBanco      String?
+  agencia          String?
+  numeroConta      String?
+  documentoTitular String? // CPF ou CNPJ
+  saldoInicial     Int      @default(0)
+  ativa            Boolean  @default(true)
+  criadoEm         DateTime @default(now())
+
+  movimentos MovimentoFinanceiro[]
+  extratos   ExtratoBancario[]
+}
+
+// Extrato das contas financeiras. Cada recebimento ou pagamento, total ou parcial, é um movimento;
+// o estorno não apaga nada: marca o movimento original e lança o movimento contrário.
+model MovimentoFinanceiro {
+  id                Int             @id @default(autoincrement())
+  contaFinanceiraId Int
+  contaFinanceira   ContaFinanceira @relation(fields: [contaFinanceiraId], references: [id])
+  tipo              String // ENTRADA | SAIDA
+  valor             Int // sempre positivo
+  data              DateTime
+  origem            String // RECEBIMENTO | PAGAMENTO | ESTORNO
+  historico         String
+  observacao        String?
+  contaReceberId    Int?
+  contaReceber      ContaReceber?   @relation(fields: [contaReceberId], references: [id])
+  contaPagarId      Int?
+  contaPagar        ContaPagar?     @relation(fields: [contaPagarId], references: [id])
+  estornado         Boolean         @default(false)
+  usuarioId         Int?
+  usuario           Usuario?        @relation(fields: [usuarioId], references: [id])
+  criadoEm          DateTime        @default(now())
+  // Linha do extrato do banco com que este movimento foi conciliado.
+  extratoId         Int?
+  extrato           ExtratoBancario? @relation(fields: [extratoId], references: [id])
+
+  @@index([contaFinanceiraId, data])
+  @@index([contaReceberId])
+  @@index([contaPagarId])
+  @@index([extratoId])
+}
+
+// Linha do extrato do banco, importada de um arquivo OFX. Não mexe no saldo por si só: o saldo muda
+// pelos movimentos, e conciliar é ligar a linha aos movimentos que a explicam.
+model ExtratoBancario {
+  id                Int             @id @default(autoincrement())
+  contaFinanceiraId Int
+  contaFinanceira   ContaFinanceira @relation(fields: [contaFinanceiraId], references: [id])
+  fitId             String // identificador da transação no banco; evita importar a mesma linha duas vezes
+  data              DateTime
+  tipo              String // ENTRADA | SAIDA
+  valor             Int // sempre positivo
+  descricao         String
+  arquivo           String?
+  status            String          @default("PENDENTE") // PENDENTE | CONCILIADA | IGNORADA
+  // Como foi conciliada: BAIXA | VINCULO | AVULSO | CREDITO
+  resolucao         String?
+  observacao        String?
+  conciliadoEm      DateTime?
+  usuarioId         Int?
+  usuario           Usuario?        @relation(fields: [usuarioId], references: [id])
+  criadoEm          DateTime        @default(now())
+
+  movimentos MovimentoFinanceiro[]
+
+  @@unique([contaFinanceiraId, fitId])
+  @@index([status])
+}
+
+// Despesa da empresa (aluguel, energia, frete...). Lançar a despesa gera as contas a pagar dela.
+model Despesa {
+  id                Int      @id @default(autoincrement())
+  fornecedorId      Int
+  fornecedor        Pessoa   @relation("DespesaFornecedor", fields: [fornecedorId], references: [id])
+  elemento          String // tipo da despesa, texto livre com sugestão dos já usados
+  descricao         String
+  numeroDocumento   String?
+  dataEmissao       DateTime
+  dataCompetencia   DateTime
+  valor             Int
+  condicaoPagamento String // A_VISTA | A_PRAZO
+  formaPagamento    String // DINHEIRO | PIX | TRANSFERENCIA | BOLETO | CARTAO_DEBITO | CARTAO_CREDITO | OUTRO
+  observacao        String?
+  status            String   @default("ATIVA") // ATIVA | CANCELADA
+  usuarioId         Int?
+  usuario           Usuario? @relation(fields: [usuarioId], references: [id])
+  criadoEm          DateTime @default(now())
+
+  contasPagar ContaPagar[]
+
+  @@index([dataCompetencia])
+}
+
+model ContaPagar {
+  id         Int             @id @default(autoincrement())
+  pessoaId   Int?
+  pessoa     Pessoa?         @relation(fields: [pessoaId], references: [id])
+  entradaId  Int?
+  entrada    EntradaEstoque? @relation(fields: [entradaId], references: [id])
+  despesaId  Int?
+  despesa    Despesa?        @relation(fields: [despesaId], references: [id])
+  descricao  String
+  valor      Int
+  valorPago  Int             @default(0) // soma dos pagamentos não estornados
+  vencimento DateTime
+  status     String          @default("ABERTA") // ABERTA | PAGA | CANCELADA
+  pagoEm     DateTime? // data do pagamento que quitou a conta
+  criadoEm   DateTime        @default(now())
+
+  movimentos MovimentoFinanceiro[]
+
+  @@index([status])
+}

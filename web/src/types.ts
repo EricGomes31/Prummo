@@ -1,0 +1,485 @@
+export type Perfil = 'ADMIN' | 'OPERADOR'
+
+// `perfil` é o perfil de fábrica; com `perfilId`, vale o perfil de acesso personalizado, de nome `perfilNome`.
+export type Usuario = { id: number; nome: string; email: string; perfil: Perfil; perfilId: number | null; perfilNome: string; ativo: boolean }
+
+// Usuário da sessão, com os acessos já resolvidos pelo servidor.
+export type UsuarioSessao = Usuario & { permissoes: string[]; dashboards: string[] }
+
+export type PerfilPadrao = { codigo: Perfil; nome: string; descricao: string; permissoes: string[]; dashboards: string[] }
+
+export type PerfilAcesso = {
+  id: number
+  nome: string
+  descricao: string | null
+  permissoes: string[]
+  dashboards: string[]
+  ativo: boolean
+  usuarios: number // quantos usuários usam o perfil
+}
+
+export type Perfis = {
+  padrao: PerfilPadrao[]
+  personalizados: PerfilAcesso[]
+  catalogo: {
+    grupos: { grupo: string; permissoes: { codigo: string; rotulo: string }[] }[]
+    dashboards: { codigo: string; rotulo: string }[]
+  }
+}
+
+export type Pessoa = {
+  id: number
+  nome: string
+  nomeFantasia: string | null
+  documento: string | null
+  rgIe: string | null
+  email: string | null
+  telefone: string | null
+  celular: string | null
+  cep: string | null
+  logradouro: string | null
+  numero: string | null
+  complemento: string | null
+  bairro: string | null
+  cidade: string | null
+  uf: string | null
+  ativo: boolean
+} & Record<Classificacao, boolean>
+
+export type Classificacao = 'cliente' | 'fornecedor' | 'prestador' | 'paciente' | 'medico' | 'vendedor'
+
+export type Produto = {
+  id: number
+  sku: string
+  nome: string
+  ean: string | null
+  unidade: string
+  // Unidades extras; `fator` = quantas cabem em 1 unidade base. Preço vazio = proporcional ao da base.
+  unidades: { sigla: string; fator: number; precoVenda: number | null }[]
+  // O saldo vem em partes: saldo / divisor = quantidade na unidade base.
+  divisor: number
+  controlaEstoque: boolean
+  precoCusto: number
+  precoVenda: number
+  estoqueMinimo: number
+  saldo: number
+  ativo: boolean
+}
+
+export type Movimento = {
+  id: number
+  tipo: 'ENTRADA' | 'SAIDA' | 'AJUSTE'
+  quantidade: number
+  saldoApos: number
+  origem: string
+  origemId: number | null
+  observacao: string | null
+  criadoEm: string
+}
+
+type ProdutoRef = { id: number; sku: string; nome: string; unidade: string }
+type PessoaRef = { id: number; nome: string }
+
+export type Entrada = {
+  id: number
+  fornecedor: PessoaRef | null
+  natureza: 'COMPRA_REVENDA' | 'BONIFICACAO'
+  numeroDocumento: string | null
+  data: string
+  condicaoPagamento: string | null
+  frete: number
+  outrasDespesas: number
+  cfop: string | null
+  documentos: number // quantidade de anexos
+  total: number
+  itens: { id: number; produtoId: number; unidade: string | null; quantidade: number; custoUnitario: number; produto: ProdutoRef }[]
+}
+
+export type StatusPedido = 'ABERTO' | 'FATURADO' | 'CANCELADO'
+
+export type NaturezaPedido = 'VENDA' | 'BONIFICACAO' | 'PERDA'
+
+export type Pedido = {
+  id: number
+  clienteId: number
+  cliente: PessoaRef
+  usuario: PessoaRef | null // quem lançou
+  vendedor: PessoaRef | null
+  medico: PessoaRef | null
+  paciente: PessoaRef | null
+  natureza: NaturezaPedido
+  motivoPerda: string | null
+  promocao: PessoaRef | null
+  descontoPromocao: number
+  status: StatusPedido
+  subtotal: number
+  descontoItens: number
+  desconto: number
+  frete: number
+  total: number
+  observacao: string | null
+  criadoEm: string
+  faturadoEm: string | null
+  formaPagamento: string | null
+  itens: { id: number; produtoId: number; unidade: string | null; quantidade: number; precoUnitario: number; desconto: number; produto: ProdutoRef }[]
+  contasReceber?: Conta[]
+}
+
+export type StatusConta = 'ABERTA' | 'PAGA' | 'CANCELADA'
+
+export type Conta = {
+  id: number
+  pessoa: PessoaRef | null
+  descricao: string
+  valor: number
+  valorPago: number // soma das baixas; o saldo é valor - valorPago
+  vencimento: string
+  status: StatusConta
+  pagoEm: string | null
+}
+
+// Item de uma venda com o que ainda pode ser devolvido e o valor líquido de cada unidade.
+export type SaldoDevolucao = {
+  pedidoItemId: number
+  produto: { sku: string; nome: string; unidade: string }
+  unidade: string
+  quantidade: number
+  devolvido: number
+  disponivel: number
+  valorUnitario: number
+}
+
+export type Devolucao = {
+  id: number
+  pedido: { id: number; cliente: PessoaRef }
+  observacao: string | null
+  valorCredito: number
+  criadoEm: string
+  usuario: PessoaRef | null
+  credito: { id: number; saldo: number; status: string } | null
+  itens: { id: number; quantidade: number; valorUnitario: number; pedidoItem: { unidade: string | null; produto: { sku: string; nome: string; unidade: string } } }[]
+}
+
+export type Credito = {
+  id: number
+  pessoa: PessoaRef
+  devolucao: { id: number; pedido: { id: number } } | null
+  valorOriginal: number
+  saldo: number
+  status: 'DISPONIVEL' | 'ESGOTADO'
+  criadoEm: string
+  // Quem pode usar o crédito: cliente, médico, vendedor e paciente da venda de origem.
+  elegiveis: PessoaRef[]
+  usos: { id: number; valor: number; criadoEm: string; pessoa: PessoaRef; contaReceber: { id: number; descricao: string } }[]
+}
+
+export type TransacaoOfx = { fitId: string; data: string; tipo: 'ENTRADA' | 'SAIDA'; valor: number; descricao: string; duplicada: boolean }
+
+export type ArquivoOfx = { banco: string | null; agencia: string | null; conta: string | null; contaFinanceiraSugeridaId: number | null; transacoes: TransacaoOfx[] }
+
+// O que o sistema propõe para uma linha do extrato, com a pontuação de 0 a 100.
+export type SugestaoConciliacao = {
+  acao: 'BAIXA' | 'VINCULO' | 'CREDITO'
+  tipo: 'CONTA_RECEBER' | 'CONTA_PAGAR' | null
+  contaId: number | null
+  movimentoId: number | null
+  descricao: string
+  pessoa: string | null
+  vencimento: string | null
+  saldo: number | null
+  pontuacao: number
+}
+
+export type LinhaExtrato = {
+  id: number
+  contaFinanceira: PessoaRef
+  fitId: string
+  data: string
+  tipo: 'ENTRADA' | 'SAIDA'
+  valor: number
+  descricao: string
+  arquivo: string | null
+  status: 'PENDENTE' | 'CONCILIADA' | 'IGNORADA'
+  resolucao: 'BAIXA' | 'VINCULO' | 'AVULSO' | 'CREDITO' | null
+  observacao: string | null
+  conciliadoEm: string | null
+  usuario?: PessoaRef | null
+  sugestoes?: SugestaoConciliacao[]
+  movimentos?: { id: number; origem: string; historico: string; valor: number }[]
+}
+
+export type Despesa = {
+  id: number
+  fornecedor: PessoaRef
+  elemento: string
+  descricao: string
+  numeroDocumento: string | null
+  dataEmissao: string
+  dataCompetencia: string
+  valor: number
+  condicaoPagamento: 'A_VISTA' | 'A_PRAZO'
+  formaPagamento: string
+  observacao: string | null
+  status: 'ATIVA' | 'CANCELADA'
+  usuario: PessoaRef | null
+  valorPago: number
+  dataCaixa: string | null // quando a despesa ficou quitada
+  contasPagar: { id: number; valor: number; valorPago: number; vencimento: string; status: StatusConta }[]
+}
+
+export type ListaDespesas = { linhas: Despesa[]; resumo: { quantidade: number; total: number; pago: number } }
+
+export type TipoContaFinanceira = 'CAIXA' | 'CONTA_CORRENTE' | 'CONTA_POUPANCA' | 'CARTEIRA_DIGITAL'
+
+export type ContaFinanceira = {
+  id: number
+  nome: string
+  tipo: TipoContaFinanceira
+  instituicao: string | null
+  codigoBanco: string | null
+  agencia: string | null
+  numeroConta: string | null
+  documentoTitular: string | null
+  saldoInicial: number
+  ativa: boolean
+  saldo: number // saldo inicial + entradas - saídas
+}
+
+export type MovimentoFinanceiro = {
+  id: number
+  contaFinanceira: PessoaRef
+  tipo: 'ENTRADA' | 'SAIDA'
+  valor: number
+  data: string
+  // CREDITO só aparece no histórico da conta a receber; AVULSO e DEPOSITO nascem na conciliação.
+  origem: 'RECEBIMENTO' | 'PAGAMENTO' | 'ESTORNO' | 'CREDITO' | 'AVULSO' | 'DEPOSITO'
+  extratoId?: number | null // linha do extrato do banco com que foi conciliado
+  historico: string
+  observacao: string | null
+  estornado: boolean
+  usuario: PessoaRef | null
+}
+
+export type Extrato = {
+  linhas: MovimentoFinanceiro[]
+  resumo: { saldoInicial: number; entradas: number; saidas: number; saldoFinal: number }
+}
+
+export type StatusEntrega = 'PENDENTE' | 'EM_ROTA' | 'ENTREGUE' | 'FALHOU' | 'CANCELADA'
+
+export type Endereco = {
+  cep: string | null
+  logradouro: string
+  numero: string | null
+  complemento: string | null
+  bairro: string | null
+  cidade: string
+  uf: string | null
+}
+
+export type Entrega = Endereco & {
+  id: number
+  pedidoId: number
+  pedido: { id: number; total: number; cliente: PessoaRef }
+  entregador: PessoaRef | null
+  status: StatusEntrega
+  dataPrevista: string
+  destinatario: string
+  telefone: string | null
+  observacao: string | null
+  saiuEm: string | null
+  concluidaEm: string | null
+  recebedor: string | null
+  motivoFalha: string | null
+  // Dados para a rota; a janela de recebimento vem como "HH:MM".
+  pesoKg: number | null
+  latitude: number | null
+  longitude: number | null
+  inicioRecebimento: string | null
+  fimRecebimento: string | null
+  rota: PessoaRef | null
+  sequencia: number | null
+}
+
+export type Motorista = { id: number; nome: string; telefone: string | null; cnh: string | null; validadeCnh: string | null; ativo: boolean }
+
+export type Veiculo = { id: number; placa: string; descricao: string | null; capacidadeKg: number; ativo: boolean }
+
+export type ParadaRota = {
+  id: number
+  pedidoId: number
+  sequencia: number | null
+  status: StatusEntrega
+  destinatario: string
+  logradouro: string
+  numero: string | null
+  bairro: string | null
+  cidade: string
+  uf: string | null
+  pesoKg: number | null
+  latitude: number | null
+  longitude: number | null
+  inicioRecebimento: string | null
+  fimRecebimento: string | null
+}
+
+export type Rota = {
+  id: number
+  nome: string
+  data: string
+  motorista: PessoaRef
+  veiculo: { id: number; placa: string; descricao: string | null; capacidadeKg: number }
+  pontoSaida: string
+  latitudeSaida: number | null
+  longitudeSaida: number | null
+  // A chave do link só aparece quando ele é gerado; aqui só se sabe se está valendo e até quando.
+  linkAtivo: boolean
+  linkExpiraEm: string | null
+  cargaKg: number
+  entregas: ParadaRota[]
+}
+
+export type HistoricoEntrega = {
+  id: number
+  status: string
+  observacao: string | null
+  origem: 'SISTEMA' | 'ENTREGADOR'
+  usuario: PessoaRef | null
+  criadoEm: string
+}
+
+// O que o entregador vê pelo link da rota.
+export type RotaDoEntregador = {
+  id: number
+  nome: string
+  data: string
+  pontoSaida: string
+  expiraEm: string
+  entregas: {
+    id: number
+    pedidoId: number
+    status: StatusEntrega
+    destinatario: string
+    telefone: string | null
+    endereco: string
+    inicioRecebimento: string | null
+    fimRecebimento: string | null
+    observacaoEntrega: string | null
+    observacaoVenda: string | null
+    recebedor: string | null
+    motivoFalha: string | null
+    valorPedido: number
+    pagamento: string | null
+    itens: { quantidade: number; unidade: string; produto: string }[]
+  }[]
+}
+
+export type RelatorioVendas = {
+  linhas: {
+    id: number
+    criadoEm: string
+    pagoEm: string | null
+    cliente: string
+    natureza: NaturezaPedido
+    vendedor: string | null
+    medico: string | null
+    paciente: string | null
+    status: StatusPedido
+    formaPagamento: string | null
+    frete: number
+    observacao: string | null
+    total: number
+  }[]
+  resumo: { quantidade: number; cancelados: number; total: number; ticketMedio: number }
+}
+
+export type RelatorioFinanceiro = {
+  linhas: {
+    chave: string
+    tipo: 'RECEBER' | 'PAGAR'
+    descricao: string
+    pessoa: string | null
+    vencimento: string
+    pagoEm: string | null
+    status: StatusConta
+    valor: number
+    valorPago: number
+  }[]
+  resumo: { quantidade: number; recebido: number; aReceber: number; pago: number; aPagar: number }
+}
+
+export type Modalidade = 'PERCENTUAL' | 'PRECO' | 'LEVE_PAGUE' | 'COMBO' | 'BRINDE'
+
+export type ItemPromocao = { produtoId: number; quantidade: number; papel: 'COMPRA' | 'BRINDE' }
+
+export type Promocao = {
+  id: number
+  nome: string
+  modalidade: Modalidade
+  inicio: string
+  fim: string
+  percentual: number | null
+  preco: number | null
+  leve: number | null
+  pague: number | null
+  ativo: boolean
+  vigente: boolean
+  itens: (ItemPromocao & { id: number; produto: { id: number; sku: string; nome: string } })[]
+}
+
+export type ItemRanking ={ nome: string; total: number }
+
+export type DashboardComercial = {
+  mes: string
+  kpis: {
+    faturamento: number
+    vendas: number
+    ticketMedio: number
+    descontos: number
+    frete: number
+    custo: number
+    margem: number
+    margemPercentual: number
+  }
+  dias: { dia: number; total: number; vendas: number }[]
+  meses: { mes: string; total: number; vendas: number }[]
+  topVendedores: ItemRanking[]
+  topClientes: ItemRanking[]
+  topProdutos: ItemRanking[]
+}
+
+export type DashboardFinanceiro = {
+  mes: string
+  kpis: {
+    recebido: number
+    pago: number
+    saldo: number
+    aReceber: number
+    aPagar: number
+    vencidoReceber: number
+    vencidoPagar: number
+  }
+  meses: { mes: string; recebido: number; pago: number }[]
+  formas: ItemRanking[]
+}
+
+export type PedidoParaEntrega = { id: number; total: number; faturadoEm: string | null; cliente: Pessoa }
+
+export type Resumo = {
+  entregas: { pendentes: number; emRota: number; falhas: number }
+  vendas: { quantidade: number; total: number; pedidosAbertos: number }
+  receber: { total: number; vencidas: number }
+  pagar: { total: number; vencidas: number }
+  saldoProjetado: number
+  estoque: {
+    valor: number
+    semEstoque: number
+    criticos: { id: number; sku: string; nome: string; saldo: number; estoqueMinimo: number }[]
+  }
+  ultimosPedidos: { id: number; cliente: string; status: StatusPedido; total: number; criadoEm: string }[]
+}
+
+// Linha de item em edição, usada em pedidos e entradas.
+// Quantidade e valor são na unidade escolhida para o lançamento.
+// `desconto` é por unidade do lançamento e só existe nos itens de pedido.
+export type ItemEdicao = { produtoId: number; unidade: string; quantidade: number; valor: number; desconto?: number }

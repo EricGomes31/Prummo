@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "reverse-engineer-anything": {
+      "source": "../../AppData/Local/Temp/claude/c--Users-Eric-Desktop-Douglas/7de25431-c0de-42aa-8216-ace328d5ea16/scratchpad/rea-src/rea-main",
+      "sourceType": "local",
+      "computedHash": "954c401c909ea452d210e93d365be12edf66694ceec9eed4f78a79b3292d595d"
+    },
+    "supabase": {
+      "source": "../../AppData/Local/Temp/claude/c--Users-Eric-Desktop-Douglas/7de25431-c0de-42aa-8216-ace328d5ea16/scratchpad/supabase-skills-src/agent-skills-main",
+      "sourceType": "local",
+      "computedHash": "211141fd078b4b3645803868528d54221bc7755d24d5c8af45a366785c151dba"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "../../AppData/Local/Temp/claude/c--Users-Eric-Desktop-Douglas/7de25431-c0de-42aa-8216-ace328d5ea16/scratchpad/supabase-skills-src/agent-skills-main",
+      "sourceType": "local",
+      "computedHash": "e14e276241805c97dbcfe40dcbea1a3035269cc7293cac4b1832dda41a835e60"
+    }
+  }
+}
