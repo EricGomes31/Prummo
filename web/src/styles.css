@@ -120,6 +120,8 @@ small { font-size: 0.83rem; }
 .lateral .marca-glifo::after { background: var(--preto); box-shadow: 0 10px 0 2px var(--preto); }
 .lateral nav { display: flex; flex-direction: column; gap: 1px; flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; margin-top: 6px; }
 .lateral nav::-webkit-scrollbar { display: none; }
+/* Em tela baixa o menu rola; sem isto os itens encolheriam e os títulos de grupo sumiriam. */
+.lateral nav > * { flex: none; }
 .menu-grupo { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; padding: 16px 12px 6px; white-space: nowrap; overflow: hidden; }
 .menu-grupo:first-child { padding-top: 4px; }
 .lateral nav a { display: flex; align-items: center; gap: 12px; padding: 0 12px; min-height: 38px; border-radius: var(--raio-controle); color: var(--cinza); font-weight: 500; white-space: nowrap; transition: background 0.15s, color 0.15s; }
@@ -225,7 +227,14 @@ input:hover:not(:disabled), select:hover:not(:disabled) { border-color: var(--ci
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; border-color: var(--preto); box-shadow: var(--foco); }
 input::placeholder { color: var(--cinza); }
 input[type='checkbox'], input[type='radio'] { width: 17px; height: 17px; min-height: 0; padding: 0; accent-color: var(--preto); flex: none; }
-input[type='file'] { padding: 7px; min-height: 0; background: var(--superficie-2); }
+/* Seletor de arquivo: o botão nativo do navegador ganha a aparência dos botões do sistema,
+   dentro de uma área tracejada que indica onde o arquivo entra. */
+input[type='file'] { padding: 6px; min-height: var(--altura-controle); background: var(--superficie-2); border-style: dashed; color: var(--suave); cursor: pointer; }
+input[type='file']:hover:not(:disabled) { background: var(--fundo); }
+input[type='file']::file-selector-button { font: inherit; font-weight: 500; height: 30px; padding: 0 12px; margin-right: 12px; border-radius: 6px; border: 1px solid var(--borda-forte); background: var(--superficie); color: var(--tinta); box-shadow: var(--sombra-1); cursor: pointer; transition: background 0.14s, border-color 0.14s; }
+input[type='file']:hover:not(:disabled)::file-selector-button { border-color: var(--cinza); }
+input[type='file']:disabled { cursor: default; }
+input[type='file']:disabled::file-selector-button { opacity: 0.5; cursor: default; }
 input:disabled, select:disabled { background: var(--fundo); color: var(--suave); border-color: var(--borda); }
 input.curto { width: 96px; text-align: right; }
 
@@ -246,6 +255,11 @@ input.curto { width: 96px; text-align: right; }
 /* Painéis e tabelas */
 .painel { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); overflow-x: auto; box-shadow: var(--sombra-1); }
 .painel-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px 8px; }
+/* Formulário direto dentro de um painel (a importação do extrato, por exemplo) precisa de respiro. */
+.painel > .form { padding: 18px; }
+/* Blocos empilhados direto na tela não encostam um no outro. Só vale para filhos diretos da
+   página: dentro de uma grade (duas colunas, por exemplo) o espaço já vem da própria grade. */
+.pagina > .painel + .indicadores, .pagina > .painel + .abas, .pagina > .painel + .painel, .pagina > .indicadores + .abas, .pagina > .cartao + .painel { margin-top: 18px; }
 .painel-topo a { font-size: 0.88rem; font-weight: 500; color: var(--suave); }
 .painel-topo a:hover { color: var(--tinta); text-decoration: none; }
 .cartao { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 20px; margin-bottom: 18px; box-shadow: var(--sombra-1); }
@@ -453,6 +467,7 @@ button.indicador:hover { border-color: var(--preto); }
 @media (max-width: 640px) {
   /* 16px evita que o iPhone aproxime a tela ao tocar em um campo. */
   input, select, textarea { font-size: 16px; }
+  input[type='file']::file-selector-button { height: 34px; }
   :root { --altura-controle: 44px; --altura-topo: 54px; }
 
   .cabecalho { align-items: stretch; flex-direction: column; margin-bottom: 18px; }
