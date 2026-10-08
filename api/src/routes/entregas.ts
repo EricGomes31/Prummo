@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify'
-import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { AppError, dataIso, idParam, prisma, texto } from '../lib.js'
+import { AppError, dataIso, idParam, prisma, texto, type Transacao } from '../lib.js'
 
 const ATIVAS = ['PENDENTE', 'EM_ROTA', 'FALHOU']
 const hora = z
@@ -37,7 +36,7 @@ const comDetalhes = {
   rota: { select: { id: true, nome: true } },
 } as const
 
-type Cliente = Prisma.TransactionClient | typeof prisma
+type Cliente = Transacao | typeof prisma
 // Toda mudança de situação fica no histórico da entrega.
 export const registrarHistorico = (
   db: Cliente,

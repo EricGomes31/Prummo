@@ -1,7 +1,10 @@
 import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
+import { escoparPorEmpresa } from './empresa.js'
 
-export const prisma = new PrismaClient()
+// Toda consulta feita por este cliente fica restrita à empresa da requisição (ver empresa.ts).
+export const prisma = new PrismaClient().$extends(escoparPorEmpresa)
+export type Transacao = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 
 export class AppError extends Error {
   constructor(

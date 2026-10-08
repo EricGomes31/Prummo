@@ -6,7 +6,8 @@ import { Icone, type NomeIcone } from './icones'
 import type { Resumo } from './types'
 import { Campo, Erro, Modal } from './ui'
 
-type ItemMenu = { para: string; rotulo: string; icone: NomeIcone; grupo: string; exige?: string[]; dashboards?: boolean }
+// `sistema`: só para o administrador do sistema.
+type ItemMenu = { para: string; rotulo: string; icone: NomeIcone; grupo: string; exige?: string[]; dashboards?: boolean; sistema?: boolean }
 
 // Cada tela aparece para quem tem ao menos uma das permissões; o início é de todos.
 // Os dashboards são liberados um a um no perfil, então a tela aparece para quem tem algum.
@@ -29,6 +30,7 @@ const menu: ItemMenu[] = [
   { para: '/dashboards', rotulo: 'Dashboards', icone: 'dashboards', grupo: 'Gestão', dashboards: true },
   { para: '/relatorios', rotulo: 'Relatórios', icone: 'relatorios', grupo: 'Gestão', exige: ['RELATORIOS_VISUALIZAR'] },
   { para: '/usuarios', rotulo: 'Usuários', icone: 'usuarios', grupo: 'Sistema', exige: ['USUARIOS_GERENCIAR'] },
+  { para: '/empresas', rotulo: 'Empresas', icone: 'empresas', grupo: 'Sistema', sistema: true },
 ]
 
 const CHAVE_MENU = 'prumo.menu-recolhido'
@@ -109,7 +111,9 @@ export function Layout() {
   }
   if (!usuario) return <Navigate to="/entrar" replace />
 
-  const visiveis = menu.filter((item) => (item.dashboards ? usuario.dashboards.length > 0 : !item.exige || pode(...item.exige)))
+  const visiveis = menu.filter((item) =>
+    item.sistema ? usuario.sistema : item.dashboards ? usuario.dashboards.length > 0 : !item.exige || pode(...item.exige),
+  )
   const atual = visiveis.find((item) => (item.para === '/' ? pathname === '/' : pathname.startsWith(item.para)))
 
   return (
@@ -143,7 +147,7 @@ export function Layout() {
           </span>
           <div className="lateral-usuario">
             <strong title={usuario.nome}>{usuario.nome}</strong>
-            <small>{usuario.perfilNome}</small>
+            <small title={usuario.empresa.nome}>{usuario.empresa.nome}</small>
           </div>
           <button type="button" className="botao-icone" title="Sair" aria-label="Sair" onClick={sair}>
             <Icone nome="sair" />
@@ -181,7 +185,7 @@ export function Layout() {
                 <>
                   <div className="suspenso-titulo">
                     <strong>{usuario.nome}</strong>
-                    <small>{usuario.perfilNome}</small>
+                    <small>{usuario.perfilNome} · {usuario.empresa.nome}</small>
                   </div>
                   <hr />
                   <button type="button" className="suspenso-item" onClick={() => { fechar(); setTrocandoSenha(true) }}>

@@ -6,6 +6,7 @@ import jwt from '@fastify/jwt'
 import { Prisma } from '@prisma/client'
 import { ZodError } from 'zod'
 import { autenticar } from './auth.js'
+import { abrirContexto } from './empresa.js'
 import { AppError } from './lib.js'
 import { autorizar } from './permissoes.js'
 import { rotasAuth, rotasUsuarios } from './routes/usuarios.js'
@@ -22,6 +23,7 @@ import { rotasConciliacao } from './routes/conciliacao.js'
 import { rotasDespesas } from './routes/despesas.js'
 import { rotasDevolucoes } from './routes/devolucoes.js'
 import { rotasDocumentos } from './routes/documentos.js'
+import { rotasEmpresas } from './routes/empresas.js'
 import { rotasPromocoes } from './routes/promocoes.js'
 import { rotasRelatorios } from './routes/relatorios.js'
 
@@ -32,6 +34,9 @@ if (!segredo || segredo.length < 32) {
 
 const app = Fastify({ logger: true })
 
+// Cada requisição ganha o próprio contexto de empresa, definido depois de saber quem chamou (ver empresa.ts).
+app.addHook('onRequest', (_req, _reply, continuar) => abrirContexto(continuar))
+
 await app.register(cors, { origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173' })
 await app.register(jwt, { secret: segredo, sign: { expiresIn: '12h' } })
 
@@ -41,6 +46,10 @@ app.setErrorHandler((err, _req, reply) => {
     const primeiro = err.issues[0]
     const campo = primeiro.path.join('.')
     return reply.status(400).send({ erro: campo ? `${campo}: ${primeiro.message}` : primeiro.message })
+  }
+  // Trava do banco (prisma/empresas.sql): o id enviado é de um registro de outra empresa.
+  if (err instanceof Error && err.message.includes('PRUMO_OUTRA_EMPRESA')) {
+    return reply.status(404).send({ erro: 'Registro não encontrado.' })
   }
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') return reply.status(409).send({ erro: 'Já existe um registro com esse valor.' })
@@ -85,6 +94,7 @@ await app.register(
       await privado.register(rotasLogistica)
       await privado.register(rotasDespesas)
       await privado.register(rotasConciliacao)
+      await privado.register(rotasEmpresas)
     })
   },
   { prefix: prefixo },

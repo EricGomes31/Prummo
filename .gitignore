@@ -5,5 +5,7 @@ dist/
 *.db-journal
 *.bak
 uploads/
+# Cópias do banco (scripts/copiar-banco.mjs): dados reais
+backups/
 # Configuração local do Claude Code de cada máquina
 .claude/settings.local.json

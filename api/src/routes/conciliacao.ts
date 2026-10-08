@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify'
-import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { AppError, idParam, prisma, texto } from '../lib.js'
+import { AppError, idParam, prisma, texto, type Transacao } from '../lib.js'
 import { lerOfx } from '../ofx.js'
 import { registrarBaixa } from './financeiro.js'
 
@@ -78,7 +77,7 @@ function sugerir(linha: Linha, receber: Titulo[], pagar: Titulo[], soltos: Movim
 }
 
 // O que é preciso para sugerir: títulos em aberto e movimentos ainda não ligados a nenhuma linha do extrato.
-async function contexto(db: Prisma.TransactionClient | typeof prisma) {
+async function contexto(db: Transacao | typeof prisma) {
   const aberta = { where: { status: 'ABERTA' }, include: { pessoa }, take: 2000 } as const
   const [receber, pagar, soltos] = await Promise.all([
     db.contaReceber.findMany(aberta),
@@ -89,7 +88,7 @@ async function contexto(db: Prisma.TransactionClient | typeof prisma) {
 }
 
 // Marca a linha como resolvida. A condição no status impede que ela seja conciliada duas vezes.
-async function concluir(tx: Prisma.TransactionClient, id: number, usuarioId: number, resolucao: string | null, status = 'CONCILIADA', observacao?: string | null) {
+async function concluir(tx: Transacao, id: number, usuarioId: number, resolucao: string | null, status = 'CONCILIADA', observacao?: string | null) {
   const { count } = await tx.extratoBancario.updateMany({
     where: { id, status: 'PENDENTE' },
     data: { status, resolucao, observacao: observacao ?? null, conciliadoEm: new Date(), usuarioId },
@@ -97,7 +96,7 @@ async function concluir(tx: Prisma.TransactionClient, id: number, usuarioId: num
   if (count === 0) throw new AppError(409, 'Esta linha do extrato já foi resolvida.')
 }
 
-async function linhaPendente(tx: Prisma.TransactionClient, id: number) {
+async function linhaPendente(tx: Transacao, id: number) {
   const linha = await tx.extratoBancario.findUnique({ where: { id } })
   if (!linha) throw new AppError(404, 'Linha do extrato não encontrada.')
   if (linha.status !== 'PENDENTE') throw new AppError(409, 'Esta linha do extrato já foi resolvida.')
@@ -105,7 +104,7 @@ async function linhaPendente(tx: Prisma.TransactionClient, id: number) {
 }
 
 // Baixa o título pelo valor da linha, na conta e na data do extrato.
-async function conciliarComTitulo(tx: Prisma.TransactionClient, linha: Awaited<ReturnType<typeof linhaPendente>>, tipo: 'CONTA_RECEBER' | 'CONTA_PAGAR', contaId: number, usuarioId: number) {
+async function conciliarComTitulo(tx: Transacao, linha: Awaited<ReturnType<typeof linhaPendente>>, tipo: 'CONTA_RECEBER' | 'CONTA_PAGAR', contaId: number, usuarioId: number) {
   if ((tipo === 'CONTA_RECEBER') !== (linha.tipo === 'ENTRADA')) {
     throw new AppError(400, 'Entradas do extrato baixam contas a receber; saídas baixam contas a pagar.')
   }
@@ -121,7 +120,7 @@ async function conciliarComTitulo(tx: Prisma.TransactionClient, linha: Awaited<R
 }
 
 // Liga a linha a um movimento que já estava lançado, sem baixar nada de novo.
-async function vincular(tx: Prisma.TransactionClient, linha: Awaited<ReturnType<typeof linhaPendente>>, movimentoId: number, usuarioId: number) {
+async function vincular(tx: Transacao, linha: Awaited<ReturnType<typeof linhaPendente>>, movimentoId: number, usuarioId: number) {
   const movimento = await tx.movimentoFinanceiro.findUnique({ where: { id: movimentoId } })
   if (!movimento || movimento.extratoId || movimento.estornado || movimento.origem === 'ESTORNO') throw new AppError(400, 'Este movimento não está disponível para vínculo.')
   if (movimento.contaFinanceiraId !== linha.contaFinanceiraId || movimento.tipo !== linha.tipo || movimento.valor !== linha.valor) {

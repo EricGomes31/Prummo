@@ -3,8 +3,12 @@ export type Perfil = 'ADMIN' | 'OPERADOR'
 // `perfil` é o perfil de fábrica; com `perfilId`, vale o perfil de acesso personalizado, de nome `perfilNome`.
 export type Usuario = { id: number; nome: string; email: string; perfil: Perfil; perfilId: number | null; perfilNome: string; ativo: boolean }
 
-// Usuário da sessão, com os acessos já resolvidos pelo servidor.
-export type UsuarioSessao = Usuario & { permissoes: string[]; dashboards: string[] }
+// Usuário da sessão, com os acessos já resolvidos pelo servidor. `sistema`: administrador do sistema,
+// que além da própria empresa gerencia as empresas que usam o Prumo.
+export type UsuarioSessao = Usuario & { permissoes: string[]; dashboards: string[]; sistema: boolean; empresa: { id: number; nome: string } }
+
+// Empresa que usa o Prumo. Cada uma só vê os próprios dados.
+export type Empresa = { id: number; nome: string; documento: string | null; ativa: boolean; criadoEm: string; usuarios: number }
 
 export type PerfilPadrao = { codigo: Perfil; nome: string; descricao: string; permissoes: string[]; dashboards: string[] }
 

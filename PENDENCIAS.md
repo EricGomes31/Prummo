@@ -4,6 +4,10 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 
 ## Urgente (segurança e acesso)
 
+- [ ] Aplicar no banco real a passagem para várias empresas (código pronto e testado em 08/10/2026, ainda não publicado). Ordem: `node --env-file=.env scripts/copiar-banco.mjs` (já feita uma cópia em `backups/2026-10-08-2242`), `npx prisma db execute --file prisma/migracoes/2026-10-08-empresas.sql --schema prisma/schema.prisma`, `npm run db:push`, e logo em seguida `railway up`. Entre o `db:push` e a publicação, o site antigo não consegue gravar.
+- [ ] Adaptar os importadores (`api/scripts/importar-*.mjs`) para informar a empresa. Depois da passagem para várias empresas, gravação sem empresa é recusada pelo banco.
+- [ ] Numeração dos pedidos por empresa. Hoje o número do pedido é o id, comum a todas as empresas: a segunda empresa não começa no pedido nº 1.
+
 - [x] Trocar a senha do administrador (`admin@prumo.local`). Feito em 08/10/2026: senha aleatória de 24 caracteres, guardada em `SEED_ADMIN_PASSWORD` no `api/.env` desta máquina.
 - [ ] Redefinir a senha do banco no Supabase e atualizar `DATABASE_URL` e `DIRECT_URL` no `api/.env` e nas variáveis do Railway. A senha atual foi digitada em uma conversa.
 - [x] Remover a chave SSH `prumo-deploy`. Feito em 08/10/2026: excluída no cPanel da HostGator e apagada deste computador.

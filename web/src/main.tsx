@@ -17,6 +17,7 @@ import { Promocoes } from './pages/Promocoes'
 import { Relatorios } from './pages/Relatorios'
 import { RotaEntregador } from './pages/RotaEntregador'
 import { Usuarios } from './pages/Usuarios'
+import { Empresas } from './pages/Empresas'
 import { Avisos } from './avisos'
 import { useTabelasEmCartoes } from './tabelas'
 // A fonte vai junto no pacote do sistema, sem depender de serviço externo.
@@ -51,6 +52,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="dashboards" element={<Dashboards />} />
             <Route path="relatorios" element={<Relatorios />} />
             <Route path="usuarios" element={<Usuarios />} />
+            <Route path="empresas" element={<Empresas />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

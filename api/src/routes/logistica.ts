@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
+import { definirEmpresa, semEmpresa } from '../empresa.js'
 import { AppError, dataIso, idParam, prisma, texto } from '../lib.js'
 import { mudarEntrega } from './entregas.js'
 
@@ -171,11 +172,13 @@ export async function rotasEntregador(app: FastifyInstance) {
   async function rotaDoLink(req: FastifyRequest) {
     const { id } = idParam.parse(req.params)
     const chave = String(req.headers['x-rota-token'] ?? '')
-    const rota = await prisma.rota.findUnique({ where: { id } })
+    // O entregador não tem usuário: a empresa vem da própria rota, depois de conferida a chave.
+    const rota = await semEmpresa(async () => await prisma.rota.findUnique({ where: { id } }))
     const recebido = Buffer.from(hashDaChave(chave))
     const esperado = Buffer.from(rota?.linkHash ?? hashDaChave(''))
     const confere = !!rota?.linkHash && !!chave && timingSafeEqual(recebido, esperado)
     if (!rota || !confere || !rota.linkExpiraEm || rota.linkExpiraEm <= new Date()) throw new AppError(401, 'Link indisponível ou expirado.')
+    definirEmpresa(rota.empresaId)
     return rota
   }
 

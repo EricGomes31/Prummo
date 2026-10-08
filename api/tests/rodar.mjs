@@ -75,6 +75,7 @@ try {
   const prisma = path.join('node_modules', 'prisma', 'build', 'index.js')
   executar('Criação das tabelas', [prisma, 'db', 'push', '--skip-generate'], ambiente('modelo'))
   executar('Ativação do RLS', [prisma, 'db', 'execute', '--file', 'prisma/rls.sql', '--schema', 'prisma/schema.prisma'], ambiente('modelo'))
+  executar('Travas por empresa', [prisma, 'db', 'execute', '--file', 'prisma/empresas.sql', '--schema', 'prisma/schema.prisma'], ambiente('modelo'))
   executar('Seed', ['--import', 'tsx', 'prisma/seed.ts'], ambiente('modelo'))
   console.log('pronto.\n')
 
@@ -104,7 +105,8 @@ try {
 
     const r = spawnSync(process.execPath, [path.join('tests', suite)], {
       cwd: raiz,
-      env: { ...process.env, TESTE_API: endereco, TESTE_SENHA_ADMIN: SENHA_ADMIN },
+      // TESTE_BANCO deixa a suíte conferir travas do próprio banco, sem passar pela API.
+      env: { ...process.env, TESTE_API: endereco, TESTE_SENHA_ADMIN: SENHA_ADMIN, TESTE_BANCO: urlDoBanco(banco) },
       encoding: 'utf8',
     })
     api.kill()

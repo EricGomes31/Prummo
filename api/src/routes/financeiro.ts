@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify'
-import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { AppError, dataIso, idParam, prisma, texto } from '../lib.js'
+import { AppError, dataIso, idParam, prisma, texto, type Transacao } from '../lib.js'
 
 const corpo = z.object({
   pessoaId: z.number().int().positive().nullish(),
@@ -48,7 +47,7 @@ export type LadoFinanceiro = keyof typeof lados
 // Baixa uma conta a receber ou a pagar, no todo ou em parte, e lança o movimento na conta financeira.
 // Sem valor, baixa o saldo inteiro. `extratoId` liga o movimento à linha do extrato do banco (conciliação).
 export async function registrarBaixa(
-  tx: Prisma.TransactionClient,
+  tx: Transacao,
   caminho: LadoFinanceiro,
   id: number,
   dados: { valor?: number; data?: Date; contaFinanceiraId: number; observacao?: string | null; usuarioId: number; extratoId?: number },

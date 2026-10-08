@@ -9,33 +9,56 @@ datasource db {
 }
 
 // Valores monetários são inteiros em centavos. Quantidades são inteiras.
+//
+// Cada empresa só enxerga os próprios dados. Todas as tabelas têm `empresaId`, preenchido e filtrado
+// automaticamente pela API (src/empresa.ts). O banco recusa ligar um registro a outro de empresa
+// diferente (prisma/empresas.sql). Fora do usuário, o campo não é declarado como relação de propósito:
+// assim ele pode ir junto em qualquer gravação, inclusive nas aninhadas.
 
-model Usuario {
+model Empresa {
   id        Int      @id @default(autoincrement())
   nome      String
-  email     String   @unique
-  senhaHash String
-  perfil    String   @default("OPERADOR") // ADMIN | OPERADOR: perfil de fábrica, vale quando não há perfilId
+  documento String? // CNPJ ou CPF
+  // Empresa inativa: ninguém dela consegue entrar, e as sessões abertas param na próxima chamada.
+  ativa     Boolean  @default(true)
+  criadoEm  DateTime @default(now())
+
+  usuarios Usuario[]
+}
+
+model Usuario {
+  id           Int           @id @default(autoincrement())
+  empresaId    Int           @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  empresa      Empresa       @relation(fields: [empresaId], references: [id])
+  // Administrador do sistema: além da própria empresa, cria e gerencia as empresas que usam o Prumo.
+  sistema      Boolean       @default(false)
+  nome         String
+  email        String        @unique // único no sistema todo: o login é pelo e-mail, sem escolher empresa
+  senhaHash    String
+  perfil       String        @default("OPERADOR") // ADMIN | OPERADOR: perfil de fábrica, vale quando não há perfilId
   // Perfil de acesso personalizado. Com ele, as permissões vêm do perfil e `perfil` fica OPERADOR.
   perfilId     Int?
   perfilAcesso PerfilAcesso? @relation(fields: [perfilId], references: [id])
-  ativo     Boolean  @default(true)
-  criadoEm  DateTime @default(now())
+  ativo        Boolean       @default(true)
+  criadoEm     DateTime      @default(now())
 
-  entregas   Entrega[]
-  pedidos     Pedido[]
-  movimentos  MovimentoFinanceiro[]
-  devolucoes  Devolucao[]
-  usosCredito CreditoUso[]
+  entregas          Entrega[]
+  pedidos           Pedido[]
+  movimentos        MovimentoFinanceiro[]
+  devolucoes        Devolucao[]
+  usosCredito       CreditoUso[]
   historicoEntregas EntregaHistorico[]
   despesas          Despesa[]
   extratos          ExtratoBancario[]
+
+  @@index([empresaId])
 }
 
 // Perfil de acesso personalizado: conjunto de permissões (ver api/src/permissoes.ts) e de dashboards.
 model PerfilAcesso {
   id         Int      @id @default(autoincrement())
-  nome       String   @unique
+  empresaId  Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  nome       String
   descricao  String?
   permissoes String[]
   dashboards String[] // COMERCIAL | FINANCEIRO
@@ -43,10 +66,13 @@ model PerfilAcesso {
   criadoEm   DateTime @default(now())
 
   usuarios Usuario[]
+
+  @@unique([empresaId, nome])
 }
 
 model Pessoa {
   id           Int      @id @default(autoincrement())
+  empresaId    Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   nome         String
   nomeFantasia String?
   documento    String? // CPF ou CNPJ
@@ -78,16 +104,19 @@ model Pessoa {
   creditos        Credito[]
   usosCredito     CreditoUso[]     @relation("CreditoUsoPessoa")
   despesas        Despesa[]        @relation("DespesaFornecedor")
-  entradas      EntradaEstoque[]
-  contasReceber ContaReceber[]
-  contasPagar   ContaPagar[]
+  entradas        EntradaEstoque[]
+  contasReceber   ContaReceber[]
+  contasPagar     ContaPagar[]
+
+  @@index([empresaId])
 }
 
 model Produto {
   id              Int      @id @default(autoincrement())
-  sku             String   @unique // código interno; gerado quando não informado
+  empresaId       Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  sku             String // código interno; gerado quando não informado
   nome            String // descrição do produto
-  ean             String?  @unique // código de barras
+  ean             String? // código de barras
   unidade         String   @default("UN") // unidade base: estoque, custo e preço são nela
   // Produtos que não controlam estoque (serviços, por exemplo) são vendidos sem conferir nem baixar saldo.
   controlaEstoque Boolean  @default(true)
@@ -107,11 +136,15 @@ model Produto {
   itensPedido  PedidoItem[]
   itensEntrada EntradaItem[]
   promocoes    PromocaoItem[]
+
+  @@unique([empresaId, sku])
+  @@unique([empresaId, ean])
 }
 
 // Unidade extra de entrada e venda. `fator` = quantas dela cabem em 1 unidade base (1 CX = 4 AMP).
 model ProdutoUnidade {
   id         Int     @id @default(autoincrement())
+  empresaId  Int     @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   produtoId  Int
   produto    Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
   sigla      String
@@ -119,20 +152,23 @@ model ProdutoUnidade {
   precoVenda Int? // preço próprio; vazio = preço da unidade base dividido pelo fator
 
   @@unique([produtoId, sigla])
+  @@index([empresaId])
 }
 
 // Arquivo anexado a um registro do sistema. O conteúdo fica em disco, na pasta de uploads, com um
 // nome aleatório (`arquivo`); o nome original é só para exibição e download.
 model Documento {
-  id       Int      @id @default(autoincrement())
-  origem   String // ENTRADA_ESTOQUE | PEDIDO | CONTA_PAGAR | CONTA_RECEBER
-  origemId Int
-  nome     String
-  tamanho  Int // bytes
-  arquivo  String   @unique
-  criadoEm DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  empresaId Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  origem    String // ENTRADA_ESTOQUE | PEDIDO | CONTA_PAGAR | CONTA_RECEBER
+  origemId  Int
+  nome      String
+  tamanho   Int // bytes
+  arquivo   String   @unique
+  criadoEm  DateTime @default(now())
 
   @@index([origem, origemId])
+  @@index([empresaId])
 }
 
 // Campanha promocional. Cada modalidade usa parte dos campos:
@@ -140,6 +176,7 @@ model Documento {
 // COMBO -> preco (do conjunto) | BRINDE -> itens com papel COMPRA e BRINDE
 model Promocao {
   id         Int      @id @default(autoincrement())
+  empresaId  Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   nome       String
   modalidade String
   inicio     DateTime
@@ -153,20 +190,26 @@ model Promocao {
 
   itens   PromocaoItem[]
   pedidos Pedido[]
+
+  @@index([empresaId])
 }
 
 model PromocaoItem {
   id         Int      @id @default(autoincrement())
+  empresaId  Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   promocaoId Int
   promocao   Promocao @relation(fields: [promocaoId], references: [id], onDelete: Cascade)
   produtoId  Int
   produto    Produto  @relation(fields: [produtoId], references: [id])
   quantidade Int      @default(1) // mínima (percentual, preço) ou por conjunto (combo, brinde)
   papel      String   @default("COMPRA") // COMPRA | BRINDE
+
+  @@index([empresaId])
 }
 
 model MovimentoEstoque {
   id         Int      @id @default(autoincrement())
+  empresaId  Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   produtoId  Int
   produto    Produto  @relation(fields: [produtoId], references: [id])
   tipo       String // ENTRADA | SAIDA | AJUSTE
@@ -179,10 +222,12 @@ model MovimentoEstoque {
   criadoEm   DateTime @default(now())
 
   @@index([produtoId])
+  @@index([empresaId])
 }
 
 model EntradaEstoque {
   id                Int      @id @default(autoincrement())
+  empresaId         Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   fornecedorId      Int?
   fornecedor        Pessoa?  @relation(fields: [fornecedorId], references: [id])
   natureza          String   @default("COMPRA_REVENDA") // COMPRA_REVENDA | BONIFICACAO
@@ -197,10 +242,13 @@ model EntradaEstoque {
 
   itens       EntradaItem[]
   contasPagar ContaPagar[]
+
+  @@index([empresaId])
 }
 
 model EntradaItem {
   id            Int            @id @default(autoincrement())
+  empresaId     Int            @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   entradaId     Int
   entrada       EntradaEstoque @relation(fields: [entradaId], references: [id], onDelete: Cascade)
   produtoId     Int
@@ -210,10 +258,13 @@ model EntradaItem {
   custoUnitario Int
   unidade       String? // vazio em lançamentos antigos: vale a unidade base do produto
   fator         Int            @default(1)
+
+  @@index([empresaId])
 }
 
 model Pedido {
   id               Int       @id @default(autoincrement())
+  empresaId        Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   clienteId        Int
   cliente          Pessoa    @relation("PedidoCliente", fields: [clienteId], references: [id])
   // Quem lançou o pedido. O vendedor, o médico e o paciente são pessoas do cadastro, todos opcionais.
@@ -249,32 +300,34 @@ model Pedido {
   devolucoes    Devolucao[]
 
   @@index([status])
+  @@index([empresaId])
 }
 
 // O endereço é copiado do cliente na criação, para que a entrega não mude se o cadastro mudar.
 model Entrega {
-  id           Int       @id @default(autoincrement())
-  pedidoId     Int
-  pedido       Pedido    @relation(fields: [pedidoId], references: [id])
-  entregadorId Int?
-  entregador   Usuario?  @relation(fields: [entregadorId], references: [id])
-  status       String    @default("PENDENTE") // PENDENTE | EM_ROTA | ENTREGUE | FALHOU | CANCELADA
-  dataPrevista DateTime
-  destinatario String
-  telefone     String?
-  cep          String?
-  logradouro   String
-  numero       String?
-  complemento  String?
-  bairro       String?
-  cidade       String
-  uf           String?
-  observacao   String?
-  saiuEm       DateTime?
-  concluidaEm  DateTime?
-  recebedor    String?
-  motivoFalha  String?
-  criadoEm     DateTime  @default(now())
+  id                Int       @id @default(autoincrement())
+  empresaId         Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  pedidoId          Int
+  pedido            Pedido    @relation(fields: [pedidoId], references: [id])
+  entregadorId      Int?
+  entregador        Usuario?  @relation(fields: [entregadorId], references: [id])
+  status            String    @default("PENDENTE") // PENDENTE | EM_ROTA | ENTREGUE | FALHOU | CANCELADA
+  dataPrevista      DateTime
+  destinatario      String
+  telefone          String?
+  cep               String?
+  logradouro        String
+  numero            String?
+  complemento       String?
+  bairro            String?
+  cidade            String
+  uf                String?
+  observacao        String?
+  saiuEm            DateTime?
+  concluidaEm       DateTime?
+  recebedor         String?
+  motivoFalha       String?
+  criadoEm          DateTime  @default(now())
   // Dados para montar a rota: peso da carga, coordenadas e janela em que o destinatário recebe ("HH:MM").
   pesoKg            Float?
   latitude          Float?
@@ -282,7 +335,7 @@ model Entrega {
   inicioRecebimento String?
   fimRecebimento    String?
   rotaId            Int?
-  rota              Rota?   @relation(fields: [rotaId], references: [id])
+  rota              Rota?     @relation(fields: [rotaId], references: [id])
   sequencia         Int? // ordem da parada dentro da rota
 
   historico EntregaHistorico[]
@@ -290,11 +343,13 @@ model Entrega {
   @@index([status])
   @@index([pedidoId])
   @@index([rotaId])
+  @@index([empresaId])
 }
 
 // Cada mudança de situação da entrega, feita no sistema ou pelo entregador no link da rota.
 model EntregaHistorico {
   id         Int      @id @default(autoincrement())
+  empresaId  Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   entregaId  Int
   entrega    Entrega  @relation(fields: [entregaId], references: [id], onDelete: Cascade)
   status     String
@@ -305,10 +360,12 @@ model EntregaHistorico {
   criadoEm   DateTime @default(now())
 
   @@index([entregaId])
+  @@index([empresaId])
 }
 
 model Motorista {
   id          Int       @id @default(autoincrement())
+  empresaId   Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   nome        String
   telefone    String?
   cnh         String?
@@ -317,22 +374,28 @@ model Motorista {
   criadoEm    DateTime  @default(now())
 
   rotas Rota[]
+
+  @@index([empresaId])
 }
 
 model Veiculo {
   id           Int      @id @default(autoincrement())
-  placa        String   @unique
+  empresaId    Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  placa        String
   descricao    String?
   capacidadeKg Float
   ativo        Boolean  @default(true)
   criadoEm     DateTime @default(now())
 
   rotas Rota[]
+
+  @@unique([empresaId, placa])
 }
 
 // Viagem de um motorista com um veículo em um dia, com as entregas em sequência.
 model Rota {
   id             Int       @id @default(autoincrement())
+  empresaId      Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   nome           String
   data           DateTime
   motoristaId    Int
@@ -348,10 +411,13 @@ model Rota {
   criadoEm       DateTime  @default(now())
 
   entregas Entrega[]
+
+  @@index([empresaId])
 }
 
 model PedidoItem {
   id            Int     @id @default(autoincrement())
+  empresaId     Int     @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   pedidoId      Int
   pedido        Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
   produtoId     Int
@@ -366,11 +432,14 @@ model PedidoItem {
   fator         Int     @default(1)
 
   devolucoes DevolucaoItem[]
+
+  @@index([empresaId])
 }
 
 // Devolução de itens de uma venda faturada: devolve o estoque e gera um crédito para o cliente.
 model Devolucao {
   id           Int      @id @default(autoincrement())
+  empresaId    Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   pedidoId     Int
   pedido       Pedido   @relation(fields: [pedidoId], references: [id])
   observacao   String?
@@ -383,10 +452,12 @@ model Devolucao {
   credito Credito?
 
   @@index([pedidoId])
+  @@index([empresaId])
 }
 
 model DevolucaoItem {
   id            Int        @id @default(autoincrement())
+  empresaId     Int        @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   devolucaoId   Int
   devolucao     Devolucao  @relation(fields: [devolucaoId], references: [id], onDelete: Cascade)
   pedidoItemId  Int
@@ -395,12 +466,14 @@ model DevolucaoItem {
   valorUnitario Int // valor líquido por unidade na venda, já com os descontos do pedido
 
   @@index([pedidoItemId])
+  @@index([empresaId])
 }
 
 // Crédito do cliente. Pode ser usado para baixar contas a receber do cliente, do médico, do vendedor
 // ou do paciente da venda que o originou.
 model Credito {
   id            Int        @id @default(autoincrement())
+  empresaId     Int        @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   pessoaId      Int
   pessoa        Pessoa     @relation(fields: [pessoaId], references: [id])
   devolucaoId   Int?       @unique
@@ -413,10 +486,12 @@ model Credito {
   usos CreditoUso[]
 
   @@index([status])
+  @@index([empresaId])
 }
 
 model CreditoUso {
   id             Int          @id @default(autoincrement())
+  empresaId      Int          @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   creditoId      Int
   credito        Credito      @relation(fields: [creditoId], references: [id])
   contaReceberId Int
@@ -429,10 +504,12 @@ model CreditoUso {
   criadoEm       DateTime     @default(now())
 
   @@index([contaReceberId])
+  @@index([empresaId])
 }
 
 model ContaReceber {
   id         Int       @id @default(autoincrement())
+  empresaId  Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   pessoaId   Int?
   pessoa     Pessoa?   @relation(fields: [pessoaId], references: [id])
   pedidoId   Int?
@@ -446,16 +523,18 @@ model ContaReceber {
   pagoEm     DateTime? // data do recebimento que quitou a conta
   criadoEm   DateTime  @default(now())
 
-  movimentos   MovimentoFinanceiro[]
-  usosCredito  CreditoUso[]
+  movimentos  MovimentoFinanceiro[]
+  usosCredito CreditoUso[]
 
   @@index([status])
+  @@index([empresaId])
 }
 
 // Caixa, conta bancária ou carteira digital por onde entram os recebimentos e saem os pagamentos.
 model ContaFinanceira {
   id               Int      @id @default(autoincrement())
-  nome             String   @unique
+  empresaId        Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  nome             String
   tipo             String   @default("CONTA_CORRENTE") // CAIXA | CONTA_CORRENTE | CONTA_POUPANCA | CARTEIRA_DIGITAL
   instituicao      String?
   codigoBanco      String?
@@ -468,14 +547,17 @@ model ContaFinanceira {
 
   movimentos MovimentoFinanceiro[]
   extratos   ExtratoBancario[]
+
+  @@unique([empresaId, nome])
 }
 
 // Extrato das contas financeiras. Cada recebimento ou pagamento, total ou parcial, é um movimento;
 // o estorno não apaga nada: marca o movimento original e lança o movimento contrário.
 model MovimentoFinanceiro {
-  id                Int             @id @default(autoincrement())
+  id                Int              @id @default(autoincrement())
+  empresaId         Int              @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   contaFinanceiraId Int
-  contaFinanceira   ContaFinanceira @relation(fields: [contaFinanceiraId], references: [id])
+  contaFinanceira   ContaFinanceira  @relation(fields: [contaFinanceiraId], references: [id])
   tipo              String // ENTRADA | SAIDA
   valor             Int // sempre positivo
   data              DateTime
@@ -483,13 +565,13 @@ model MovimentoFinanceiro {
   historico         String
   observacao        String?
   contaReceberId    Int?
-  contaReceber      ContaReceber?   @relation(fields: [contaReceberId], references: [id])
+  contaReceber      ContaReceber?    @relation(fields: [contaReceberId], references: [id])
   contaPagarId      Int?
-  contaPagar        ContaPagar?     @relation(fields: [contaPagarId], references: [id])
-  estornado         Boolean         @default(false)
+  contaPagar        ContaPagar?      @relation(fields: [contaPagarId], references: [id])
+  estornado         Boolean          @default(false)
   usuarioId         Int?
-  usuario           Usuario?        @relation(fields: [usuarioId], references: [id])
-  criadoEm          DateTime        @default(now())
+  usuario           Usuario?         @relation(fields: [usuarioId], references: [id])
+  criadoEm          DateTime         @default(now())
   // Linha do extrato do banco com que este movimento foi conciliado.
   extratoId         Int?
   extrato           ExtratoBancario? @relation(fields: [extratoId], references: [id])
@@ -498,12 +580,14 @@ model MovimentoFinanceiro {
   @@index([contaReceberId])
   @@index([contaPagarId])
   @@index([extratoId])
+  @@index([empresaId])
 }
 
 // Linha do extrato do banco, importada de um arquivo OFX. Não mexe no saldo por si só: o saldo muda
 // pelos movimentos, e conciliar é ligar a linha aos movimentos que a explicam.
 model ExtratoBancario {
   id                Int             @id @default(autoincrement())
+  empresaId         Int             @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   contaFinanceiraId Int
   contaFinanceira   ContaFinanceira @relation(fields: [contaFinanceiraId], references: [id])
   fitId             String // identificador da transação no banco; evita importar a mesma linha duas vezes
@@ -525,11 +609,13 @@ model ExtratoBancario {
 
   @@unique([contaFinanceiraId, fitId])
   @@index([status])
+  @@index([empresaId])
 }
 
 // Despesa da empresa (aluguel, energia, frete...). Lançar a despesa gera as contas a pagar dela.
 model Despesa {
   id                Int      @id @default(autoincrement())
+  empresaId         Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   fornecedorId      Int
   fornecedor        Pessoa   @relation("DespesaFornecedor", fields: [fornecedorId], references: [id])
   elemento          String // tipo da despesa, texto livre com sugestão dos já usados
@@ -549,10 +635,12 @@ model Despesa {
   contasPagar ContaPagar[]
 
   @@index([dataCompetencia])
+  @@index([empresaId])
 }
 
 model ContaPagar {
   id         Int             @id @default(autoincrement())
+  empresaId  Int             @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   pessoaId   Int?
   pessoa     Pessoa?         @relation(fields: [pessoaId], references: [id])
   entradaId  Int?
@@ -570,4 +658,5 @@ model ContaPagar {
   movimentos MovimentoFinanceiro[]
 
   @@index([status])
+  @@index([empresaId])
 }

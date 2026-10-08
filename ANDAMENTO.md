@@ -51,6 +51,17 @@ Nesta ordem, cada um com testes, conferência de tela e publicação:
 6. **Despesas:** lançamento à vista ou a prazo, que gera as contas a pagar, com anexos.
 7. **Conciliação bancária:** importação de extrato OFX, sugestões por pontuação, cinco formas de resolver cada linha e conciliação automática.
 
+### Várias empresas
+
+Feito em 08/10/2026. O Prumo deixa de ser de uma empresa só: cada empresa vê apenas os próprios dados, no mesmo banco.
+
+- Tabela `Empresa` e campo `empresaId` em todas as tabelas. SKU, código de barras, placa, nome do perfil e nome da conta financeira são únicos dentro de cada empresa; o e-mail do usuário continua único no sistema todo, porque o login não pergunta a empresa.
+- `api/src/empresa.ts`: cada requisição guarda a empresa do usuário, e o cliente do Prisma acrescenta a empresa em toda consulta e gravação, inclusive nas aninhadas. Consulta sem empresa definida é recusada. Para o que precisa ver todas (login, sessão, link do entregador, administração), há `semEmpresa`.
+- `api/prisma/empresas.sql`: gatilhos no banco recusam ligar um registro a outro de empresa diferente, e o valor padrão do `empresaId` falha se a empresa não for informada. Roda junto com o `npm run db:rls`.
+- Administrador do sistema (`Usuario.sistema`, hoje só o `admin@prumo.local`): tela Sistema → Empresas, onde cria a empresa já com o administrador dela e a conta Caixa, e ativa ou desativa empresas. Empresa inativa não entra, e as sessões abertas caem na próxima chamada.
+- A suíte `empresas` (36 verificações) confere o isolamento pela API e direto no banco.
+- Para o banco que já tinha dados: `api/prisma/migracoes/2026-10-08-empresas.sql` (roda uma vez, antes do `db:push`) cria a empresa "Infinity Labs" e atribui a ela tudo o que existia. Cópia de segurança antes: `api/scripts/copiar-banco.mjs`, que grava em `backups/` (fora do Git).
+
 ### Visual e uso no celular
 
 Feito em 08/10/2026, quase todo em arquivos compartilhados, sem mexer em cada tela. A identidade é preto, branco e cinzas, com cor só para situação e alerta, e fonte Inter (embutida pelo pacote `@fontsource-variable/inter`).
@@ -66,7 +77,7 @@ Para conferir telas sem tocar nos dados reais, suba uma instância com PostgreSQ
 
 ### Testes
 
-A API tem 17 suítes com 469 verificações (`cd api`, depois `npm test`). Elas sobem um PostgreSQL descartável e nunca usam o banco do `.env`. O frontend não tem testes automatizados; cada tela nova foi conferida no navegador, sem gravar nos dados reais.
+A API tem 18 suítes com 505 verificações (`cd api`, depois `npm test`). Elas sobem um PostgreSQL descartável e nunca usam o banco do `.env`. O frontend não tem testes automatizados; cada tela nova foi conferida no navegador, sem gravar nos dados reais.
 
 ## Como retomar
 
