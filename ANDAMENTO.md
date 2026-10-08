@@ -77,7 +77,7 @@ Cuidados ao retomar:
 
 - **O banco é um só.** Toda mudança de estrutura e todo cadastro feito localmente caem nos dados reais e aparecem no site publicado.
 - **Pare a API antes do `prisma generate`.** No Windows, a API em execução segura o arquivo do Prisma e o comando falha com `EPERM`.
-- **Ainda não há histórico de versões.** O Git está instalado e a pasta é um repositório ligado a `github.com/labsinfinitys-svg/Prumo` (privado), mas sem nenhum commit. Até o primeiro commit, um erro em um arquivo não tem como ser desfeito por comando.
+- **O código está no Git desde 08/10/2026.** Repositório privado `github.com/labsinfinitys-svg/Prumo`, branch `main`. Faça um commit ao concluir cada etapa (`git add -A`, `git commit -m "..."`, `git push`). O envio ao GitHub não publica o sistema: a publicação continua por `railway up`.
 - **Sessão do Railway.** Se a CLI pedir login de novo, rode `railway login` e confirme no navegador.
 
 ## Próximos passos, na ordem sugerida
@@ -87,5 +87,5 @@ Cuidados ao retomar:
 3. **Cartões e operadoras:** o último módulo do SG Nexus que falta (liquidações, taxas e prazo de recebimento).
 4. **Testar a conciliação com um extrato OFX real** dos bancos usados.
 5. **Decidir a hospedagem definitiva** (VPS em São Paulo ou banco em East US) e apontar o subdomínio.
-6. **Separar o banco de desenvolvimento** e fazer o primeiro commit no Git.
+6. **Separar o banco de desenvolvimento.**
 7. Os acabamentos e as funções menores do `PENDENCIAS.md`.

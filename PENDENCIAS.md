@@ -26,7 +26,8 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 - [ ] Separar o banco de desenvolvimento do banco de produção. Hoje são o mesmo, e toda mudança de estrutura e todo teste manual caem nos dados reais.
 - [ ] Avaliar o plano pago do Supabase. O gratuito pausa o projeto após cerca de uma semana sem uso e não tem backup automático.
 - [ ] Migrar o `railway.json` para o formato novo do Railway. O atual deixa de ser aceito em 01/12/2026.
-- [ ] Fazer o primeiro commit e enviar ao GitHub. O Git está instalado e a pasta já é um repositório ligado a `github.com/labsinfinitys-svg/Prumo` (privado), mas ainda sem nenhum commit: falta definir o nome e o e-mail do autor.
+- [x] Colocar o projeto no Git. Feito em 08/10/2026: repositório privado `github.com/labsinfinitys-svg/Prumo`, branch `main`.
+- [ ] Ligar o Railway ao repositório do GitHub, para publicar a cada envio. Hoje a publicação continua manual, por `railway up`.
 - [ ] Definir o backup da pasta de anexos (volume `/data` no Railway) junto com o do banco.
 
 ## Antes de desligar o SG Nexus
