@@ -6,7 +6,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 
 - [ ] Trocar a senha do administrador (`admin@prumo.local`). Ela ainda é a inicial do `api/.env`, e o sistema está aberto na internet com dados de 202 pessoas reais.
 - [ ] Redefinir a senha do banco no Supabase e atualizar `DATABASE_URL` e `DIRECT_URL` no `api/.env` e nas variáveis do Railway. A senha atual foi digitada em uma conversa.
-- [ ] Remover a chave SSH `prumo_deploy` da HostGator (cPanel > Acesso SSH > Gerenciar chaves). Ela foi autorizada e não vai ser usada.
+- [ ] Confirmar que a chave SSH `prumo-deploy` saiu da HostGator (cPanel > Acesso SSH > Gerenciar chaves). A cópia que ficava neste computador foi apagada em 08/10/2026, então ninguém mais consegue usá-la; falta só tirar a entrada da lista do cPanel.
 - [ ] Criar os usuários de Douglas e Lethícia, que existem no SG Nexus, cada um com o perfil de acesso adequado.
 
 ## Cadastros a completar
