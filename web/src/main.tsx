@@ -17,10 +17,18 @@ import { Promocoes } from './pages/Promocoes'
 import { Relatorios } from './pages/Relatorios'
 import { RotaEntregador } from './pages/RotaEntregador'
 import { Usuarios } from './pages/Usuarios'
+import { useTabelasEmCartoes } from './tabelas'
 import './styles.css'
+
+// Fica na raiz porque vale para todas as telas, inclusive a do entregador, que não usa o Layout.
+function TabelasEmCartoes() {
+  useTabelasEmCartoes()
+  return null
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <TabelasEmCartoes />
     <BrowserRouter>
       <ProvedorSessao>
         <Routes>

@@ -1,29 +1,42 @@
-import { useState, type FormEvent } from 'react'
-import { Navigate, NavLink, Outlet } from 'react-router-dom'
+import { Fragment, useEffect, useState, type FormEvent } from 'react'
+import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api, useAcao } from './api'
 import { useSessao } from './auth'
+import { Icone, type NomeIcone } from './icones'
 import { Campo, Erro, Modal } from './ui'
+
+type ItemMenu = { para: string; rotulo: string; icone: NomeIcone; grupo: string; exige?: string[]; dashboards?: boolean }
 
 // Cada tela aparece para quem tem ao menos uma das permissões; o início é de todos.
 // Os dashboards são liberados um a um no perfil, então a tela aparece para quem tem algum.
-const menu: { para: string; rotulo: string; exige?: string[]; dashboards?: boolean }[] = [
-  { para: '/', rotulo: 'Início' },
-  { para: '/pessoas', rotulo: 'Pessoas', exige: ['PESSOAS_VISUALIZAR'] },
-  { para: '/produtos', rotulo: 'Produtos e estoque', exige: ['PRODUTOS_VISUALIZAR'] },
-  { para: '/entradas', rotulo: 'Entradas de estoque', exige: ['ESTOQUE_VISUALIZAR', 'ESTOQUE_ENTRADA'] },
-  { para: '/pedidos', rotulo: 'Pedidos e vendas', exige: ['PEDIDOS_VISUALIZAR', 'PEDIDOS_CADASTRAR'] },
-  { para: '/devolucoes', rotulo: 'Devoluções e créditos', exige: ['DEVOLUCOES_VISUALIZAR', 'DEVOLUCOES_REGISTRAR', 'CREDITOS_UTILIZAR'] },
-  { para: '/entregas', rotulo: 'Logística e entregas', exige: ['LOGISTICA_VISUALIZAR', 'LOGISTICA_GERENCIAR'] },
-  { para: '/promocoes', rotulo: 'Promoções', exige: ['PROMOCOES_VISUALIZAR', 'PROMOCOES_GERENCIAR'] },
+const menu: ItemMenu[] = [
+  { para: '/', rotulo: 'Início', icone: 'inicio', grupo: 'Geral' },
+  { para: '/pessoas', rotulo: 'Pessoas', icone: 'pessoas', grupo: 'Cadastros', exige: ['PESSOAS_VISUALIZAR'] },
+  { para: '/produtos', rotulo: 'Produtos e estoque', icone: 'produtos', grupo: 'Cadastros', exige: ['PRODUTOS_VISUALIZAR'] },
+  { para: '/entradas', rotulo: 'Entradas de estoque', icone: 'entradas', grupo: 'Operação', exige: ['ESTOQUE_VISUALIZAR', 'ESTOQUE_ENTRADA'] },
+  { para: '/pedidos', rotulo: 'Pedidos e vendas', icone: 'pedidos', grupo: 'Operação', exige: ['PEDIDOS_VISUALIZAR', 'PEDIDOS_CADASTRAR'] },
+  { para: '/devolucoes', rotulo: 'Devoluções e créditos', icone: 'devolucoes', grupo: 'Operação', exige: ['DEVOLUCOES_VISUALIZAR', 'DEVOLUCOES_REGISTRAR', 'CREDITOS_UTILIZAR'] },
+  { para: '/entregas', rotulo: 'Logística e entregas', icone: 'entregas', grupo: 'Operação', exige: ['LOGISTICA_VISUALIZAR', 'LOGISTICA_GERENCIAR'] },
+  { para: '/promocoes', rotulo: 'Promoções', icone: 'promocoes', grupo: 'Operação', exige: ['PROMOCOES_VISUALIZAR', 'PROMOCOES_GERENCIAR'] },
   {
     para: '/financeiro',
     rotulo: 'Financeiro',
+    icone: 'financeiro',
+    grupo: 'Gestão',
     exige: ['CONTAS_RECEBER_VISUALIZAR', 'CONTAS_RECEBER_BAIXAR', 'CONTAS_PAGAR_VISUALIZAR', 'CONTAS_PAGAR_BAIXAR', 'DESPESAS_VISUALIZAR', 'DESPESAS_LANCAR', 'CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR', 'OFX_IMPORTAR', 'CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR'],
   },
-  { para: '/dashboards', rotulo: 'Dashboards', dashboards: true },
-  { para: '/relatorios', rotulo: 'Relatórios', exige: ['RELATORIOS_VISUALIZAR'] },
-  { para: '/usuarios', rotulo: 'Usuários', exige: ['USUARIOS_GERENCIAR'] },
+  { para: '/dashboards', rotulo: 'Dashboards', icone: 'dashboards', grupo: 'Gestão', dashboards: true },
+  { para: '/relatorios', rotulo: 'Relatórios', icone: 'relatorios', grupo: 'Gestão', exige: ['RELATORIOS_VISUALIZAR'] },
+  { para: '/usuarios', rotulo: 'Usuários', icone: 'usuarios', grupo: 'Sistema', exige: ['USUARIOS_GERENCIAR'] },
 ]
+
+const iniciais = (nome: string) =>
+  nome
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0].toUpperCase())
+    .join('')
 
 export function Marca() {
   return (
@@ -37,32 +50,65 @@ export function Marca() {
 export function Layout() {
   const { usuario, carregando, sair, pode } = useSessao()
   const [trocandoSenha, setTrocandoSenha] = useState(false)
+  // No celular o menu é uma gaveta: abre pelo botão do topo e fecha ao escolher uma tela.
+  const [menuAberto, setMenuAberto] = useState(false)
+  const { pathname } = useLocation()
+  useEffect(() => setMenuAberto(false), [pathname])
+  useEffect(() => {
+    if (!menuAberto) return
+    const aoTeclar = (e: KeyboardEvent) => e.key === 'Escape' && setMenuAberto(false)
+    window.addEventListener('keydown', aoTeclar)
+    return () => window.removeEventListener('keydown', aoTeclar)
+  }, [menuAberto])
 
-  if (carregando) return <p className="aviso tela-cheia">Carregando…</p>
+  if (carregando) {
+    return (
+      <div className="estado tela-cheia" role="status">
+        <span className="girando" />
+        Carregando…
+      </div>
+    )
+  }
   if (!usuario) return <Navigate to="/entrar" replace />
+
+  const visiveis = menu.filter((item) => (item.dashboards ? usuario.dashboards.length > 0 : !item.exige || pode(...item.exige)))
 
   return (
     <div className="app">
-      <aside className="lateral">
+      <header className="topo-movel">
+        <button type="button" className="botao-icone" aria-label="Abrir o menu" aria-expanded={menuAberto} onClick={() => setMenuAberto(true)}>
+          <Icone nome="menu" />
+        </button>
         <Marca />
-        <nav>
-          {menu
-            .filter((item) => (item.dashboards ? usuario.dashboards.length > 0 : !item.exige || pode(...item.exige)))
-            .map((item) => (
-              <NavLink key={item.para} to={item.para} end={item.para === '/'}>
+      </header>
+      {menuAberto && <button type="button" className="lateral-fundo" aria-label="Fechar o menu" onClick={() => setMenuAberto(false)} />}
+      <aside className={`lateral ${menuAberto ? 'aberta' : ''}`}>
+        <Marca />
+        <nav aria-label="Telas do sistema">
+          {visiveis.map((item, i) => (
+            <Fragment key={item.para}>
+              {item.grupo !== visiveis[i - 1]?.grupo && <span className="menu-grupo">{item.grupo}</span>}
+              <NavLink to={item.para} end={item.para === '/'}>
+                <Icone nome={item.icone} />
                 {item.rotulo}
               </NavLink>
-            ))}
+            </Fragment>
+          ))}
         </nav>
         <div className="lateral-pe">
-          <strong>{usuario.nome}</strong>
-          <small>{usuario.perfilNome}</small>
+          <span className="avatar" aria-hidden="true">
+            {iniciais(usuario.nome)}
+          </span>
+          <div className="lateral-usuario">
+            <strong title={usuario.nome}>{usuario.nome}</strong>
+            <small>{usuario.perfilNome}</small>
+          </div>
           <div className="lateral-acoes">
-            <button type="button" className="botao botao-texto" onClick={() => setTrocandoSenha(true)}>
-              Alterar senha
+            <button type="button" className="botao-icone" title="Alterar senha" aria-label="Alterar senha" onClick={() => setTrocandoSenha(true)}>
+              <Icone nome="chave" />
             </button>
-            <button type="button" className="botao botao-texto" onClick={sair}>
-              Sair
+            <button type="button" className="botao-icone" title="Sair" aria-label="Sair" onClick={sair}>
+              <Icone nome="sair" />
             </button>
           </div>
         </div>

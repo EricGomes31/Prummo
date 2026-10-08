@@ -1,6 +1,10 @@
 import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { brl, centavosParaTexto, inteiro, paraCentavos, qtd, saldoBase, unidadesDe } from './format'
+import { Icone } from './icones'
 import type { ItemEdicao, Produto } from './types'
+
+// Quantas janelas estão abertas: a rolagem da página só volta quando a última fecha.
+let janelasAbertas = 0
 
 export function Cabecalho({ titulo, descricao, children }: { titulo: string; descricao?: string; children?: ReactNode }) {
   return (
@@ -22,13 +26,23 @@ export function Modal(props: { titulo: string; onFechar: () => void; largo?: boo
     return () => window.removeEventListener('keydown', aoTeclar)
   }, [onFechar])
 
+  // Com a janela aberta, a página por trás não rola.
+  useEffect(() => {
+    janelasAbertas++
+    document.body.style.overflow = 'hidden'
+    return () => {
+      janelasAbertas--
+      if (janelasAbertas === 0) document.body.style.overflow = ''
+    }
+  }, [])
+
   return (
     <div className="modal-fundo" onMouseDown={(e) => e.target === e.currentTarget && onFechar()}>
       <div className={`modal ${props.largo ? 'modal-largo' : ''}`} role="dialog" aria-modal="true" aria-label={props.titulo}>
         <div className="modal-topo">
           <h2>{props.titulo}</h2>
           <button type="button" className="botao-icone" onClick={onFechar} aria-label="Fechar">
-            ×
+            <Icone nome="fechar" />
           </button>
         </div>
         {props.children}
@@ -77,8 +91,23 @@ export function Selo({ valor, tom }: { valor: string; tom?: string }) {
 // Estados de lista: carregando, erro, vazia. Devolve null quando há linhas para mostrar.
 export function EstadoLista(props: { carregando: boolean; erro: string; vazia: boolean; textoVazio: string }) {
   if (props.erro) return <Erro mensagem={props.erro} />
-  if (props.carregando && props.vazia) return <p className="aviso">Carregando…</p>
-  if (props.vazia) return <p className="aviso">{props.textoVazio}</p>
+  if (props.carregando && props.vazia) {
+    return (
+      <div className="estado" role="status">
+        <span className="girando" />
+        Carregando…
+      </div>
+    )
+  }
+  // Sem texto para a lista vazia, quem chama mostra o próprio conteúdo.
+  if (props.vazia && props.textoVazio) {
+    return (
+      <div className="estado">
+        <Icone nome="vazio" />
+        {props.textoVazio}
+      </div>
+    )
+  }
   return null
 }
 

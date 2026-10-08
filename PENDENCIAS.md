@@ -4,7 +4,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 
 ## Urgente (segurança e acesso)
 
-- [ ] Trocar a senha do administrador (`admin@prumo.local`). Ela ainda é a inicial do `api/.env`, e o sistema está aberto na internet com dados de 202 pessoas reais.
+- [x] Trocar a senha do administrador (`admin@prumo.local`). Feito em 08/10/2026: senha aleatória de 24 caracteres, guardada em `SEED_ADMIN_PASSWORD` no `api/.env` desta máquina.
 - [ ] Redefinir a senha do banco no Supabase e atualizar `DATABASE_URL` e `DIRECT_URL` no `api/.env` e nas variáveis do Railway. A senha atual foi digitada em uma conversa.
 - [x] Remover a chave SSH `prumo-deploy`. Feito em 08/10/2026: excluída no cPanel da HostGator e apagada deste computador.
 - [ ] Criar os usuários de Douglas e Lethícia, que existem no SG Nexus, cada um com o perfil de acesso adequado.
@@ -81,6 +81,9 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 
 ## Acabamento
 
+- [x] Visual novo e telas responsivas. Feito em 08/10/2026: menu com ícones e grupos, gaveta no celular, tabelas largas em cartões, janelas em tela cheia com botões fixos.
+- [ ] Conferir no celular as telas que não passaram por print depois do visual novo: Entradas, Devoluções, Logística, Promoções, Relatórios, Usuários, Despesas, Caixa e bancos e Conciliação.
+- [ ] Modo escuro.
 - [ ] Esconder, em cada tela, os botões das operações que o perfil do usuário não permite. Hoje eles aparecem e a API recusa com uma mensagem.
 - [ ] Criar as permissões dos cartões e operadoras, quando o módulo entrar.
 - [ ] Máscara de CPF/CNPJ, telefone e CEP na exibição. Os dados importados estão só com dígitos.

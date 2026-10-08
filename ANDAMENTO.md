@@ -13,7 +13,7 @@ O Prumo está publicado e funcionando, com os dados do SG Nexus importados. Dos 
 | Sistema publicado | https://prumo-production-1731.up.railway.app |
 | Hospedagem | Railway, projeto e serviço `prumo`, conta `labsinfinitys@gmail.com`, região US East. Volume `/data` para os anexos |
 | Banco de dados | Supabase, projeto `nufzrlourvsxujwxwufn`, região São Paulo. É o mesmo banco para o ambiente local e para o publicado |
-| Login do administrador | `admin@prumo.local`; a senha é `SEED_ADMIN_PASSWORD` no `api/.env` (ainda é a inicial) |
+| Login do administrador | `admin@prumo.local`; a senha é `SEED_ADMIN_PASSWORD` no `api/.env` (trocada em 08/10/2026 por uma aleatória) |
 | Sistema de origem | https://infinitylabs.sgnexus.com.br (SG Nexus), API em `sg-nexus-infinitylabs-api.onrender.com` |
 | Domínio da empresa | `labsinfinity.com.br`, DNS na Cloudflare. O site atual fica na HostGator, que não roda Node |
 
@@ -51,6 +51,16 @@ Nesta ordem, cada um com testes, conferência de tela e publicação:
 6. **Despesas:** lançamento à vista ou a prazo, que gera as contas a pagar, com anexos.
 7. **Conciliação bancária:** importação de extrato OFX, sugestões por pontuação, cinco formas de resolver cada linha e conciliação automática.
 
+### Visual e uso no celular
+
+Feito em 08/10/2026, quase todo em três arquivos, sem mexer em cada tela:
+
+- `web/src/styles.css`: as medidas e cores ficam nas variáveis do topo; os pontos de quebra são 1100, 900, 640 e 340 px.
+- `web/src/Layout.tsx` e `web/src/icones.tsx`: menu com ícones e grupos; abaixo de 900 px ele vira uma gaveta aberta pelo botão do topo.
+- `web/src/tabelas.ts`: no celular, toda tabela com quatro colunas ou mais vira uma lista de cartões. Vale automaticamente para tabelas novas, desde que tenham `<thead>`.
+
+Para conferir telas sem tocar nos dados reais, suba uma instância com PostgreSQL descartável, como o executor dos testes faz (`api/tests/rodar.mjs`), e aponte o Vite para ela com a variável `API_URL`.
+
 ### Testes
 
 A API tem 17 suítes com 469 verificações (`cd api`, depois `npm test`). Elas sobem um PostgreSQL descartável e nunca usam o banco do `.env`. O frontend não tem testes automatizados; cada tela nova foi conferida no navegador, sem gravar nos dados reais.
@@ -82,7 +92,7 @@ Cuidados ao retomar:
 
 ## Próximos passos, na ordem sugerida
 
-1. **Segurança, antes de qualquer uso real:** trocar a senha do administrador e redefinir a senha do banco no Supabase.
+1. **Segurança, antes de qualquer uso real:** redefinir a senha do banco no Supabase. A senha do administrador já foi trocada.
 2. **Cadastros que destravam o uso:** usuários de Douglas e Lethícia, fornecedores e prestadores, contas bancárias com o número da conta, e as classificações de vendedor, médico e paciente nas pessoas.
 3. **Cartões e operadoras:** o último módulo do SG Nexus que falta (liquidações, taxas e prazo de recebimento).
 4. **Testar a conciliação com um extrato OFX real** dos bancos usados.
