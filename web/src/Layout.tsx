@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { api, useAcao } from './api'
+import { api, useAcao, useCarregando } from './api'
 import { useSessao } from './auth'
 import { Icone, type NomeIcone } from './icones'
 import { Campo, Erro, Modal } from './ui'
@@ -53,7 +53,12 @@ export function Layout() {
   // No celular o menu é uma gaveta: abre pelo botão do topo e fecha ao escolher uma tela.
   const [menuAberto, setMenuAberto] = useState(false)
   const { pathname } = useLocation()
-  useEffect(() => setMenuAberto(false), [pathname])
+  const carregandoDados = useCarregando()
+  // Cada tela nova começa fechando a gaveta e do topo, e não onde a anterior estava rolada.
+  useEffect(() => {
+    setMenuAberto(false)
+    window.scrollTo(0, 0)
+  }, [pathname])
   useEffect(() => {
     if (!menuAberto) return
     const aoTeclar = (e: KeyboardEvent) => e.key === 'Escape' && setMenuAberto(false)
@@ -75,6 +80,7 @@ export function Layout() {
 
   return (
     <div className="app">
+      {carregandoDados && <div className="barra-carregando" role="progressbar" aria-label="Carregando" />}
       <header className="topo-movel">
         <button type="button" className="botao-icone" aria-label="Abrir o menu" aria-expanded={menuAberto} onClick={() => setMenuAberto(true)}>
           <Icone nome="menu" />
@@ -114,7 +120,10 @@ export function Layout() {
         </div>
       </aside>
       <main className="conteudo">
-        <Outlet />
+        {/* A chave refaz o bloco a cada tela, e é isso que dispara a animação de entrada. */}
+        <div key={pathname} className="pagina">
+          <Outlet />
+        </div>
       </main>
       {trocandoSenha && <TrocarSenha onFechar={() => setTrocandoSenha(false)} />}
     </div>

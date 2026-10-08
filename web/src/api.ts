@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
 const CHAVE_TOKEN = 'prumo.token'
 export const EVENTO_SAIR = 'prumo:sair'
@@ -18,7 +18,34 @@ export class ApiError extends Error {
   }
 }
 
+// Quantas chamadas à API estão em andamento. A barra de carregamento do topo acompanha este número.
+let emAndamento = 0
+const ouvintes = new Set<() => void>()
+function contar(passo: 1 | -1) {
+  emAndamento += passo
+  ouvintes.forEach((avisar) => avisar())
+}
+
+export function useCarregando() {
+  return useSyncExternalStore(
+    (avisar) => {
+      ouvintes.add(avisar)
+      return () => ouvintes.delete(avisar)
+    },
+    () => emAndamento > 0,
+  )
+}
+
 export async function api<T>(caminho: string, opcoes: { method?: string; body?: unknown } = {}): Promise<T> {
+  contar(1)
+  try {
+    return await chamar<T>(caminho, opcoes)
+  } finally {
+    contar(-1)
+  }
+}
+
+async function chamar<T>(caminho: string, opcoes: { method?: string; body?: unknown }): Promise<T> {
   const atual = token.ler()
   const temCorpo = opcoes.body !== undefined
   let res: Response

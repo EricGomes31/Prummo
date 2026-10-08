@@ -58,6 +58,7 @@ Feito em 08/10/2026, quase todo em três arquivos, sem mexer em cada tela:
 - `web/src/styles.css`: as medidas e cores ficam nas variáveis do topo; os pontos de quebra são 1100, 900, 640 e 340 px.
 - `web/src/Layout.tsx` e `web/src/icones.tsx`: menu com ícones e grupos; abaixo de 900 px ele vira uma gaveta aberta pelo botão do topo.
 - `web/src/tabelas.ts`: no celular, toda tabela com quatro colunas ou mais vira uma lista de cartões. Vale automaticamente para tabelas novas, desde que tenham `<thead>`.
+- Transições: cada tela entra com um leve deslize (bloco `.pagina` no `Layout.tsx`), o conteúdo aparece esmaecendo e uma barra no topo acompanha as chamadas à API (`useCarregando` em `web/src/api.ts`). As animações ficam no começo do `styles.css` e respeitam a preferência do sistema por menos movimento.
 
 Para conferir telas sem tocar nos dados reais, suba uma instância com PostgreSQL descartável, como o executor dos testes faz (`api/tests/rodar.mjs`), e aponte o Vite para ela com a variável `API_URL`.
 
