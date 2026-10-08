@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import type { Classificacao, Pessoa } from '../types'
-import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
 type Rascunho = Omit<Pessoa, 'id'> & { id?: number }
 
@@ -28,6 +28,7 @@ export function Pessoas() {
   const { dados, erro, carregando, recarregar } = useDados<Pessoa[]>(`/pessoas?${consulta}`)
   const [editando, setEditando] = useState<Rascunho | null>(null)
   const pessoas = dados ?? []
+  const paginas = usePaginacao(pessoas)
 
   return (
     <>
@@ -64,7 +65,7 @@ export function Pessoas() {
               </tr>
             </thead>
             <tbody>
-              {pessoas.map((p) => (
+              {paginas.visiveis.map((p) => (
                 <tr key={p.id} className={p.ativo ? '' : 'linha-inativa'}>
                   <td>
                     {p.nome} {!p.ativo && <Selo valor="Inativa" tom="apagado" />}
@@ -84,6 +85,7 @@ export function Pessoas() {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
 
       {editando && (

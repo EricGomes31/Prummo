@@ -83,6 +83,13 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 
 - [x] Visual novo e telas responsivas. Feito em 08/10/2026: menu com ícones e grupos, gaveta no celular, tabelas largas em cartões, janelas em tela cheia com botões fixos.
 - [ ] Conferir no celular as telas que não passaram por print depois do visual novo: Entradas, Devoluções, Logística, Promoções, Relatórios, Usuários, Despesas, Caixa e bancos e Conciliação.
+- [x] Redesenho em preto, branco e cinza. Feito em 08/10/2026: menu escuro recolhível, barra superior com busca de telas e notificações, avisos rápidos, esqueleto de carregamento, paginação e tela de login nova.
+- [ ] Paginação nas demais listas. Hoje só Pessoas, Produtos e Pedidos usam `usePaginacao`.
+- [ ] Busca do topo achar também registros (pessoas, produtos, pedidos). Hoje ela encontra telas.
+- [ ] Comparação com o período anterior nos indicadores ("+12,5% vs. mês anterior"). A API ainda não calcula o período anterior.
+- [ ] Filtros rápidos de período nos dashboards (hoje, 7, 30 e 90 dias). Hoje a escolha é por mês.
+- [ ] Seleção múltipla e menu de ações "..." nas tabelas. Não há ações em lote no sistema ainda.
+- [ ] Visualização dos produtos em cartões, como alternativa à tabela.
 - [ ] Modo escuro.
 - [ ] Esconder, em cada tela, os botões das operações que o perfil do usuário não permite. Hoje eles aparecem e a API recusa com uma mensagem.
 - [ ] Criar as permissões dos cartões e operadoras, quando o módulo entrar.

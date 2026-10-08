@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { brl, dataBr, formasPagamento, hojeIso, inteiro, motivosPerda, naturezasPedido, unidadesDe } from '../format'
 import type { Classificacao, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
-import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens } from '../ui'
+import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, usePaginacao } from '../ui'
 
 export function Pedidos() {
   const [status, setStatus] = useState('')
@@ -11,6 +11,7 @@ export function Pedidos() {
   const [vendo, setVendo] = useState<Pedido | null>(null)
   const [faturando, setFaturando] = useState<Pedido | null>(null)
   const pedidos = dados ?? []
+  const paginas = usePaginacao(pedidos)
 
   const fecharTudo = () => {
     setEditando(null)
@@ -55,7 +56,7 @@ export function Pedidos() {
               </tr>
             </thead>
             <tbody>
-              {pedidos.map((p) => (
+              {paginas.visiveis.map((p) => (
                 <tr key={p.id}>
                   <td className="texto-suave">#{p.id}</td>
                   <td>{naturezasPedido[p.natureza] ?? p.natureza}</td>
@@ -87,6 +88,7 @@ export function Pedidos() {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
 
       {editando && <FormPedido pedido={editando === 'novo' ? null : editando} onFechar={() => setEditando(null)} onSalvo={fecharTudo} />}

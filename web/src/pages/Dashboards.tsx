@@ -7,7 +7,7 @@ import type { DashboardComercial, DashboardFinanceiro } from '../types'
 import { Cabecalho, EstadoLista } from '../ui'
 
 // Cores dos gráficos: par validado para daltonismo e contraste sobre fundo branco.
-const COR = { principal: '#5b3df5', secundaria: '#eb6834', apagada: '#c9c7d1' }
+const COR = { principal: '#3b82f6', secundaria: '#eb6834', apagada: '#d4d4d8' }
 
 const dataDoMes = (mes: string) => new Date(Number(mes.slice(0, 4)), Number(mes.slice(5)) - 1, 1)
 const mesPorExtenso = (mes: string) => dataDoMes(mes).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })

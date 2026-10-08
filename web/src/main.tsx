@@ -17,7 +17,10 @@ import { Promocoes } from './pages/Promocoes'
 import { Relatorios } from './pages/Relatorios'
 import { RotaEntregador } from './pages/RotaEntregador'
 import { Usuarios } from './pages/Usuarios'
+import { Avisos } from './avisos'
 import { useTabelasEmCartoes } from './tabelas'
+// A fonte vai junto no pacote do sistema, sem depender de serviço externo.
+import '@fontsource-variable/inter'
 import './styles.css'
 
 // Fica na raiz porque vale para todas as telas, inclusive a do entregador, que não usa o Layout.
@@ -29,6 +32,7 @@ function TabelasEmCartoes() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <TabelasEmCartoes />
+    <Avisos />
     <BrowserRouter>
       <ProvedorSessao>
         <Routes>

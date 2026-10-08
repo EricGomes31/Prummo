@@ -91,11 +91,15 @@ export function Selo({ valor, tom }: { valor: string; tom?: string }) {
 // Estados de lista: carregando, erro, vazia. Devolve null quando há linhas para mostrar.
 export function EstadoLista(props: { carregando: boolean; erro: string; vazia: boolean; textoVazio: string }) {
   if (props.erro) return <Erro mensagem={props.erro} />
+  // Enquanto os dados não chegam, linhas de esqueleto ocupam o lugar do conteúdo.
   if (props.carregando && props.vazia) {
     return (
-      <div className="estado" role="status">
-        <span className="girando" />
-        Carregando…
+      <div className="esqueleto" role="status" aria-label="Carregando">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
       </div>
     )
   }
@@ -111,7 +115,40 @@ export function EstadoLista(props: { carregando: boolean; erro: string; vazia: b
   return null
 }
 
-type PropsDinheiro = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
+// Divide uma lista em páginas. Devolve as linhas da página atual e o rodapé com os controles,
+// que só aparece quando a lista passa de uma página. Mudar a lista (um filtro, uma busca) volta
+// para a primeira página.
+export function usePaginacao<T>(itens: T[], porPagina = 25) {
+  const [pagina, setPagina] = useState(1)
+  const paginas = Math.max(1, Math.ceil(itens.length / porPagina))
+  const atual = Math.min(pagina, paginas)
+  useEffect(() => setPagina(1), [itens.length])
+
+  const inicio = (atual - 1) * porPagina
+  const visiveis = itens.slice(inicio, inicio + porPagina)
+  const controle =
+    paginas > 1 ? (
+      <nav className="paginacao" aria-label="Páginas">
+        <span>
+          {inicio + 1} a {inicio + visiveis.length} de {itens.length}
+        </span>
+        <div>
+          <button type="button" className="botao" disabled={atual === 1} onClick={() => setPagina(atual - 1)}>
+            Anterior
+          </button>
+          <span>
+            {atual} de {paginas}
+          </span>
+          <button type="button" className="botao" disabled={atual === paginas} onClick={() => setPagina(atual + 1)}>
+            Próxima
+          </button>
+        </div>
+      </nav>
+    ) : null
+  return { visiveis, controle }
+}
+
+type PropsDinheiro =Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
   valor: number
   onChange: (centavos: number) => void
 }

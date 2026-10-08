@@ -53,10 +53,12 @@ Nesta ordem, cada um com testes, conferência de tela e publicação:
 
 ### Visual e uso no celular
 
-Feito em 08/10/2026, quase todo em três arquivos, sem mexer em cada tela:
+Feito em 08/10/2026, quase todo em arquivos compartilhados, sem mexer em cada tela. A identidade é preto, branco e cinzas, com cor só para situação e alerta, e fonte Inter (embutida pelo pacote `@fontsource-variable/inter`).
 
 - `web/src/styles.css`: as medidas e cores ficam nas variáveis do topo; os pontos de quebra são 1100, 900, 640 e 340 px.
-- `web/src/Layout.tsx` e `web/src/icones.tsx`: menu com ícones e grupos; abaixo de 900 px ele vira uma gaveta aberta pelo botão do topo.
+- `web/src/Layout.tsx` e `web/src/icones.tsx`: menu lateral escuro com ícones e grupos, que recolhe para só os ícones (a escolha fica no navegador) e vira gaveta abaixo de 900 px. A barra superior tem a trilha da tela, a busca de telas (Ctrl K), as notificações (os mesmos alertas do Início) e o menu da conta.
+- `web/src/avisos.tsx`: avisos rápidos no canto da tela. Toda gravação que dá certo confirma sozinha, pela função `confirmar` em `web/src/api.ts`.
+- `web/src/ui.tsx`: esqueleto de carregamento nas listas e `usePaginacao`, já usada em Pessoas, Produtos e Pedidos (25 por página).
 - `web/src/tabelas.ts`: no celular, toda tabela com quatro colunas ou mais vira uma lista de cartões. Vale automaticamente para tabelas novas, desde que tenham `<thead>`.
 - Transições: cada tela entra com um leve deslize (bloco `.pagina` no `Layout.tsx`), o conteúdo aparece esmaecendo e uma barra no topo acompanha as chamadas à API (`useCarregando` em `web/src/api.ts`). As animações ficam no começo do `styles.css` e respeitam a preferência do sistema por menos movimento.
 

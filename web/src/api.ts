@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { avisar } from './avisos'
 
 const CHAVE_TOKEN = 'prumo.token'
 export const EVENTO_SAIR = 'prumo:sair'
@@ -23,23 +24,39 @@ let emAndamento = 0
 const ouvintes = new Set<() => void>()
 function contar(passo: 1 | -1) {
   emAndamento += passo
-  ouvintes.forEach((avisar) => avisar())
+  ouvintes.forEach((notificar) => notificar())
 }
 
 export function useCarregando() {
   return useSyncExternalStore(
-    (avisar) => {
-      ouvintes.add(avisar)
-      return () => ouvintes.delete(avisar)
+    (notificar) => {
+      ouvintes.add(notificar)
+      return () => ouvintes.delete(notificar)
     },
     () => emAndamento > 0,
   )
 }
 
+// Confirmação curta depois de uma gravação que deu certo. Consultas não avisam, e também ficam de
+// fora o login e a simulação de campanha, que usam POST mas não gravam nada.
+function confirmar(metodo: string, caminho: string) {
+  if (metodo === 'GET' || /^\/auth\/login|\/simular$/.test(caminho)) return
+  const texto =
+    metodo === 'DELETE' ? 'Removido.'
+    : /\/cancelar$/.test(caminho) ? 'Cancelado.'
+    : /\/estornar$/.test(caminho) ? 'Estorno registrado.'
+    : /\/faturar$/.test(caminho) ? 'Pedido faturado.'
+    : /\/baixar$/.test(caminho) ? 'Baixa registrada.'
+    : 'Salvo.'
+  avisar('sucesso', texto)
+}
+
 export async function api<T>(caminho: string, opcoes: { method?: string; body?: unknown } = {}): Promise<T> {
   contar(1)
   try {
-    return await chamar<T>(caminho, opcoes)
+    const resposta = await chamar<T>(caminho, opcoes)
+    confirmar(opcoes.method ?? (opcoes.body !== undefined ? 'POST' : 'GET'), caminho)
+    return resposta
   } finally {
     contar(-1)
   }

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { brl, dataBr, inteiro, qtd, saldoBase, unidades } from '../format'
 import type { Movimento, Produto } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
 type Rascunho = Omit<Produto, 'id' | 'saldo' | 'divisor'> & { id?: number }
 
@@ -16,6 +16,7 @@ export function Produtos() {
   const [editando, setEditando] = useState<Rascunho | null>(null)
   const [estoqueDe, setEstoqueDe] = useState<Produto | null>(null)
   const produtos = dados ?? []
+  const paginas = usePaginacao(produtos)
 
   return (
     <>
@@ -45,7 +46,7 @@ export function Produtos() {
               </tr>
             </thead>
             <tbody>
-              {produtos.map((p) => (
+              {paginas.visiveis.map((p) => (
                 <tr key={p.id} className={p.ativo ? '' : 'linha-inativa'}>
                   <td className="texto-suave">{p.sku}</td>
                   <td>
@@ -85,6 +86,7 @@ export function Produtos() {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
 
       {editando && (

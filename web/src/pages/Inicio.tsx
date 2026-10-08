@@ -1,15 +1,18 @@
 import { Link } from 'react-router-dom'
 import { useDados } from '../api'
+import { useSessao } from '../auth'
 import { brl, dataBr, qtd } from '../format'
+import { Icone, type NomeIcone } from '../icones'
 import type { Resumo } from '../types'
 import { Cabecalho, EstadoLista, Selo } from '../ui'
 
 export function Inicio() {
   const { dados, erro, carregando, recarregar } = useDados<Resumo>('/dashboard/resumo')
+  const primeiroNome = useSessao().usuario?.nome.split(' ')[0] ?? ''
 
   return (
     <>
-      <Cabecalho titulo="Início" descricao="Situação atual de vendas, financeiro e estoque.">
+      <Cabecalho titulo={`Olá, ${primeiroNome} 👋`} descricao="Veja um resumo das operações: vendas, financeiro e estoque.">
         <button type="button" className="botao" onClick={recarregar} disabled={carregando}>
           Atualizar
         </button>
@@ -17,18 +20,18 @@ export function Inicio() {
       <EstadoLista carregando={carregando} erro={erro} vazia={!dados} textoVazio="" />
       {dados && (
         <>
-          <section className="indicadores">
-            <Indicador rotulo="Vendas faturadas" valor={brl(dados.vendas.total)}
+          <section className="indicadores em-3">
+            <Indicador icone="vendas" rotulo="Vendas faturadas" valor={brl(dados.vendas.total)}
               nota={`${dados.vendas.quantidade} pedido(s) · ${dados.vendas.pedidosAbertos} em aberto`} />
-            <Indicador rotulo="A receber" valor={brl(dados.receber.total)}
+            <Indicador icone="receber" rotulo="A receber" valor={brl(dados.receber.total)}
               nota={`${dados.receber.vencidas} parcela(s) vencida(s)`} alerta={dados.receber.vencidas > 0} />
-            <Indicador rotulo="A pagar" valor={brl(dados.pagar.total)}
+            <Indicador icone="pagar" rotulo="A pagar" valor={brl(dados.pagar.total)}
               nota={`${dados.pagar.vencidas} parcela(s) vencida(s)`} alerta={dados.pagar.vencidas > 0} />
-            <Indicador rotulo="Saldo projetado" valor={brl(dados.saldoProjetado)} nota="A receber menos a pagar"
+            <Indicador icone="saldo" rotulo="Saldo projetado" valor={brl(dados.saldoProjetado)} nota="A receber menos a pagar"
               tom={dados.saldoProjetado < 0 ? 'ruim' : 'bom'} />
-            <Indicador rotulo="Estoque a custo" valor={brl(dados.estoque.valor)}
+            <Indicador icone="produtos" rotulo="Estoque a custo" valor={brl(dados.estoque.valor)}
               nota={`${dados.estoque.semEstoque} produto(s) sem estoque`} alerta={dados.estoque.semEstoque > 0} />
-            <Indicador rotulo="Entregas a fazer" valor={String(dados.entregas.pendentes + dados.entregas.emRota + dados.entregas.falhas)}
+            <Indicador icone="entregas" rotulo="Entregas a fazer" valor={String(dados.entregas.pendentes + dados.entregas.emRota + dados.entregas.falhas)}
               nota={`${dados.entregas.emRota} em rota · ${dados.entregas.falhas} com falha`} alerta={dados.entregas.falhas > 0} />
           </section>
 
@@ -88,9 +91,12 @@ export function Inicio() {
   )
 }
 
-function Indicador(props: { rotulo: string; valor: string; nota: string; alerta?: boolean; tom?: 'bom' | 'ruim' }) {
+function Indicador(props: { icone: NomeIcone; rotulo: string; valor: string; nota: string; alerta?: boolean; tom?: 'bom' | 'ruim' }) {
   return (
     <div className="indicador">
+      <i className="indicador-icone">
+        <Icone nome={props.icone} />
+      </i>
       <span>{props.rotulo}</span>
       <strong className={props.tom ? `texto-${props.tom}` : ''}>{props.valor}</strong>
       <small className={props.alerta ? 'texto-ruim' : 'texto-suave'}>{props.nota}</small>
