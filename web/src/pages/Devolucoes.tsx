@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
+import { avisar } from '../avisos'
 import { brl, dataBr, inteiro } from '../format'
+import { Icone, type NomeIcone } from '../icones'
 import type { Conta, Credito, Devolucao, Pedido, SaldoDevolucao } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
 const SeloCredito = ({ status }: { status: Credito['status'] }) =>
   status === 'DISPONIVEL' ? <Selo valor="Disponível" tom="bom" /> : <Selo valor="Esgotado" tom="apagado" />
@@ -11,11 +13,17 @@ const SeloCredito = ({ status }: { status: Credito['status'] }) =>
 export function Devolucoes() {
   const { pode } = useSessao()
   const [status, setStatus] = useState('DISPONIVEL')
-  const creditos = useDados<Credito[]>(`/creditos${status ? `?status=${status}` : ''}`)
+  // Busca todos os créditos de uma vez: o filtro é feito aqui, e os indicadores somam sempre o total.
+  const creditos = useDados<Credito[]>('/creditos')
   const devolucoes = useDados<Devolucao[]>(pode('DEVOLUCOES_VISUALIZAR', 'DEVOLUCOES_REGISTRAR') ? '/devolucoes' : null)
   const [usando, setUsando] = useState<Credito | null>(null)
-  const listaCreditos = creditos.dados ?? []
+  const [registrando, setRegistrando] = useState(false)
+  const todosCreditos = creditos.dados ?? []
+  const listaCreditos = status ? todosCreditos.filter((c) => c.status === status) : todosCreditos
   const listaDevolucoes = devolucoes.dados ?? []
+  const paginaCreditos = usePaginacao(listaCreditos)
+  const paginaDevolucoes = usePaginacao(listaDevolucoes)
+  const disponiveis = todosCreditos.filter((c) => c.status === 'DISPONIVEL')
 
   function atualizar() {
     creditos.recarregar()
@@ -31,22 +39,33 @@ export function Devolucoes() {
         <button type="button" className="botao" onClick={atualizar}>
           Atualizar
         </button>
+        {pode('DEVOLUCOES_REGISTRAR') && (
+          <button type="button" className="botao botao-primario" onClick={() => setRegistrando(true)}>
+            Nova devolução
+          </button>
+        )}
       </Cabecalho>
 
-      {pode('DEVOLUCOES_REGISTRAR') && <RegistrarDevolucao onRegistrada={atualizar} />}
+      {creditos.dados && (
+        <section className="indicadores em-3">
+          <Indicador icone="saldo" rotulo="Crédito disponível" valor={brl(disponiveis.reduce((s, c) => s + c.saldo, 0))}
+            nota={`${disponiveis.length} crédito(s) com saldo`} />
+          <Indicador icone="receber" rotulo="Crédito já usado" valor={brl(todosCreditos.reduce((s, c) => s + c.valorOriginal - c.saldo, 0))}
+            nota="Baixado em contas a receber" />
+          <Indicador icone="devolucoes" rotulo="Devoluções" valor={devolucoes.dados ? String(listaDevolucoes.length) : '—'}
+            nota={devolucoes.dados ? `${brl(listaDevolucoes.reduce((s, d) => s + d.valorCredito, 0))} em crédito gerado` : 'Sem acesso à lista'} />
+        </section>
+      )}
 
-      <h2>Créditos de clientes</h2>
-      <div className="filtros">
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Situação do crédito">
-          <option value="DISPONIVEL">Disponíveis</option>
-          <option value="ESGOTADO">Esgotados</option>
-          <option value="">Todos</option>
-        </select>
-        <span className="resumo-filtro">
-          Disponível: <strong>{brl(listaCreditos.filter((c) => c.status === 'DISPONIVEL').reduce((s, c) => s + c.saldo, 0))}</strong>
-        </span>
-      </div>
       <section className="painel">
+        <div className="painel-topo">
+          <h2>Créditos de clientes</h2>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Situação do crédito" className="seletor-compacto">
+            <option value="DISPONIVEL">Disponíveis</option>
+            <option value="ESGOTADO">Esgotados</option>
+            <option value="">Todos</option>
+          </select>
+        </div>
         <EstadoLista carregando={creditos.carregando} erro={creditos.erro} vazia={listaCreditos.length === 0} textoVazio="Nenhum crédito nesta situação." />
         {listaCreditos.length > 0 && (
           <table>
@@ -63,7 +82,7 @@ export function Devolucoes() {
               </tr>
             </thead>
             <tbody>
-              {listaCreditos.map((c) => (
+              {paginaCreditos.visiveis.map((c) => (
                 <tr key={c.id}>
                   <td className="texto-suave">#{c.id}</td>
                   <td>{c.pessoa.nome}</td>
@@ -82,12 +101,15 @@ export function Devolucoes() {
             </tbody>
           </table>
         )}
+        {paginaCreditos.controle}
       </section>
 
       {devolucoes.dados && (
         <>
-          <h2>Devoluções registradas</h2>
           <section className="painel">
+            <div className="painel-topo">
+              <h2>Devoluções registradas</h2>
+            </div>
             <EstadoLista carregando={devolucoes.carregando} erro={devolucoes.erro} vazia={listaDevolucoes.length === 0} textoVazio="Nenhuma devolução registrada." />
             {listaDevolucoes.length > 0 && (
               <table>
@@ -104,7 +126,7 @@ export function Devolucoes() {
                   </tr>
                 </thead>
                 <tbody>
-                  {listaDevolucoes.map((d) => (
+                  {paginaDevolucoes.visiveis.map((d) => (
                     <tr key={d.id}>
                       <td className="texto-suave">#{d.id}</td>
                       <td>{dataBr(d.criadoEm)}</td>
@@ -125,8 +147,20 @@ export function Devolucoes() {
                 </tbody>
               </table>
             )}
+            {paginaDevolucoes.controle}
           </section>
         </>
+      )}
+
+      {registrando && (
+        <RegistrarDevolucao
+          onFechar={() => setRegistrando(false)}
+          onRegistrada={() => {
+            setRegistrando(false)
+            setStatus('DISPONIVEL')
+            atualizar()
+          }}
+        />
       )}
 
       {usando && (
@@ -142,13 +176,13 @@ export function Devolucoes() {
   )
 }
 
-function RegistrarDevolucao({ onRegistrada }: { onRegistrada: () => void }) {
-  const vendas = (useDados<Pedido[]>('/pedidos?status=FATURADO').dados ?? []).filter((p) => p.natureza === 'VENDA')
+function RegistrarDevolucao({ onFechar, onRegistrada }: { onFechar: () => void; onRegistrada: () => void }) {
+  const pedidos = useDados<Pedido[]>('/pedidos?status=FATURADO')
+  const vendas = (pedidos.dados ?? []).filter((p) => p.natureza === 'VENDA')
   const [pedidoId, setPedidoId] = useState(0)
   const saldos = useDados<SaldoDevolucao[]>(pedidoId ? `/devolucoes/pedido/${pedidoId}/saldos` : null)
   const [quantidades, setQuantidades] = useState<Record<number, number>>({})
   const [observacao, setObservacao] = useState('')
-  const [aviso, setAviso] = useState('')
   const { erro, ocupado, executar } = useAcao()
   const itens = pedidoId ? (saldos.dados ?? []) : []
   const credito = itens.reduce((s, i) => s + (quantidades[i.pedidoItemId] ?? 0) * i.valorUnitario, 0)
@@ -156,7 +190,6 @@ function RegistrarDevolucao({ onRegistrada }: { onRegistrada: () => void }) {
   function escolherVenda(id: number) {
     setPedidoId(id)
     setQuantidades({})
-    setAviso('')
   }
 
   function enviar(e: FormEvent) {
@@ -168,87 +201,99 @@ function RegistrarDevolucao({ onRegistrada }: { onRegistrada: () => void }) {
         itens: itens.map((i) => ({ pedidoItemId: i.pedidoItemId, quantidade: quantidades[i.pedidoItemId] ?? 0 })).filter((i) => i.quantidade > 0),
       }
       const devolucao = await api<{ id: number; valorCredito: number }>('/devolucoes', { body: corpo })
-      setAviso(`Devolução nº ${devolucao.id} registrada. Crédito gerado: ${brl(devolucao.valorCredito)}.`)
-      setQuantidades({})
-      setObservacao('')
-      saldos.recarregar()
+      avisar('sucesso', `Devolução nº ${devolucao.id} registrada. Crédito gerado: ${brl(devolucao.valorCredito)}.`)
       onRegistrada()
     })
   }
 
   return (
-    <>
-      <h2>Registrar devolução</h2>
-      <section className="painel">
-        <form onSubmit={enviar} className="form">
-          <Campo rotulo="Venda faturada" largura={3}>
-            <select required value={pedidoId || ''} onChange={(e) => escolherVenda(Number(e.target.value))}>
-              <option value="">Selecione…</option>
-              {vendas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  Pedido nº {p.id} · {p.cliente.nome} · {brl(p.total)}
-                </option>
-              ))}
-            </select>
-          </Campo>
+    <Modal titulo="Nova devolução" onFechar={onFechar} largo>
+      <form onSubmit={enviar} className="form">
+        <Campo rotulo="Venda faturada" largura={3}>
+          <select required value={pedidoId || ''} onChange={(e) => escolherVenda(Number(e.target.value))} autoFocus>
+            <option value="">{pedidos.carregando ? 'Carregando vendas…' : vendas.length === 0 ? 'Nenhuma venda faturada' : 'Selecione…'}</option>
+            {vendas.map((p) => (
+              <option key={p.id} value={p.id}>
+                Pedido nº {p.id} · {p.cliente.nome} · {brl(p.total)}
+              </option>
+            ))}
+          </select>
+        </Campo>
 
-          {itens.length > 0 && (
-            <div className="col-3">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Produto</th>
-                    <th className="num">Vendido</th>
-                    <th className="num">Já devolvido</th>
-                    <th className="num">Valor líquido unit.</th>
-                    <th className="num">Devolver agora</th>
+        {pedidoId === 0 && (
+          <p className="texto-suave col-3">Escolha a venda para ver os itens e quanto ainda pode ser devolvido de cada um.</p>
+        )}
+        {itens.length > 0 && (
+          <div className="col-3 itens">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th className="num">Vendido</th>
+                  <th className="num">Já devolvido</th>
+                  <th className="num">Valor líquido unit.</th>
+                  <th className="num">Devolver agora</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itens.map((i) => (
+                  <tr key={i.pedidoItemId}>
+                    <td>{i.produto.sku} · {i.produto.nome}</td>
+                    <td className="num">{i.quantidade} {i.unidade}</td>
+                    <td className="num">{i.devolvido}</td>
+                    <td className="num">{brl(i.valorUnitario)}</td>
+                    <td className="num">
+                      <input
+                        type="number"
+                        min={0}
+                        max={i.disponivel}
+                        className="curto"
+                        disabled={i.disponivel === 0}
+                        aria-label={`Quantidade a devolver de ${i.produto.nome}`}
+                        value={quantidades[i.pedidoItemId] || ''}
+                        onChange={(e) => setQuantidades({ ...quantidades, [i.pedidoItemId]: Math.min(i.disponivel, inteiro(e.target.value)) })}
+                      />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {itens.map((i) => (
-                    <tr key={i.pedidoItemId}>
-                      <td>{i.produto.sku} · {i.produto.nome}</td>
-                      <td className="num">{i.quantidade} {i.unidade}</td>
-                      <td className="num">{i.devolvido}</td>
-                      <td className="num">{brl(i.valorUnitario)}</td>
-                      <td className="num">
-                        <input
-                          type="number"
-                          min={0}
-                          max={i.disponivel}
-                          className="curto"
-                          disabled={i.disponivel === 0}
-                          aria-label={`Quantidade a devolver de ${i.produto.nome}`}
-                          value={quantidades[i.pedidoItemId] || ''}
-                          onChange={(e) => setQuantidades({ ...quantidades, [i.pedidoItemId]: Math.min(i.disponivel, inteiro(e.target.value)) })}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {pedidoId > 0 && (
-            <Campo rotulo="Observação" largura={3}>
-              <input value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-            </Campo>
-          )}
-          {pedidoId > 0 && (
-            <p className="total col-3">
-              Crédito a gerar: <strong>{brl(credito)}</strong>
-            </p>
-          )}
-          {aviso && <p className="texto-suave col-3">{aviso}</p>}
-          <Erro mensagem={erro || saldos.erro} />
-          <div className="form-pe">
-            <button className="botao botao-primario" disabled={ocupado || credito === 0}>
-              Registrar devolução
-            </button>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </form>
-      </section>
-    </>
+        )}
+        {pedidoId > 0 && (
+          <Campo rotulo="Observação" largura={3}>
+            <input value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+          </Campo>
+        )}
+        {pedidoId > 0 && (
+          <p className="total col-3">
+            Crédito a gerar: <strong>{brl(credito)}</strong>
+          </p>
+        )}
+        <Erro mensagem={erro || saldos.erro} />
+        <div className="form-pe">
+          <button type="button" className="botao" onClick={onFechar}>
+            Cancelar
+          </button>
+          <button className="botao botao-primario" disabled={ocupado || credito === 0}>
+            Registrar devolução
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+function Indicador(props: { icone: NomeIcone; rotulo: string; valor: string; nota: string }) {
+  return (
+    <div className="indicador">
+      <i className="indicador-icone">
+        <Icone nome={props.icone} />
+      </i>
+      <span>{props.rotulo}</span>
+      <strong>{props.valor}</strong>
+      <small>{props.nota}</small>
+    </div>
   )
 }
 

@@ -260,6 +260,7 @@ input.curto { width: 96px; text-align: right; }
 /* Blocos empilhados direto na tela não encostam um no outro. Só vale para filhos diretos da
    página: dentro de uma grade (duas colunas, por exemplo) o espaço já vem da própria grade. */
 .pagina > .painel + .indicadores, .pagina > .painel + .abas, .pagina > .painel + .painel, .pagina > .indicadores + .abas, .pagina > .cartao + .painel { margin-top: 18px; }
+.painel-topo .seletor-compacto { width: auto; }
 .painel-topo a { font-size: 0.88rem; font-weight: 500; color: var(--suave); }
 .painel-topo a:hover { color: var(--tinta); text-decoration: none; }
 .cartao { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 20px; margin-bottom: 18px; box-shadow: var(--sombra-1); }

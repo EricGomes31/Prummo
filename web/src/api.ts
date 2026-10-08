@@ -40,7 +40,8 @@ export function useCarregando() {
 // Confirmação curta depois de uma gravação que deu certo. Consultas não avisam, e também ficam de
 // fora o login e a simulação de campanha, que usam POST mas não gravam nada.
 function confirmar(metodo: string, caminho: string) {
-  if (metodo === 'GET' || /^\/auth\/login|\/simular$/.test(caminho)) return
+  // A devolução confirma na própria tela, com o valor do crédito gerado.
+  if (metodo === 'GET' || /^\/auth\/login|\/simular$|^\/devolucoes$/.test(caminho)) return
   const texto =
     metodo === 'DELETE' ? 'Removido.'
     : /\/cancelar$/.test(caminho) ? 'Cancelado.'
