@@ -477,6 +477,7 @@ export type RelatorioVendas = {
 
 // Contas a receber em aberto para cobrar, com o contato do cliente e os dias de atraso.
 export type RelatorioCobranca = {
+  porProduto: { produto: string; unidade: string; pedidos: number; quantidade: number; valor: number; saldo: number }[]
   linhas: {
     id: number
     pessoaId: number | null
@@ -489,14 +490,18 @@ export type RelatorioCobranca = {
     vendedor: string | null
     medico: string | null
     paciente: string | null
+    // Data da venda (contas de pedido) ou de lançamento (as demais).
+    emissao: string
     vencimento: string
+    situacao: 'ABERTA' | 'PARCIAL' | 'PAGA' | 'CANCELADA'
+    pagoEm: string | null
     diasAtraso: number
     valor: number
     valorPago: number
     saldo: number
   }[]
   porCliente: { cliente: string; telefone: string | null; quantidade: number; saldo: number; vencido: number; maiorAtraso: number }[]
-  resumo: { quantidade: number; clientes: number; saldo: number; vencido: number; aVencer: number }
+  resumo: { quantidade: number; clientes: number; saldo: number; vencido: number; aVencer: number; recebido: number }
 }
 
 type GrupoDespesas ={ nome: string; quantidade: number; total: number; pago: number }

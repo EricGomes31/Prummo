@@ -142,6 +142,11 @@ export async function rotasRelatorios(app: FastifyInstance) {
       .object({
         ate: dia.optional(),
         vencidas: z.enum(['1', 'true']).optional(),
+        // Em aberto (padrão), em aberto com pagamento parcial, pagas, canceladas ou todas.
+        situacao: z.enum(['ABERTAS', 'PARCIAIS', 'PAGAS', 'CANCELADAS', 'TODAS']).default('ABERTAS'),
+        // Emissão: a data da venda nas contas de pedido; a de lançamento nas demais.
+        emissaoInicio: dia.optional(),
+        emissaoFim: dia.optional(),
         pessoaId: id,
         vendedorId: id,
         medicoId: id,
@@ -150,7 +155,11 @@ export async function rotasRelatorios(app: FastifyInstance) {
       .parse(req.query)
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
-    const limite = q.vencidas ? hoje : q.ate ? intervalo(undefined, q.ate)!.lt : undefined
+    const abertas = q.situacao === 'ABERTAS' || q.situacao === 'PARCIAIS'
+    // "Só as vencidas" e "vencimento até" só valem para o que está em aberto.
+    const limite = !abertas ? (q.ate ? intervalo(undefined, q.ate)!.lt : undefined) : q.vencidas ? hoje : q.ate ? intervalo(undefined, q.ate)!.lt : undefined
+    const status = { ABERTAS: 'ABERTA', PARCIAIS: 'ABERTA', PAGAS: 'PAGA', CANCELADAS: 'CANCELADA', TODAS: undefined }[q.situacao]
+    const emissao = intervalo(q.emissaoInicio, q.emissaoFim)
     const daVenda = {
       ...(q.vendedorId ? { vendedorId: q.vendedorId } : {}),
       ...(q.medicoId ? { medicoId: q.medicoId } : {}),
@@ -159,14 +168,26 @@ export async function rotasRelatorios(app: FastifyInstance) {
     const pessoa = { select: { id: true, nome: true } } as const
     const contas = await prisma.contaReceber.findMany({
       where: {
-        status: 'ABERTA',
+        ...(status ? { status } : {}),
+        ...(q.situacao === 'PARCIAIS' ? { valorPago: { gt: 0 } } : {}),
         ...(limite ? { vencimento: { lt: limite } } : {}),
+        ...(emissao ? { OR: [{ pedido: { data: emissao } }, { pedidoId: null, criadoEm: emissao }] } : {}),
         ...(q.pessoaId ? { pessoaId: q.pessoaId } : {}),
         ...(Object.keys(daVenda).length ? { pedido: daVenda } : {}),
       },
       include: {
         pessoa: { select: { id: true, nome: true, telefone: true, celular: true, email: true } },
-        pedido: { select: { id: true, numero: true, vendedor: pessoa, medico: pessoa, paciente: pessoa } },
+        pedido: {
+          select: {
+            id: true,
+            numero: true,
+            data: true,
+            vendedor: pessoa,
+            medico: pessoa,
+            paciente: pessoa,
+            itens: { select: { id: true, quantidade: true, fator: true, precoUnitario: true, desconto: true, produto: { select: { id: true, sku: true, nome: true, unidade: true } } } },
+          },
+        },
       },
       orderBy: [{ vencimento: 'asc' }, { id: 'asc' }],
       take: 5000,
@@ -175,6 +196,7 @@ export async function rotasRelatorios(app: FastifyInstance) {
     const linhas = contas.map((c) => {
       const vencimento = new Date(c.vencimento)
       vencimento.setHours(0, 0, 0, 0)
+      const aberta = c.status === 'ABERTA'
       return {
         id: c.id,
         pessoaId: c.pessoa?.id ?? null,
@@ -187,13 +209,50 @@ export async function rotasRelatorios(app: FastifyInstance) {
         vendedor: c.pedido?.vendedor?.nome ?? null,
         medico: c.pedido?.medico?.nome ?? null,
         paciente: c.pedido?.paciente?.nome ?? null,
+        emissao: c.pedido?.data ?? c.criadoEm,
         vencimento: c.vencimento,
-        diasAtraso: Math.max(0, Math.round((hoje.getTime() - vencimento.getTime()) / DIA)),
+        // Situação como a tela mostra: em aberto, parcial, paga ou cancelada.
+        situacao: aberta ? (c.valorPago > 0 ? 'PARCIAL' : 'ABERTA') : c.status,
+        pagoEm: c.pagoEm,
+        diasAtraso: aberta ? Math.max(0, Math.round((hoje.getTime() - vencimento.getTime()) / DIA)) : 0,
         valor: c.valor,
         valorPago: c.valorPago,
-        saldo: c.valor - c.valorPago,
+        saldo: aberta ? c.valor - c.valorPago : 0,
       }
     })
+    // Por produto: o valor e o saldo de cada conta divididos entre os produtos do pedido, na proporção do
+    // valor líquido de cada item; a quantidade conta uma vez por pedido, na unidade base do produto.
+    const produtos = new Map<string, { produto: string; unidade: string; pedidos: Set<number>; quantidade: number; valor: number; saldo: number }>()
+    const contados = new Set<number>()
+    for (const c of contas) {
+      const aberta = c.status === 'ABERTA'
+      const saldoDaConta = aberta ? c.valor - c.valorPago : 0
+      const itens = c.pedido?.itens ?? []
+      const liquido = itens.reduce((s, i) => s + i.quantidade * (i.precoUnitario - i.desconto), 0)
+      if (!c.pedido || liquido <= 0) {
+        const g = produtos.get('0') ?? { produto: 'Sem pedido (lançamento manual)', unidade: '', pedidos: new Set<number>(), quantidade: 0, valor: 0, saldo: 0 }
+        g.valor += c.valor
+        g.saldo += saldoDaConta
+        produtos.set('0', g)
+        continue
+      }
+      for (const i of itens) {
+        const parte = (i.quantidade * (i.precoUnitario - i.desconto)) / liquido
+        const chave = String(i.produto.id)
+        const g = produtos.get(chave) ?? { produto: `${i.produto.sku} · ${i.produto.nome}`, unidade: i.produto.unidade, pedidos: new Set<number>(), quantidade: 0, valor: 0, saldo: 0 }
+        g.pedidos.add(c.pedido.id)
+        if (!contados.has(i.id)) {
+          contados.add(i.id)
+          g.quantidade += i.quantidade / i.fator
+        }
+        g.valor += c.valor * parte
+        g.saldo += saldoDaConta * parte
+        produtos.set(chave, g)
+      }
+    }
+    const porProduto = [...produtos.values()]
+      .map((g) => ({ produto: g.produto, unidade: g.unidade, pedidos: g.pedidos.size, quantidade: Math.round(g.quantidade * 1000) / 1000, valor: Math.round(g.valor), saldo: Math.round(g.saldo) }))
+      .sort((a, b) => b.saldo - a.saldo || b.valor - a.valor)
     // Um resumo por cliente, do maior saldo vencido para o menor.
     const mapa = new Map<string, { cliente: string; telefone: string | null; quantidade: number; saldo: number; vencido: number; maiorAtraso: number }>()
     for (const l of linhas) {
@@ -208,7 +267,8 @@ export async function rotasRelatorios(app: FastifyInstance) {
     const porCliente = [...mapa.values()].sort((a, b) => b.vencido - a.vencido || b.saldo - a.saldo)
     const saldo = linhas.reduce((s, l) => s + l.saldo, 0)
     const vencido = linhas.filter((l) => l.diasAtraso > 0).reduce((s, l) => s + l.saldo, 0)
-    return { linhas, porCliente, resumo: { quantidade: linhas.length, clientes: porCliente.length, saldo, vencido, aVencer: saldo - vencido } }
+    const recebido = linhas.reduce((s, l) => s + l.valorPago, 0)
+    return { linhas, porCliente, porProduto, resumo: { quantidade: linhas.length, clientes: porCliente.length, saldo, vencido, aVencer: saldo - vencido, recebido } }
   })
 
   app.get('/relatorios/financeiro', async (req) => {

@@ -263,11 +263,21 @@ const colunasCobranca: Coluna<LinhaCobranca>[] = [
   { rotulo: 'Descrição', valor: (l) => l.descricao, largura: 180 },
   { rotulo: 'Venda', valor: (l) => (l.pedidoNumero ? `#${l.pedidoNumero}` : null) },
   { rotulo: 'Vendedor', valor: (l) => l.vendedor },
+  { rotulo: 'Emissão', valor: (l) => l.emissao, tipo: 'data' },
   { rotulo: 'Vencimento', valor: (l) => l.vencimento, tipo: 'data' },
+  { rotulo: 'Situação', valor: (l) => l.situacao, exibir: (l) => <Selo valor={l.situacao} /> },
   { rotulo: 'Dias de atraso', valor: (l) => l.diasAtraso, exibir: (l) => (l.diasAtraso > 0 ? <span className="texto-ruim">{l.diasAtraso}</span> : '—') },
   { rotulo: 'Valor', valor: (l) => l.valor, tipo: 'dinheiro' },
   { rotulo: 'Recebido', valor: (l) => l.valorPago, tipo: 'dinheiro' },
   { rotulo: 'Saldo', valor: (l) => l.saldo, tipo: 'dinheiro' },
+]
+type ProdutoCobranca = RelatorioCobranca['porProduto'][number]
+const colunasPorProduto: Coluna<ProdutoCobranca>[] = [
+  { rotulo: 'Produto', valor: (g) => g.produto, largura: 200 },
+  { rotulo: 'Pedidos', valor: (g) => g.pedidos },
+  { rotulo: 'Quantidade', valor: (g) => g.quantidade, exibir: (g) => (g.unidade ? `${g.quantidade.toLocaleString('pt-BR')} ${g.unidade}` : '—') },
+  { rotulo: 'Valor das contas', valor: (g) => g.valor, tipo: 'dinheiro' },
+  { rotulo: 'Saldo em aberto', valor: (g) => g.saldo, tipo: 'dinheiro' },
 ]
 type ClienteCobranca = RelatorioCobranca['porCliente'][number]
 const colunasPorCliente: Coluna<ClienteCobranca>[] = [
@@ -281,12 +291,24 @@ const colunasPorCliente: Coluna<ClienteCobranca>[] = [
 
 // Relatório de cobrança: o que há para receber, com o contato do cliente e os dias de atraso.
 function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
-  const [f, setF] = useState({ vencidas: '1', ate: '', pessoaId: '', vendedorId: '', medicoId: '', pacienteId: '' })
-  const consulta = new URLSearchParams(Object.entries(f).filter(([chave, valor]) => valor && !(chave === 'ate' && f.vencidas)))
+  const [f, setF] = useState({ situacao: 'ABERTAS', vencidas: '1', ate: '', emissaoInicio: '', emissaoFim: '', pessoaId: '', vendedorId: '', medicoId: '', pacienteId: '' })
+  // "Só as vencidas" só existe para o que está em aberto.
+  const emAberto = f.situacao === 'ABERTAS' || f.situacao === 'PARCIAIS'
+  const consulta = new URLSearchParams(
+    Object.entries(f).filter(([chave, valor]) => valor && !(chave === 'vencidas' && !emAberto) && !(chave === 'ate' && emAberto && f.vencidas)),
+  )
   const { dados, erro, carregando } = useDados<RelatorioCobranca>(`/relatorios/cobranca?${consulta}`)
-  const [visao, setVisao] = useState<'clientes' | 'contas'>('clientes')
+  const [visao, setVisao] = useState<'clientes' | 'contas' | 'produtos'>('clientes')
   const acao = useAcao()
-  const subtitulo = `${f.vencidas ? 'Só contas vencidas' : f.ate ? `Vencimento até ${dataBr(`${f.ate}T12:00:00`)}` : 'Todas as contas em aberto'} · emitido em ${new Date().toLocaleString('pt-BR')}`
+  const nomesSituacao: Record<string, string> = { ABERTAS: 'em aberto', PARCIAIS: 'com pagamento parcial', PAGAS: 'pagas', CANCELADAS: 'canceladas', TODAS: 'em qualquer situação' }
+  const subtitulo = [
+    emAberto && f.vencidas ? `Só contas vencidas ${nomesSituacao[f.situacao]}` : `Contas ${nomesSituacao[f.situacao]}`,
+    f.ate && !(emAberto && f.vencidas) && `vencimento até ${dataBr(`${f.ate}T12:00:00`)}`,
+    (f.emissaoInicio || f.emissaoFim) && `emissão ${f.emissaoInicio ? `de ${dataBr(`${f.emissaoInicio}T12:00:00`)} ` : ''}${f.emissaoFim ? `até ${dataBr(`${f.emissaoFim}T12:00:00`)}` : ''}`,
+    `emitido em ${new Date().toLocaleString('pt-BR')}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
   const totais = (r: RelatorioCobranca): [string, string][] => [
     ['Vencido', brl(r.resumo.vencido)],
     ['A vencer', brl(r.resumo.aVencer)],
@@ -296,13 +318,30 @@ function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
   return (
     <Modal titulo="Relatório de cobrança" onFechar={props.onFechar} largo>
       <div className="form">
-        <Campo rotulo="Contas">
-          <select value={f.vencidas ? 'VENCIDAS' : 'TODAS'} onChange={(e) => setF({ ...f, vencidas: e.target.value === 'VENCIDAS' ? '1' : '' })}>
-            <option value="VENCIDAS">Só as vencidas</option>
-            <option value="TODAS">Vencidas e a vencer</option>
+        <Campo rotulo="Situação">
+          <select value={f.situacao} onChange={(e) => setF({ ...f, situacao: e.target.value })}>
+            <option value="ABERTAS">Em aberto</option>
+            <option value="PARCIAIS">Com pagamento parcial</option>
+            <option value="PAGAS">Pagas</option>
+            <option value="CANCELADAS">Canceladas</option>
+            <option value="TODAS">Todas</option>
           </select>
         </Campo>
-        {!f.vencidas && (
+        {emAberto && (
+          <Campo rotulo="Contas">
+            <select value={f.vencidas ? 'VENCIDAS' : 'TODAS'} onChange={(e) => setF({ ...f, vencidas: e.target.value === 'VENCIDAS' ? '1' : '' })}>
+              <option value="VENCIDAS">Só as vencidas</option>
+              <option value="TODAS">Vencidas e a vencer</option>
+            </select>
+          </Campo>
+        )}
+        <Campo rotulo="Emissão de">
+          <CampoData type="date" value={f.emissaoInicio} max={f.emissaoFim || undefined} onChange={(e) => setF({ ...f, emissaoInicio: e.target.value })} />
+        </Campo>
+        <Campo rotulo="Emissão até">
+          <CampoData type="date" value={f.emissaoFim} min={f.emissaoInicio || undefined} onChange={(e) => setF({ ...f, emissaoFim: e.target.value })} />
+        </Campo>
+        {!(emAberto && f.vencidas) && (
           <Campo rotulo="Vencimento até">
             <CampoData type="date" value={f.ate} onChange={(e) => setF({ ...f, ate: e.target.value })} />
           </Campo>
@@ -319,6 +358,7 @@ function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
           <Resumo rotulo="Vencido" valor={brl(dados.resumo.vencido)} />
           <Resumo rotulo="A vencer" valor={brl(dados.resumo.aVencer)} />
           <Resumo rotulo="Saldo total" valor={brl(dados.resumo.saldo)} />
+          {!emAberto && <Resumo rotulo="Recebido" valor={brl(dados.resumo.recebido)} />}
         </section>
       )}
 
@@ -329,17 +369,29 @@ function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
         <button type="button" role="tab" aria-selected={visao === 'contas'} onClick={() => setVisao('contas')}>
           Contas
         </button>
+        <button type="button" role="tab" aria-selected={visao === 'produtos'} onClick={() => setVisao('produtos')}>
+          Por produto
+        </button>
       </div>
+      {visao === 'produtos' && dados && dados.linhas.length > 0 && (
+        <p className="texto-suave">O valor e o saldo de cada conta são divididos entre os produtos do pedido, na proporção do valor de cada um; a quantidade conta uma vez por pedido, na unidade base.</p>
+      )}
       <EstadoLista carregando={carregando} erro={erro} vazia={!dados?.linhas.length} textoVazio="Nada a cobrar com estes filtros." />
       {dados && dados.linhas.length > 0 && visao === 'clientes' && <Tabela colunas={colunasPorCliente} linhas={dados.porCliente} chave={(g) => g.cliente} />}
       {dados && dados.linhas.length > 0 && visao === 'contas' && <Tabela colunas={colunasCobranca} linhas={dados.linhas} chave={(l) => l.id} />}
+      {dados && dados.linhas.length > 0 && visao === 'produtos' && <Tabela colunas={colunasPorProduto} linhas={dados.porProduto} chave={(g) => g.produto} />}
 
       <Erro mensagem={acao.erro} />
       <div className="form-pe">
         <button type="button" className="botao" onClick={props.onFechar}>
           Fechar
         </button>
-        <button type="button" className="botao" disabled={!dados?.linhas.length} onClick={() => dados && exportarCsv('cobranca', colunasCobranca, dados.linhas)}>
+        <button
+          type="button"
+          className="botao"
+          disabled={!dados?.linhas.length}
+          onClick={() => dados && (visao === 'produtos' ? exportarCsv('cobranca-por-produto', colunasPorProduto, dados.porProduto) : exportarCsv('cobranca', colunasCobranca, dados.linhas))}
+        >
           Exportar para Excel
         </button>
         <button
@@ -350,6 +402,7 @@ function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
             acao.executar(async () => {
               if (!dados) return
               if (visao === 'clientes') imprimir('Cobrança por cliente', subtitulo, colunasPorCliente, dados.porCliente, totais(dados))
+              else if (visao === 'produtos') imprimir('Cobrança por produto', subtitulo, colunasPorProduto, dados.porProduto, totais(dados))
               else imprimir('Cobrança', subtitulo, colunasCobranca, dados.linhas, totais(dados))
             })
           }
