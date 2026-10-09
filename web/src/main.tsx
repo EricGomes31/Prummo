@@ -16,6 +16,7 @@ import { Financeiro } from './pages/Financeiro'
 import { Promocoes } from './pages/Promocoes'
 import { Relatorios } from './pages/Relatorios'
 import { RotaEntregador } from './pages/RotaEntregador'
+import { AtualizarCadastro } from './pages/AtualizarCadastro'
 import { Usuarios } from './pages/Usuarios'
 import { Empresas } from './pages/Empresas'
 import { Avisos } from './avisos'
@@ -39,6 +40,7 @@ createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/entrar" element={<Entrar />} />
           <Route path="/rota/:id" element={<RotaEntregador />} />
+          <Route path="/cadastro/:id" element={<AtualizarCadastro />} />
           <Route element={<Layout />}>
             <Route index element={<Inicio />} />
             <Route path="pessoas" element={<Pessoas />} />

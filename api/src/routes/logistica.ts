@@ -4,6 +4,8 @@ import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { definirEmpresa, semEmpresa } from '../empresa.js'
 import { AppError, dataIso, idParam, prisma, texto } from '../lib.js'
+import { conferirTentativas, registrarFalha } from '../limite.js'
+import { arquivoEnviado, gravarDocumento, LIMITE_DO_CORPO } from './documentos.js'
 import { mudarEntrega } from './entregas.js'
 
 const corpoMotorista = z.object({
@@ -156,7 +158,11 @@ export async function rotasLogistica(app: FastifyInstance) {
     const { horas } = z.object({ horas: z.number().int().min(1, 'A validade vai de 1 a 168 horas').max(168, 'A validade vai de 1 a 168 horas').default(24) }).parse(req.body ?? {})
     const chave = randomBytes(24).toString('base64url')
     const expiraEm = new Date(Date.now() + horas * 60 * 60 * 1000)
-    await prisma.rota.update({ where: { id }, data: { linkHash: hashDaChave(chave), linkExpiraEm: expiraEm } })
+    // Um link novo começa sem acessos.
+    await prisma.rota.update({
+      where: { id },
+      data: { linkHash: hashDaChave(chave), linkExpiraEm: expiraEm, linkAbertoEm: null, linkUltimoAcesso: null, linkAcessos: 0 },
+    })
     return { chave, expiraEm }
   })
 
@@ -169,7 +175,10 @@ export async function rotasLogistica(app: FastifyInstance) {
 
 // Rotas públicas do entregador: valem só com a chave do link, enviada no cabeçalho X-Rota-Token.
 export async function rotasEntregador(app: FastifyInstance) {
+  // Confere a chave do link. Quem erra muitas vezes fica bloqueado por um tempo (ver limite.ts).
+  // Cada acesso válido fica registrado na rota, para a empresa saber que o entregador abriu o link.
   async function rotaDoLink(req: FastifyRequest) {
+    conferirTentativas(req)
     const { id } = idParam.parse(req.params)
     const chave = String(req.headers['x-rota-token'] ?? '')
     // O entregador não tem usuário: a empresa vem da própria rota, depois de conferida a chave.
@@ -177,8 +186,16 @@ export async function rotasEntregador(app: FastifyInstance) {
     const recebido = Buffer.from(hashDaChave(chave))
     const esperado = Buffer.from(rota?.linkHash ?? hashDaChave(''))
     const confere = !!rota?.linkHash && !!chave && timingSafeEqual(recebido, esperado)
-    if (!rota || !confere || !rota.linkExpiraEm || rota.linkExpiraEm <= new Date()) throw new AppError(401, 'Link indisponível ou expirado.')
+    if (!rota || !confere || !rota.linkExpiraEm || rota.linkExpiraEm <= new Date()) {
+      registrarFalha(req)
+      throw new AppError(401, 'Link indisponível ou expirado.')
+    }
     definirEmpresa(rota.empresaId)
+    const agora = new Date()
+    await prisma.rota.update({
+      where: { id },
+      data: { linkAbertoEm: rota.linkAbertoEm ?? agora, linkUltimoAcesso: agora, linkAcessos: { increment: 1 } },
+    })
     return rota
   }
 
@@ -197,6 +214,11 @@ export async function rotasEntregador(app: FastifyInstance) {
           },
         },
       },
+    })
+    const documentos = await prisma.documento.findMany({
+      where: { origem: 'ENTREGA', origemId: { in: entregas.map((e) => e.id) } },
+      select: { id: true, origemId: true, nome: true, criadoEm: true },
+      orderBy: { id: 'asc' },
     })
     return {
       id: rota.id,
@@ -222,11 +244,26 @@ export async function rotasEntregador(app: FastifyInstance) {
         valorPedido: e.pedido.total,
         pagamento: e.pedido.formaPagamento,
         itens: e.pedido.itens.map((i) => ({ quantidade: i.quantidade, unidade: i.unidade ?? i.produto.unidade, produto: i.produto.nome })),
+        // O entregador vê só o nome dos comprovantes que já enviou, não o conteúdo.
+        documentos: documentos.filter((d) => d.origemId === e.id).map((d) => ({ id: d.id, nome: d.nome, criadoEm: d.criadoEm })),
       })),
     }
   }
 
   app.get('/entregador/rotas/:id', async (req) => paraOEntregador(await rotaDoLink(req)))
+
+  // O entregador anexa a foto da entrega ou do comprovante assinado. Só imagem ou PDF.
+  app.post('/entregador/rotas/:id/entregas/:entregaId/documentos', { bodyLimit: LIMITE_DO_CORPO }, async (req, reply) => {
+    const rota = await rotaDoLink(req)
+    const { entregaId } = z.object({ entregaId: z.coerce.number().int().positive() }).parse(req.params)
+    const entrega = await prisma.entrega.findFirst({ where: { id: entregaId, rotaId: rota.id, status: { not: 'CANCELADA' } } })
+    if (!entrega) throw new AppError(404, 'Entrega não encontrada nesta rota.')
+    await gravarDocumento('ENTREGA', entregaId, arquivoEnviado.parse(req.body), ['jpg', 'jpeg', 'png', 'webp', 'pdf'])
+    await prisma.entregaHistorico.create({
+      data: { entregaId, status: entrega.status, origem: 'ENTREGADOR', observacao: 'Comprovante anexado pelo entregador' },
+    })
+    return reply.status(201).send(await paraOEntregador(rota))
+  })
 
   // O entregador registra a saída, a entrega ou a tentativa sem sucesso de uma parada da própria rota.
   app.post('/entregador/rotas/:id/entregas/:entregaId', async (req) => {

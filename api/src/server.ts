@@ -10,7 +10,7 @@ import { abrirContexto } from './empresa.js'
 import { AppError } from './lib.js'
 import { autorizar } from './permissoes.js'
 import { rotasAuth, rotasUsuarios } from './routes/usuarios.js'
-import { rotasPessoas } from './routes/pessoas.js'
+import { rotasCadastroPublico, rotasPessoas } from './routes/pessoas.js'
 import { rotasProdutos } from './routes/produtos.js'
 import { rotasEntradas } from './routes/entradas.js'
 import { rotasPedidos } from './routes/pedidos.js'
@@ -32,7 +32,14 @@ if (!segredo || segredo.length < 32) {
   throw new Error('Defina JWT_SECRET no arquivo .env (mínimo de 32 caracteres).')
 }
 
-const app = Fastify({ logger: true })
+// Em produção a API também entrega o frontend: WEB_DIST aponta para a pasta do build (web/dist).
+// Nesse modo as rotas ficam em /api, como o frontend chama; sem ele ficam na raiz e o Vite faz o repasse.
+const webDist = process.env.WEB_DIST
+const prefixo = webDist ? '/api' : ''
+
+// Publicada, a API fica atrás do proxy da hospedagem: o IP de quem chamou é o que o proxy informa
+// (um salto só, para o cliente não conseguir forjar o próprio IP). Ele conta as tentativas dos links públicos.
+const app = Fastify({ logger: true, trustProxy: webDist ? (_endereco: string, salto: number) => salto < 1 : false })
 
 // Cada requisição ganha o próprio contexto de empresa, definido depois de saber quem chamou (ver empresa.ts).
 app.addHook('onRequest', (_req, _reply, continuar) => abrirContexto(continuar))
@@ -62,17 +69,14 @@ app.setErrorHandler((err, _req, reply) => {
   return reply.status(500).send({ erro: 'Erro interno.' })
 })
 
-// Em produção a API também entrega o frontend: WEB_DIST aponta para a pasta do build (web/dist).
-// Nesse modo as rotas ficam em /api, como o frontend chama; sem ele ficam na raiz e o Vite faz o repasse.
-const webDist = process.env.WEB_DIST
-const prefixo = webDist ? '/api' : ''
-
 await app.register(
   async (api) => {
     api.get('/saude', async () => ({ ok: true }))
     await api.register(rotasAuth)
-    // Público: o entregador entra pelo link da rota, sem usuário no sistema.
+    // Público: o entregador entra pelo link da rota e o cliente atualiza o cadastro pelo link dele,
+    // os dois sem usuário no sistema.
     await api.register(rotasEntregador)
+    await api.register(rotasCadastroPublico)
 
     await api.register(async (privado) => {
       privado.addHook('onRequest', autenticar)

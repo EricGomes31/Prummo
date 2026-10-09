@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { escoparPorEmpresa } from './empresa.js'
 
 // Toda consulta feita por este cliente fica restrita à empresa da requisição (ver empresa.ts).
-export const prisma = new PrismaClient().$extends(escoparPorEmpresa)
+// O hash do link de cadastro da pessoa nunca sai nas respostas; quem precisa dele pede com `omit: { cadastroLinkHash: false }`.
+export const prisma = new PrismaClient({ omit: { pessoa: { cadastroLinkHash: true } } }).$extends(escoparPorEmpresa)
 export type Transacao = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 
 export class AppError extends Error {

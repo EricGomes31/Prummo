@@ -3,7 +3,7 @@ import { anexar, api, baixar, TIPOS_DE_ANEXO, useAcao, useDados } from './api'
 import { dataBr } from './format'
 import { Erro, EstadoLista } from './ui'
 
-export type Origem = 'ENTRADA_ESTOQUE' | 'PEDIDO' | 'CONTA_PAGAR' | 'CONTA_RECEBER' | 'DESPESA'
+export type Origem = 'ENTRADA_ESTOQUE' | 'PEDIDO' | 'CONTA_PAGAR' | 'CONTA_RECEBER' | 'DESPESA' | 'ENTREGA'
 type Documento = { id: number; nome: string; tamanho: number; criadoEm: string }
 
 const tamanhoTexto = (bytes: number) =>

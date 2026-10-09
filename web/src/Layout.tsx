@@ -264,6 +264,19 @@ function Notificacoes({ chave }: { chave: string }) {
       resumo.entregas.falhas > 0 && { tom: 'alerta', para: '/entregas', titulo: plural(resumo.entregas.falhas, 'entrega com falha', 'entregas com falha'), nota: 'Logística · reprogramar' },
       resumo.estoque.semEstoque > 0 && { tom: 'alerta', para: '/produtos', titulo: plural(resumo.estoque.semEstoque, 'produto sem estoque', 'produtos sem estoque'), nota: 'Produtos e estoque' },
       resumo.entregas.pendentes > 0 && { tom: 'info', para: '/entregas', titulo: plural(resumo.entregas.pendentes, 'entrega pendente', 'entregas pendentes'), nota: 'Logística' },
+      // Avisos dos links públicos.
+      ...resumo.avisos.linksAbertos.map((r) => ({
+        tom: 'info',
+        para: '/entregas',
+        titulo: `Entregador abriu a rota "${r.nome}"`,
+        nota: `Logística · ${new Date(r.linkAbertoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`,
+      })),
+      ...resumo.avisos.cadastrosAtualizados.map((p) => ({
+        tom: 'info',
+        para: '/pessoas',
+        titulo: `${p.nome} atualizou o cadastro`,
+        nota: `Pessoas · ${new Date(p.cadastroAtualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`,
+      })),
     ].filter((a) => a !== false)
   }, [resumo])
   const urgentes = alertas.filter((a) => a.tom !== 'info').length

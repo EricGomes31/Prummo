@@ -48,6 +48,9 @@ export type Pessoa = {
   cidade: string | null
   uf: string | null
   ativo: boolean
+  // Link para a pessoa atualizar o próprio cadastro: até quando vale e quando ela atualizou da última vez.
+  cadastroLinkExpiraEm: string | null
+  cadastroAtualizadoEm: string | null
 } & Record<Classificacao, boolean>
 
 export type Classificacao = 'cliente' | 'fornecedor' | 'prestador' | 'paciente' | 'medico' | 'vendedor'
@@ -351,6 +354,10 @@ export type Rota = {
   // A chave do link só aparece quando ele é gerado; aqui só se sabe se está valendo e até quando.
   linkAtivo: boolean
   linkExpiraEm: string | null
+  // Quando o entregador abriu o link atual pela primeira vez, o último acesso e quantos foram.
+  linkAbertoEm: string | null
+  linkUltimoAcesso: string | null
+  linkAcessos: number
   cargaKg: number
   entregas: ParadaRota[]
 }
@@ -387,6 +394,7 @@ export type RotaDoEntregador = {
     valorPedido: number
     pagamento: string | null
     itens: { quantidade: number; unidade: string; produto: string }[]
+    documentos: { id: number; nome: string; criadoEm: string }[] // comprovantes enviados pelo entregador
   }[]
 }
 
@@ -537,6 +545,11 @@ export type PedidoParaEntrega = { id: number; total: number; faturadoEm: string 
 
 export type Resumo = {
   entregas: { pendentes: number; emRota: number; falhas: number }
+  // Links públicos: rotas abertas pelo entregador (24 h) e cadastros atualizados pelo cliente (7 dias).
+  avisos: {
+    linksAbertos: { id: number; nome: string; linkAbertoEm: string }[]
+    cadastrosAtualizados: { id: number; nome: string; cadastroAtualizadoEm: string }[]
+  }
   vendas: { quantidade: number; total: number; pedidosAbertos: number }
   receber: { total: number; vencidas: number }
   pagar: { total: number; vencidas: number }

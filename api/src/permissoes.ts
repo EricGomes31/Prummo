@@ -127,6 +127,8 @@ const REGRAS: Record<string, Permissao[]> = {
   'POST /pessoas': ['PESSOAS_CADASTRAR'],
   'PUT /pessoas/:id': ['PESSOAS_ALTERAR'],
   'DELETE /pessoas/:id': ['PESSOAS_ALTERAR'],
+  'POST /pessoas/:id/link-cadastro': ['PESSOAS_ALTERAR'],
+  'DELETE /pessoas/:id/link-cadastro': ['PESSOAS_ALTERAR'],
 
   'GET /produtos': ['PRODUTOS_VISUALIZAR', 'PEDIDOS_CADASTRAR', 'ESTOQUE_ENTRADA', 'PROMOCOES_GERENCIAR'],
   'POST /produtos': ['PRODUTOS_CADASTRAR'],

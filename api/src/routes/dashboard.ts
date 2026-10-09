@@ -30,6 +30,13 @@ export async function rotasDashboard(app: FastifyInstance) {
         }),
       ])
     const entregasEm = (status: string) => entregas.find((e) => e.status === status)?._count ?? 0
+    // Avisos dos links públicos: rotas cujo link o entregador abriu nas últimas 24 horas e pessoas que
+    // atualizaram o próprio cadastro nos últimos 7 dias.
+    const horasAtras = (horas: number) => new Date(Date.now() - horas * 60 * 60 * 1000)
+    const [linksAbertos, cadastrosAtualizados] = await Promise.all([
+      prisma.rota.findMany({ where: { linkAbertoEm: { gte: horasAtras(24) } }, select: { id: true, nome: true, linkAbertoEm: true }, orderBy: { linkAbertoEm: 'desc' }, take: 5 }),
+      prisma.pessoa.findMany({ where: { cadastroAtualizadoEm: { gte: horasAtras(7 * 24) } }, select: { id: true, nome: true, cadastroAtualizadoEm: true }, orderBy: { cadastroAtualizadoEm: 'desc' }, take: 5 }),
+    ])
     // O saldo é guardado em partes; aqui passa para a unidade base, que é a do custo e do estoque mínimo.
     const produtos = cadastros.map(({ divisor, ...p }) => ({ ...p, saldo: p.saldo / divisor }))
 
@@ -42,6 +49,7 @@ export async function rotasDashboard(app: FastifyInstance) {
       pagar: { total: aPagar, vencidas: pagarVencidas },
       saldoProjetado: aReceber - aPagar,
       entregas: { pendentes: entregasEm('PENDENTE'), emRota: entregasEm('EM_ROTA'), falhas: entregasEm('FALHOU') },
+      avisos: { linksAbertos, cadastrosAtualizados },
       estoque: {
         valor: Math.round(produtos.reduce((soma, p) => soma + p.saldo * p.precoCusto, 0)),
         semEstoque: produtos.filter((p) => p.saldo <= 0).length,

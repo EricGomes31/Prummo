@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { useSessao } from '../auth'
 import type { Classificacao, Pessoa } from '../types'
 import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
@@ -19,6 +20,7 @@ const nova = (): Rascunho => ({
   nome: '', nomeFantasia: '', documento: '', rgIe: '', email: '', telefone: '', celular: '', cep: '',
   logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
   cliente: true, fornecedor: false, prestador: false, paciente: false, medico: false, vendedor: false, ativo: true,
+  cadastroLinkExpiraEm: null, cadastroAtualizadoEm: null,
 })
 
 export function Pessoas() {
@@ -102,10 +104,68 @@ export function Pessoas() {
   )
 }
 
-type CampoTexto = Exclude<keyof Pessoa, 'id' | 'ativo' | Classificacao>
+type CampoTexto = Exclude<keyof Pessoa, 'id' | 'ativo' | Classificacao | 'cadastroLinkExpiraEm' | 'cadastroAtualizadoEm'>
+
+// Link para a própria pessoa conferir e atualizar identificação, contato e endereço. Vale uma vez.
+function LinkCadastro({ pessoa }: { pessoa: Rascunho & { id: number } }) {
+  const [link, setLink] = useState<{ url: string; expiraEm: string } | null>(null)
+  const [ativoAte, setAtivoAte] = useState(pessoa.cadastroLinkExpiraEm && new Date(pessoa.cadastroLinkExpiraEm) > new Date() ? pessoa.cadastroLinkExpiraEm : null)
+  const { erro, ocupado, executar } = useAcao()
+  const digitos = (pessoa.celular || pessoa.telefone || '').replace(/\D/g, '')
+  const whatsapp = digitos.length === 10 || digitos.length === 11 ? `55${digitos}` : ''
+
+  const gerar = () =>
+    executar(async () => {
+      const r = await api<{ chave: string; expiraEm: string }>(`/pessoas/${pessoa.id}/link-cadastro`, { body: { dias: 7 } })
+      setLink({ url: `${window.location.origin}/cadastro/${pessoa.id}#chave=${r.chave}`, expiraEm: r.expiraEm })
+      setAtivoAte(r.expiraEm)
+    })
+  const revogar = () =>
+    executar(async () => {
+      await api(`/pessoas/${pessoa.id}/link-cadastro`, { method: 'DELETE' })
+      setLink(null)
+      setAtivoAte(null)
+    })
+
+  return (
+    <div className="col-3">
+      <h3 className="secao">Atualização pelo próprio cliente</h3>
+      <p className="texto-suave">
+        {pessoa.cadastroAtualizadoEm && `Atualizado pela pessoa em ${new Date(pessoa.cadastroAtualizadoEm).toLocaleString('pt-BR')}. `}
+        {ativoAte ? `Há um link valendo até ${new Date(ativoAte).toLocaleString('pt-BR')}.` : 'Gere um link para a pessoa conferir e corrigir os próprios dados. Ele vale uma vez, por 7 dias.'}
+      </p>
+      {link && (
+        <p className="rota-link">
+          Envie este link à pessoa. Ele só aparece agora; gerar outro invalida este.
+          <input readOnly value={link.url} onFocus={(e) => e.target.select()} aria-label="Link de atualização do cadastro" />
+          {whatsapp && (
+            <a
+              className="botao botao-texto"
+              target="_blank"
+              rel="noreferrer"
+              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(`Olá! Confira e atualize seu cadastro pelo link: ${link.url}`)}`}
+            >
+              Enviar pelo WhatsApp
+            </a>
+          )}
+        </p>
+      )}
+      <Erro mensagem={erro} />
+      <button type="button" className="botao" disabled={ocupado} onClick={gerar}>
+        {ativoAte ? 'Gerar novo link' : 'Gerar link'}
+      </button>
+      {ativoAte && (
+        <button type="button" className="botao botao-texto" disabled={ocupado} onClick={revogar}>
+          Revogar
+        </button>
+      )}
+    </div>
+  )
+}
 
 function FormPessoa(props: { inicial: Rascunho; onFechar: () => void; onSalvo: () => void }) {
   const [p, setP] = useState(props.inicial)
+  const { pode } = useSessao()
   const { erro, ocupado, executar } = useAcao()
   const campo = (nome: CampoTexto) => ({
     value: p[nome] ?? '',
@@ -213,6 +273,8 @@ function FormPessoa(props: { inicial: Rascunho; onFechar: () => void; onSalvo: (
             Ativo
           </label>
         </fieldset>
+
+        {p.id && pode('PESSOAS_ALTERAR') && <LinkCadastro pessoa={{ ...p, id: p.id }} />}
 
         <Erro mensagem={erro} />
         <div className="form-pe">

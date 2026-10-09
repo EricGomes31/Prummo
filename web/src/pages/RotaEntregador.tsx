@@ -1,6 +1,7 @@
 // Página do entregador, aberta pelo link da rota. Não usa login: vale a chave que vem depois do "#".
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { lerEmBase64 } from '../api'
 import { brl, formasPagamento } from '../format'
 import type { RotaDoEntregador } from '../types'
 
@@ -29,11 +30,13 @@ export function RotaEntregador() {
     return dados as RotaDoEntregador
   }
 
-  async function executar(operacao: () => Promise<RotaDoEntregador>) {
+  // `manterCampos`: anexar um comprovante não apaga o que já foi digitado para concluir a entrega.
+  async function executar(operacao: () => Promise<RotaDoEntregador>, manterCampos = false) {
     setOcupado(true)
     setErro('')
     try {
       setRota(await operacao())
+      if (manterCampos) return
       setRecebedor('')
       setObservacao('')
     } catch (e) {
@@ -51,6 +54,10 @@ export function RotaEntregador() {
 
   const registrar = (entregaId: number, status: 'EM_ROTA' | 'ENTREGUE' | 'FALHOU') =>
     executar(() => chamar(`/entregas/${entregaId}`, { status, recebedor, observacao }))
+
+  // Foto da entrega ou do comprovante assinado; no celular, o seletor oferece a câmera.
+  const anexar = (entregaId: number, arquivo: File | undefined) =>
+    arquivo && executar(async () => chamar(`/entregas/${entregaId}/documentos`, { nome: arquivo.name, conteudo: await lerEmBase64(arquivo) }), true)
 
   return (
     <main className="entregador">
@@ -107,6 +114,25 @@ export function RotaEntregador() {
                   {fone && <a target="_blank" rel="noreferrer" href={`https://wa.me/${fone}`}>WhatsApp</a>}
                 </nav>
 
+                {e.documentos.length > 0 && (
+                  <p>
+                    <strong>Comprovantes enviados:</strong> {e.documentos.map((d) => d.nome).join(', ')}
+                  </p>
+                )}
+                {e.status !== 'PENDENTE' && (
+                  <label className="campo">
+                    <span>{ocupado ? 'Enviando…' : 'Anexar foto ou comprovante (imagem ou PDF)'}</span>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      disabled={ocupado}
+                      onChange={(ev) => {
+                        void anexar(e.id, ev.target.files?.[0])
+                        ev.target.value = ''
+                      }}
+                    />
+                  </label>
+                )}
                 {e.status === 'PENDENTE' && (
                   <button type="button" className="botao botao-primario" disabled={ocupado} onClick={() => void registrar(e.id, 'EM_ROTA')}>
                     Iniciar entrega

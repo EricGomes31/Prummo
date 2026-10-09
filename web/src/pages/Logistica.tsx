@@ -1,6 +1,7 @@
 // Abas da logística além das entregas: rotas com sequência de paradas, motoristas e veículos.
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { Documentos } from '../Documentos'
 import { dataBr, hojeIso, qtd } from '../format'
 import type { Entrega, HistoricoEntrega, Motorista, Rota, Veiculo } from '../types'
 import { Campo, Erro, EstadoLista, Modal, Selo } from '../ui'
@@ -145,6 +146,13 @@ export function Rotas() {
             </select>
             <span className="resumo-filtro">
               {rota.linkAtivo ? `Link do entregador válido até ${new Date(rota.linkExpiraEm!).toLocaleString('pt-BR')}` : 'Sem link do entregador'}
+              {rota.linkAtivo && (
+                <small className={`bloco ${rota.linkAbertoEm ? 'texto-bom' : 'texto-suave'}`}>
+                  {rota.linkAbertoEm
+                    ? `Aberto pelo entregador em ${new Date(rota.linkAbertoEm).toLocaleString('pt-BR')} · ${rota.linkAcessos} acesso(s), o último em ${new Date(rota.linkUltimoAcesso!).toLocaleString('pt-BR')}`
+                    : 'O entregador ainda não abriu o link'}
+                </small>
+              )}
             </span>
             <input type="number" min={1} max={168} className="curto" aria-label="Validade do link em horas" value={horas} onChange={(e) => setHoras(Math.min(168, Math.max(1, Number(e.target.value) || 1)))} />
             <span className="texto-suave">h</span>
@@ -456,7 +464,11 @@ export function HistoricoDaEntrega({ entrega, onFechar }: { entrega: Entrega; on
   const lista = dados ?? []
 
   return (
-    <Modal titulo={`Histórico da entrega · pedido nº ${entrega.pedidoId}`} onFechar={onFechar} largo>
+    <Modal titulo={`Histórico e documentos da entrega · pedido nº ${entrega.pedidoId}`} onFechar={onFechar} largo>
+      <h3>Documentos</h3>
+      <p className="texto-suave">Comprovante assinado, foto da entrega ou do local. O entregador também envia pelo link da rota.</p>
+      <Documentos origem="ENTREGA" origemId={entrega.id} />
+      <h3>Histórico</h3>
       <EstadoLista carregando={carregando} erro={erro} vazia={lista.length === 0} textoVazio="Sem registros. Entregas anteriores a este recurso não têm histórico." />
       {lista.length > 0 && (
         <table>

@@ -71,31 +71,35 @@ model PerfilAcesso {
 }
 
 model Pessoa {
-  id           Int      @id @default(autoincrement())
-  empresaId    Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
-  nome         String
-  nomeFantasia String?
-  documento    String? // CPF ou CNPJ
-  rgIe         String? // RG ou inscrição estadual
-  email        String?
-  telefone     String?
-  celular      String?
-  cep          String?
-  logradouro   String?
-  numero       String?
-  complemento  String?
-  bairro       String?
-  cidade       String?
-  uf           String?
+  id                   Int       @id @default(autoincrement())
+  empresaId            Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  nome                 String
+  nomeFantasia         String?
+  documento            String? // CPF ou CNPJ
+  rgIe                 String? // RG ou inscrição estadual
+  email                String?
+  telefone             String?
+  celular              String?
+  cep                  String?
+  logradouro           String?
+  numero               String?
+  complemento          String?
+  bairro               String?
+  cidade               String?
+  uf                   String?
   // Classificações: uma pessoa pode ter várias ao mesmo tempo.
-  cliente      Boolean  @default(false)
-  fornecedor   Boolean  @default(false)
-  prestador    Boolean  @default(false)
-  paciente     Boolean  @default(false)
-  medico       Boolean  @default(false)
-  vendedor     Boolean  @default(false)
-  ativo        Boolean  @default(true)
-  criadoEm     DateTime @default(now())
+  cliente              Boolean   @default(false)
+  fornecedor           Boolean   @default(false)
+  prestador            Boolean   @default(false)
+  paciente             Boolean   @default(false)
+  medico               Boolean   @default(false)
+  vendedor             Boolean   @default(false)
+  ativo                Boolean   @default(true)
+  criadoEm             DateTime  @default(now())
+  // Link para a própria pessoa atualizar o cadastro: só o hash da chave fica no banco. Vale uma vez.
+  cadastroLinkHash     String?
+  cadastroLinkExpiraEm DateTime?
+  cadastroAtualizadoEm DateTime? // última atualização feita pela própria pessoa, pelo link
 
   pedidos         Pedido[]         @relation("PedidoCliente")
   pedidosVendedor Pedido[]         @relation("PedidoVendedor")
@@ -397,21 +401,25 @@ model Veiculo {
 
 // Viagem de um motorista com um veículo em um dia, com as entregas em sequência.
 model Rota {
-  id             Int       @id @default(autoincrement())
-  empresaId      Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
-  nome           String
-  data           DateTime
-  motoristaId    Int
-  motorista      Motorista @relation(fields: [motoristaId], references: [id])
-  veiculoId      Int
-  veiculo        Veiculo   @relation(fields: [veiculoId], references: [id])
-  pontoSaida     String
-  latitudeSaida  Float?
-  longitudeSaida Float?
+  id               Int       @id @default(autoincrement())
+  empresaId        Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  nome             String
+  data             DateTime
+  motoristaId      Int
+  motorista        Motorista @relation(fields: [motoristaId], references: [id])
+  veiculoId        Int
+  veiculo          Veiculo   @relation(fields: [veiculoId], references: [id])
+  pontoSaida       String
+  latitudeSaida    Float?
+  longitudeSaida   Float?
   // Link do entregador: só o hash da chave fica no banco, com a validade.
-  linkHash       String?
-  linkExpiraEm   DateTime?
-  criadoEm       DateTime  @default(now())
+  linkHash         String?
+  linkExpiraEm     DateTime?
+  // Quando o entregador abriu o link pela primeira vez, o último acesso e quantos foram (do link atual).
+  linkAbertoEm     DateTime?
+  linkUltimoAcesso DateTime?
+  linkAcessos      Int       @default(0)
+  criadoEm         DateTime  @default(now())
 
   entregas Entrega[]
 

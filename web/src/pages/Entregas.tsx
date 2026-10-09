@@ -210,7 +210,7 @@ export function Entregas() {
                         </button>
                       )}
                       <button type="button" className="botao botao-texto" onClick={() => setVendoHistorico(e)}>
-                        Histórico
+                        Histórico e documentos
                       </button>
                     </td>
                   </tr>
