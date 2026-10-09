@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SyntheticEvent } from 'react'
 import { brl, centavosParaTexto, inteiro, paraCentavos, qtd, saldoBase, unidadesDe } from './format'
+import { Escolha, opcoesDeProdutos } from './escolha'
 import { Icone } from './icones'
 import type { ItemEdicao, Produto } from './types'
 
@@ -264,24 +265,20 @@ export function EditorItens(props: {
             return (
               <tr key={i}>
                 <td>
-                  <select
-                    value={item.produtoId || ''}
+                  <Escolha
                     required
-                    onChange={(e) => {
-                      const escolhido = produtos.find((p) => p.id === Number(e.target.value))
+                    // O item que acabou de ser incluído já recebe o cursor, pronto para digitar ou ler o código.
+                    autoFocus={!item.produtoId && i === itens.length - 1 && itens.length > 1}
+                    aria-label="Produto"
+                    placeholder="Código, descrição ou EAN…"
+                    opcoes={opcoesDeProdutos(produtos.filter((p) => p.id === item.produtoId || (p.ativo && !usados.has(p.id))))}
+                    valor={item.produtoId}
+                    onChange={(id) => {
+                      const escolhido = produtos.find((p) => p.id === id)
                       // Um produto novo começa na unidade base, com o preço dela.
                       trocar(i, { produtoId: escolhido?.id ?? 0, unidade: escolhido?.unidade ?? '', valor: escolhido?.[campoPreco] ?? 0, desconto: 0 })
                     }}
-                  >
-                    <option value="">Selecione…</option>
-                    {produtos
-                      .filter((p) => p.id === item.produtoId || (p.ativo && !usados.has(p.id)))
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.sku} · {p.nome}
-                        </option>
-                      ))}
-                  </select>
+                  />
                   {props.mostrarSaldo && produto?.controlaEstoque && (
                     <small className={saldoBase(produto) < item.quantidade / fator ? 'texto-ruim' : 'texto-suave'}>
                       Saldo: {qtd(saldoBase(produto))} {produto.unidade}

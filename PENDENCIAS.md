@@ -52,7 +52,7 @@ Levantado em 09/10/2026 (detalhes em `levantamento-sgnexus/`). Em ordem de prior
 
 Prioridade 1 (uso diário):
 - [x] Campos de pessoa com busca no lugar das listas longas. Feito em 09/10/2026: componente `web/src/escolha.tsx` (digita parte do nome, documento, celular ou e-mail, sem diferenciar acentos; setas, Enter e Esc; obrigatório não passa sem escolher). Usado no cliente, vendedor, médico e paciente do pedido; fornecedor da entrada e da despesa; filtros de cliente, fornecedor, vendedor, médico e paciente do financeiro e da cobrança; pessoa do novo lançamento e do crédito avulso; venda da devolução; pedido da nova entrega; cliente do depósito a maior na conciliação.
-- [ ] Produto no pedido escolhido digitando código, descrição ou EAN (Enter escolhe; serve para leitor de código de barras), como já é na entrada de estoque.
+- [x] Produto no pedido escolhido digitando código, descrição ou EAN. Feito em 09/10/2026: o item do pedido e os produtos da campanha usam o campo com busca; código ou EAN digitado exatamente vai para o topo e o Enter o escolhe (funciona com leitor de código de barras); "+ Adicionar item" já põe o cursor no produto novo. A entrada de estoque já tinha essa busca.
 - [ ] Lista de pedidos com busca (número, cliente, vendedor, médico, paciente) e período. Hoje a lista traz só os 300 mais recentes e não há como achar um pedido antigo fora dos relatórios; vale o mesmo para entradas (200) e contas (500).
 - [ ] "Finalizar venda" em um passo: salvar e faturar de uma vez, como no SG Nexus (lá todo pedido já nasce faturado).
 - [ ] Parcelas com vencimentos (e valores) escolhidos à mão no pedido a prazo e na entrada a prazo. Hoje o pedido só gera parcelas mensais e a entrada só aceita os prazos fixos.

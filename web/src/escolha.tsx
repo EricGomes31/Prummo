@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { documentoBr } from './format'
+import { brl, documentoBr } from './format'
 import { Icone } from './icones'
-import type { Pessoa } from './types'
+import type { Pessoa, Produto } from './types'
 
 // Campo de escolha com busca, para listas longas (pessoas, vendas): digita-se parte do nome, do
 // documento ou do telefone e escolhe-se na lista que aparece embaixo. Setas andam, Enter escolhe,
@@ -14,6 +14,9 @@ export type Opcao = {
   detalhe?: string
   // Texto extra que a busca também olha, sem aparecer (telefones, documento só com dígitos).
   busca?: string
+  // Códigos (SKU, EAN): digitado exatamente, a opção vai para o topo, e o Enter a escolhe.
+  // É o que acontece com o leitor de código de barras, que digita o código e aperta Enter.
+  codigos?: string[]
 }
 
 const LIMITE = 60
@@ -57,11 +60,14 @@ export function Escolha(props: {
     const termos = simples(texto.trim()).split(/\s+/).filter(Boolean)
     // Com o campo mostrando a própria escolha, a lista abre inteira.
     if (!termos.length || (escolhida && texto === escolhida.rotulo)) return opcoes.slice(0, LIMITE)
+    const digitado = simples(texto.trim())
+    const exato = (o: Opcao) => !!o.codigos?.some((k) => simples(k) === digitado)
     return opcoes
       .filter((o) => {
-        const alvo = simples(`${o.rotulo} ${o.detalhe ?? ''} ${o.busca ?? ''}`)
+        const alvo = simples(`${o.rotulo} ${o.detalhe ?? ''} ${o.busca ?? ''} ${o.codigos?.join(' ') ?? ''}`)
         return termos.every((t) => alvo.includes(t))
       })
+      .sort((a, b) => Number(exato(b)) - Number(exato(a)))
       .slice(0, LIMITE)
   }, [opcoes, texto, escolhida])
   const marcada = Math.min(indice, Math.max(0, achadas.length - 1))
@@ -209,4 +215,13 @@ export const opcoesDePessoas = (pessoas: (Pick<Pessoa, 'id' | 'nome'> & Partial<
     rotulo: p.nome,
     detalhe: [p.nomeFantasia, documentoBr(p.documento), p.cidade && `${p.cidade}${p.uf ? `/${p.uf}` : ''}`, p.ativo === false && 'inativa'].filter(Boolean).join(' · ') || undefined,
     busca: [p.documento, p.celular, p.telefone, p.email].filter(Boolean).join(' '),
+  }))
+
+// Produtos como opções: "código · descrição", com EAN e preço embaixo; código e EAN exatos vão ao topo.
+export const opcoesDeProdutos = (produtos: Produto[]): Opcao[] =>
+  produtos.map((p) => ({
+    id: p.id,
+    rotulo: `${p.sku} · ${p.nome}`,
+    detalhe: [p.ean && `EAN ${p.ean}`, p.precoVenda ? brl(p.precoVenda) : null, !p.ativo && 'inativo'].filter(Boolean).join(' · ') || undefined,
+    codigos: [p.sku, p.ean].filter((k): k is string => !!k),
   }))

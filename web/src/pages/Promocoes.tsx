@@ -6,6 +6,7 @@ import type { ItemPromocao, Modalidade, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { Icone } from '../icones'
 import { CampoData } from '../calendario'
+import { Escolha, opcoesDeProdutos } from '../escolha'
 
 const modalidades: Record<Modalidade, { rotulo: string; ajuda: string }> = {
   PERCENTUAL: { rotulo: 'Desconto percentual', ajuda: 'Desconto sobre todas as unidades de cada produto que atingir a quantidade mínima.' },
@@ -306,16 +307,14 @@ function ListaProdutos(props: {
           {doPapel.map(({ item, indice }) => (
             <tr key={indice}>
               <td>
-                <select required value={item.produtoId || ''} onChange={(e) => trocar(indice, { produtoId: Number(e.target.value) })}>
-                  <option value="">Selecione…</option>
-                  {props.produtos
-                    .filter((p) => p.id === item.produtoId || (p.ativo && !usados.has(p.id)))
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.sku} · {p.nome}
-                      </option>
-                    ))}
-                </select>
+                <Escolha
+                  required
+                  aria-label="Produto"
+                  placeholder="Código, descrição ou EAN…"
+                  opcoes={opcoesDeProdutos(props.produtos.filter((p) => p.id === item.produtoId || (p.ativo && !usados.has(p.id))))}
+                  valor={item.produtoId}
+                  onChange={(id) => trocar(indice, { produtoId: id })}
+                />
               </td>
               {props.rotuloQuantidade && (
                 <td className="num">
