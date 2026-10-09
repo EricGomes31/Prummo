@@ -37,9 +37,12 @@ if (!segredo || segredo.length < 32) {
 const webDist = process.env.WEB_DIST
 const prefixo = webDist ? '/api' : ''
 
-// Publicada, a API fica atrás do proxy da hospedagem: o IP de quem chamou é o que o proxy informa
-// (um salto só, para o cliente não conseguir forjar o próprio IP). Ele conta as tentativas dos links públicos.
-const app = Fastify({ logger: true, trustProxy: webDist ? (_endereco: string, salto: number) => salto < 1 : false })
+// Publicada, a API fica atrás do proxy da hospedagem. No Railway são dois saltos: um endereço interno
+// (100.64.x.x) e o servidor de entrada, que chega no X-Forwarded-For depois do IP do cliente. Confiando
+// nos dois, o IP de quem chamou é o do cliente. O Railway descarta o X-Forwarded-For que o cliente manda,
+// então ele não consegue forjar o próprio IP (conferido em 09/10/2026). Esse IP conta as tentativas de
+// login e dos links públicos (limite.ts); confiando em menos saltos, cada tentativa parece de um IP diferente.
+const app = Fastify({ logger: true, trustProxy: webDist ? (_endereco: string, salto: number) => salto < 2 : false })
 
 // Cada requisição ganha o próprio contexto de empresa, definido depois de saber quem chamou (ver empresa.ts).
 app.addHook('onRequest', (_req, _reply, continuar) => abrirContexto(continuar))
