@@ -247,6 +247,46 @@ input[type='file']:disabled::file-selector-button { opacity: 0.5; cursor: defaul
 input:disabled, select:disabled { background: var(--fundo); color: var(--suave); border-color: var(--borda); }
 input.curto { width: 96px; text-align: right; }
 
+/* Campo de data: o calendário do navegador dá lugar ao do sistema (calendario.tsx). No celular
+   fica o do aparelho, e o nosso botão some. */
+.data-campo { position: relative; min-width: 0; }
+.data-campo > input { padding-right: 42px; }
+.data-botao { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 6px; background: none; color: var(--suave); cursor: pointer; transition: background 0.14s, color 0.14s; }
+.data-botao svg { width: 18px; height: 18px; }
+.data-botao:hover:not(:disabled), .data-botao[aria-expanded='true'] { background: var(--fundo); color: var(--tinta); }
+.data-botao:disabled { opacity: 0.4; cursor: default; }
+@media (pointer: fine) {
+  .data-campo > input::-webkit-calendar-picker-indicator { display: none; }
+}
+@media (pointer: coarse) {
+  .data-botao { display: none; }
+  .data-campo > input { padding-right: 11px; }
+}
+.calendario { position: fixed; z-index: 55; background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra-2); padding: 10px 12px 8px; animation: descer 0.14s var(--curva); }
+.calendario-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.calendario-topo strong { font-weight: 600; letter-spacing: -0.01em; }
+.calendario-topo strong::first-letter { text-transform: uppercase; }
+.calendario-topo .botao-icone { width: 32px; height: 32px; }
+.calendario-topo .botao-icone svg { width: 18px; height: 18px; }
+.calendario-grade { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.calendario-meses { grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 4px 0; }
+.calendario-semana { height: 30px; display: grid; place-items: center; font-size: 0.76rem; font-weight: 550; color: var(--suave); }
+.calendario-celula { font: inherit; font-variant-numeric: tabular-nums; height: 36px; border: 0; border-radius: var(--raio-controle); background: none; color: var(--tinta); cursor: pointer; position: relative; transition: background 0.12s, color 0.12s; }
+.calendario-meses .calendario-celula { height: 44px; text-transform: capitalize; }
+.calendario-celula:hover:not(:disabled) { background: var(--fundo); }
+.calendario-celula:focus-visible { outline-offset: -2px; }
+.calendario-fora { color: var(--cinza); }
+/* Hoje: um ponto embaixo do número. */
+.calendario-celula[aria-current='date'] { font-weight: 650; }
+.calendario-celula[aria-current='date']::after { content: ''; position: absolute; left: 50%; bottom: 5px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--preto); }
+.calendario-celula[aria-pressed='true'] { background: var(--preto); color: #fff; font-weight: 600; }
+.calendario-celula[aria-pressed='true']:hover { background: #262626; }
+.calendario-celula[aria-pressed='true']::after { background: #fff; }
+.calendario-celula[aria-pressed='true']:focus-visible { outline-offset: 2px; }
+.calendario-celula:disabled { color: var(--borda-forte); cursor: default; }
+.calendario-pe { display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--borda); }
+.calendario-pe .botao-texto { min-height: 30px; font-size: 0.9rem; }
+
 .filtros { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
 .filtros input[type='search'] { max-width: 360px; flex: 1 1 220px; }
 .filtros select, .filtros .filtro-data, .filtro-mes { width: auto; }

@@ -5,6 +5,7 @@ import { brl, dataBr, hojeIso, mascarar } from '../format'
 import type { Endereco, Entrega, PedidoParaEntrega } from '../types'
 import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { HistoricoDaEntrega, Motoristas, numeroOuNulo, Rotas, Veiculos } from './Logistica'
+import { CampoData } from '../calendario'
 
 type Entregador = { id: number; nome: string }
 
@@ -113,7 +114,7 @@ export function Entregas() {
             </option>
           ))}
         </select>
-        <input type="date" className="filtro-data" value={data} onChange={(e) => setData(e.target.value)} aria-label="Data prevista" />
+        <CampoData type="date" className="filtro-data" value={data} onChange={(e) => setData(e.target.value)} aria-label="Data prevista" />
         {data !== hojeIso() && (
           <button type="button" className="botao botao-texto" onClick={() => setData(hojeIso())}>
             Hoje
@@ -321,7 +322,7 @@ function FormEntrega(props: { entrega: Entrega | null; entregadores: Entregador[
           </Campo>
         )}
         <Campo rotulo="Data prevista">
-          <input type="date" required {...texto('dataPrevista')} />
+          <CampoData type="date" required {...texto('dataPrevista')} />
         </Campo>
         <Campo rotulo="Entregador" largura={2}>
           <select value={f.entregadorId} onChange={(e) => setF({ ...f, entregadorId: Number(e.target.value) })}>

@@ -6,6 +6,7 @@ import { Documentos } from '../Documentos'
 import { dataBr, hojeIso, mascarar, qtd, telefoneBr } from '../format'
 import type { Entrega, HistoricoEntrega, Motorista, Rota, Veiculo } from '../types'
 import { Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { CampoData } from '../calendario'
 
 // Campos numéricos opcionais ficam como texto no formulário e viram número ou vazio ao enviar.
 export const numeroOuNulo = (texto: string) => (texto.trim() === '' ? null : Number(texto.replace(',', '.')))
@@ -233,7 +234,7 @@ function FormRota(props: { rota: Rota | null; motoristas: Motorista[]; veiculos:
           <input required autoFocus value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
         </Campo>
         <Campo rotulo="Data">
-          <input type="date" required value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} />
+          <CampoData type="date" required value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} />
         </Campo>
         <Campo rotulo="Motorista" largura={2}>
           <select required value={f.motoristaId || ''} onChange={(e) => setF({ ...f, motoristaId: Number(e.target.value) })}>

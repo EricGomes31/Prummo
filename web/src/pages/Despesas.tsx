@@ -7,6 +7,7 @@ import { brl, dataBr, formasPagamentoDespesa, hojeIso, mascaraDocumento, mascara
 import { exportarCsv, type Coluna } from '../relatorio'
 import type { ContaFinanceira, Despesa, ListaDespesas, Pessoa } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { CampoData } from '../calendario'
 
 type Parcela = { vencimento: string; valor: number }
 
@@ -91,10 +92,10 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
 
       <section className="painel filtros-relatorio">
         <Campo rotulo="Competência de">
-          <input type="date" value={f.inicio} max={f.fim || undefined} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
+          <CampoData type="date" value={f.inicio} max={f.fim || undefined} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
         </Campo>
         <Campo rotulo="Competência até">
-          <input type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
+          <CampoData type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
         </Campo>
         <Campo rotulo="Fornecedor">
           <select value={f.fornecedorId} onChange={(e) => setF({ ...f, fornecedorId: e.target.value })}>
@@ -322,10 +323,10 @@ function FormDespesa(props: {
           <input value={f.numeroDocumento} onChange={(e) => setF({ ...f, numeroDocumento: e.target.value })} />
         </Campo>
         <Campo rotulo="Data de emissão">
-          <input type="date" required value={f.dataEmissao} onChange={(e) => setF({ ...f, dataEmissao: e.target.value })} />
+          <CampoData type="date" required value={f.dataEmissao} onChange={(e) => setF({ ...f, dataEmissao: e.target.value })} />
         </Campo>
         <Campo rotulo="Competência">
-          <input type="date" required value={f.dataCompetencia} onChange={(e) => setF({ ...f, dataCompetencia: e.target.value })} />
+          <CampoData type="date" required value={f.dataCompetencia} onChange={(e) => setF({ ...f, dataCompetencia: e.target.value })} />
         </Campo>
         <Campo rotulo="Forma de pagamento">
           <select required value={f.formaPagamento} onChange={(e) => setF({ ...f, formaPagamento: e.target.value })}>
@@ -409,7 +410,7 @@ function FormDespesa(props: {
                       <tr key={i}>
                         <td>{i + 1}/{parcelas.length}</td>
                         <td>
-                          <input type="date" required aria-label={`Vencimento da parcela ${i + 1}`} value={p.vencimento} onChange={(e) => setParcelas(parcelas.map((x, n) => (n === i ? { ...x, vencimento: e.target.value } : x)))} />
+                          <CampoData type="date" required aria-label={`Vencimento da parcela ${i + 1}`} value={p.vencimento} onChange={(e) => setParcelas(parcelas.map((x, n) => (n === i ? { ...x, vencimento: e.target.value } : x)))} />
                         </td>
                         <td className="num">
                           <Dinheiro className="curto" aria-label={`Valor da parcela ${i + 1}`} valor={p.valor} onChange={(novo) => setParcelas(parcelas.map((x, n) => (n === i ? { ...x, valor: novo } : x)))} />

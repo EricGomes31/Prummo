@@ -5,6 +5,8 @@ import { brl, formasPagamento, hojeIso } from '../format'
 import { Colunas, Ranking } from '../graficos'
 import type { DashboardComercial, DashboardFinanceiro, PeriodoDashboard } from '../types'
 import { Cabecalho, EstadoLista } from '../ui'
+import { CampoData } from '../calendario'
+import { Icone } from '../icones'
 
 // Cores dos gráficos: par validado para daltonismo e contraste sobre fundo branco.
 const COR = { principal: '#3b82f6', secundaria: '#eb6834', apagada: '#d4d4d8' }
@@ -68,24 +70,24 @@ export function Dashboards() {
         {escolha.tipo === 'mes' && (
           <>
             <button type="button" className="botao" onClick={() => setEscolha({ tipo: 'mes', mes: mesVizinho(escolha.mes, -1) })} aria-label="Mês anterior">
-              ‹
+              <Icone nome="anterior" />
             </button>
-            <input type="month" className="filtro-mes" value={escolha.mes} max={mesAtual} aria-label="Mês"
+            <CampoData type="month" required className="filtro-mes" value={escolha.mes} max={mesAtual} aria-label="Mês"
               onChange={(e) => e.target.value && setEscolha({ tipo: 'mes', mes: e.target.value })} />
             <button type="button" className="botao" onClick={() => setEscolha({ tipo: 'mes', mes: mesVizinho(escolha.mes, 1) })} disabled={escolha.mes >= mesAtual} aria-label="Próximo mês">
-              ›
+              <Icone nome="proximo" />
             </button>
           </>
         )}
         {escolha.tipo === 'ano' && (
           <>
             <button type="button" className="botao" onClick={() => setEscolha({ tipo: 'ano', ano: String(Number(escolha.ano) - 1) })} aria-label="Ano anterior">
-              ‹
+              <Icone nome="anterior" />
             </button>
             <input type="number" className="filtro-mes" value={escolha.ano} min={2000} max={Number(anoAtual)} aria-label="Ano"
               onChange={(e) => /^\d{4}$/.test(e.target.value) && Number(e.target.value) <= Number(anoAtual) && setEscolha({ tipo: 'ano', ano: e.target.value })} />
             <button type="button" className="botao" onClick={() => setEscolha({ tipo: 'ano', ano: String(Number(escolha.ano) + 1) })} disabled={escolha.ano >= anoAtual} aria-label="Próximo ano">
-              ›
+              <Icone nome="proximo" />
             </button>
           </>
         )}

@@ -4,6 +4,7 @@ import { brl, formasPagamento, formasPagamentoDespesa, naturezasPedido } from '.
 import { exportarCsv, Resumo, Tabela, type Coluna } from '../relatorio'
 import type { RelatorioDespesas, RelatorioFinanceiro, RelatorioVendas } from '../types'
 import { Cabecalho, Campo, EstadoLista, Selo } from '../ui'
+import { CampoData } from '../calendario'
 
 type LinhaVenda = RelatorioVendas['linhas'][number]
 const colunasVendas: Coluna<LinhaVenda>[] = [
@@ -121,10 +122,10 @@ export function Relatorios() {
 
       <section className="painel filtros-relatorio">
         <Campo rotulo={rotuloInicio[aba]}>
-          <input type="date" value={f.inicio} max={f.fim || undefined} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
+          <CampoData type="date" value={f.inicio} max={f.fim || undefined} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
         </Campo>
         <Campo rotulo="Até">
-          <input type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
+          <CampoData type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
         </Campo>
         {aba !== 'despesas' && (
           <Campo rotulo="Situação">

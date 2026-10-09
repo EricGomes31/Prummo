@@ -26,6 +26,9 @@ const desenhos = {
   receber: 'M12 4v12m0 0-4.5-4.5M12 16l4.5-4.5M5 20h14',
   pagar: 'M12 20V8m0 0-4.5 4.5M12 8l4.5 4.5M5 4h14',
   saldo: 'M4 7.5h16v10H4zM4 10.5h16M15.5 14h1.5',
+  calendario: 'M5.5 5.5h13a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1ZM4.5 10h15M8.5 3.5v4M15.5 3.5v4',
+  anterior: 'M14.5 6 8.5 12l6 6',
+  proximo: 'm9.5 6 6 6-6 6',
   alertaIcone: 'M12 4 2.8 19.5h18.4L12 4ZM12 10v4.5M12 17.2h.01',
 } as const
 

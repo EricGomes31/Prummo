@@ -5,6 +5,7 @@ import { Documentos } from '../Documentos'
 import { brl, dataBr, formasPagamento, hojeIso, inteiro, motivosPerda, naturezasPedido, unidadesDe } from '../format'
 import type { Classificacao, Credito, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, usePaginacao } from '../ui'
+import { CampoData } from '../calendario'
 
 export function Pedidos() {
   const [status, setStatus] = useState('')
@@ -360,7 +361,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
               <input type="number" min={1} max={24} required value={parcelas} onChange={(e) => setParcelas(Math.min(24, Math.max(1, inteiro(e.target.value))))} />
             </Campo>
             <Campo rotulo={faturado ? 'Primeiro vencimento' : 'Primeiro vencimento (opcional)'}>
-              <input type="date" required={faturado} value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
+              <CampoData type="date" required={faturado} value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
             </Campo>
           </>
         )}
@@ -454,7 +455,7 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
               <input type="number" min={1} max={24} required value={parcelas} onChange={(e) => setParcelas(Math.max(1, inteiro(e.target.value)))} />
             </Campo>
             <Campo rotulo="Primeiro vencimento" largura={2}>
-              <input type="date" required value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
+              <CampoData type="date" required value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
             </Campo>
           </>
         )}

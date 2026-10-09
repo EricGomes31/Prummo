@@ -8,6 +8,7 @@ import type { Conta, ContaFinanceira, Extrato, MovimentoFinanceiro, Pessoa, Rela
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { Conciliacao } from './Conciliacao'
 import { Despesas } from './Despesas'
+import { CampoData } from '../calendario'
 
 const abas = {
   'contas-receber': { rotulo: 'A receber', baixar: 'Receber', baixa: 'Recebimento', pessoa: 'Cliente', classificacao: 'cliente' },
@@ -139,10 +140,10 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
             </>
           )}
           <Campo rotulo="Vencimento de">
-            <input type="date" value={f.inicio} max={f.fim || undefined} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
+            <CampoData type="date" value={f.inicio} max={f.fim || undefined} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
           </Campo>
           <Campo rotulo="Até">
-            <input type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
+            <CampoData type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
           </Campo>
           {filtrando && (
             <button type="button" className="botao botao-texto" onClick={() => setF({ ...f, pessoaId: '', vendedorId: '', medicoId: '', pacienteId: '', inicio: '', fim: '' })}>
@@ -300,7 +301,7 @@ function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
         </Campo>
         {!f.vencidas && (
           <Campo rotulo="Vencimento até">
-            <input type="date" value={f.ate} onChange={(e) => setF({ ...f, ate: e.target.value })} />
+            <CampoData type="date" value={f.ate} onChange={(e) => setF({ ...f, ate: e.target.value })} />
           </Campo>
         )}
         <FiltroPessoa rotulo="Cliente" pessoas={props.pessoas} classificacao="cliente" valor={f.pessoaId} onChange={(pessoaId) => setF({ ...f, pessoaId })} />
@@ -410,7 +411,7 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
             <Dinheiro required autoFocus valor={valor} onChange={setValor} />
           </Campo>
           <Campo rotulo="Data e hora">
-            <input type="datetime-local" required value={quando} onChange={(e) => setQuando(e.target.value)} />
+            <CampoData type="datetime-local" required value={quando} onChange={(e) => setQuando(e.target.value)} />
           </Campo>
           <Campo rotulo="Observação">
             <input value={observacao} onChange={(e) => setObservacao(e.target.value)} />
@@ -510,7 +511,7 @@ function FormConta(props: { aba: AbaContas; onFechar: () => void; onSalvo: () =>
           <Dinheiro required valor={valor} onChange={setValor} />
         </Campo>
         <Campo rotulo="Vencimento" largura={2}>
-          <input type="date" required value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+          <CampoData type="date" required value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
         </Campo>
         <Erro mensagem={erro} />
         <div className="form-pe">
@@ -616,10 +617,10 @@ function CaixaBancos({ seletor }: { seletor: ReactNode }) {
           </select>
         </Campo>
         <Campo rotulo="Período inicial">
-          <input type="date" value={f.inicio} max={f.fim || undefined} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
+          <CampoData type="date" value={f.inicio} max={f.fim || undefined} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
         </Campo>
         <Campo rotulo="Período final">
-          <input type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
+          <CampoData type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
         </Campo>
       </section>
 
@@ -781,7 +782,7 @@ function LancarNoCaixa(props: { modo: 'avulso' | 'transferencia'; contas: ContaF
           <Dinheiro required valor={valor} onChange={setValor} />
         </Campo>
         <Campo rotulo="Data e hora">
-          <input type="datetime-local" required value={quando} onChange={(e) => setQuando(e.target.value)} />
+          <CampoData type="datetime-local" required value={quando} onChange={(e) => setQuando(e.target.value)} />
         </Campo>
         <Campo rotulo={transferencia ? 'Descrição (opcional)' : 'Histórico'} largura={transferencia ? 2 : 3}>
           <input

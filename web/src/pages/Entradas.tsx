@@ -6,6 +6,7 @@ import { brl, dataBr, hojeIso, inteiro, unidadesDe } from '../format'
 import type { Entrada, ItemEdicao, Pessoa, Produto } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, totalItens, usePaginacao } from '../ui'
 import { Icone } from '../icones'
+import { CampoData } from '../calendario'
 
 const naturezas = { COMPRA_REVENDA: 'Compra para revenda', BONIFICACAO: 'Bonificação' } as const
 type Natureza = keyof typeof naturezas
@@ -172,7 +173,7 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
           </select>
         </Campo>
         <Campo rotulo="Data da entrada">
-          <input type="date" required value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} />
+          <CampoData type="date" required value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} />
         </Campo>
         <Campo rotulo="Condição de pagamento">
           <select required={compra} disabled={!compra} value={compra ? f.condicaoPagamento : ''} onChange={(e) => setF({ ...f, condicaoPagamento: e.target.value })}>

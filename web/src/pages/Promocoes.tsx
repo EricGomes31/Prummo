@@ -5,6 +5,7 @@ import { brl, dataBr, hojeIso, inteiro } from '../format'
 import type { ItemPromocao, Modalidade, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { Icone } from '../icones'
+import { CampoData } from '../calendario'
 
 const modalidades: Record<Modalidade, { rotulo: string; ajuda: string }> = {
   PERCENTUAL: { rotulo: 'Desconto percentual', ajuda: 'Desconto sobre todas as unidades de cada produto que atingir a quantidade mínima.' },
@@ -216,10 +217,10 @@ function FormCampanha(props: { inicial: Rascunho; onFechar: () => void; onSalvo:
         <p className="texto-suave col-3">{modalidades[m].ajuda}</p>
 
         <Campo rotulo="Início">
-          <input type="date" required value={c.inicio} onChange={(e) => setC({ ...c, inicio: e.target.value })} />
+          <CampoData type="date" required value={c.inicio} onChange={(e) => setC({ ...c, inicio: e.target.value })} />
         </Campo>
         <Campo rotulo="Fim">
-          <input type="date" required min={c.inicio} value={c.fim} onChange={(e) => setC({ ...c, fim: e.target.value })} />
+          <CampoData type="date" required min={c.inicio} value={c.fim} onChange={(e) => setC({ ...c, fim: e.target.value })} />
         </Campo>
         {m === 'PERCENTUAL' && (
           <Campo rotulo="Desconto (%)">
