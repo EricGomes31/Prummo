@@ -73,7 +73,7 @@ Feito, aplicado ao banco real e publicado em 09/10/2026 (cópia de segurança an
 
 ### Limite de tentativas no login
 
-Feito em 09/10/2026 (`api/src/limite.ts`, o mesmo mecanismo dos links públicos). Cinco senhas erradas para o mesmo e-mail, vindas do mesmo IP, bloqueiam esse e-mail nesse IP por 15 minutos; vinte falhas do mesmo IP, com quaisquer e-mails, bloqueiam o IP. Não há bloqueio só pelo e-mail, para ninguém conseguir trancar a conta de outra pessoa de propósito. Entrar com a senha certa zera a contagem do e-mail. A senha atual errada na troca de senha conta como falha de login da conta. Os contadores ficam em memória e zeram quando a API reinicia. Suíte `login-limite`.
+Feito em 09/10/2026 (`api/src/limite.ts`, o mesmo mecanismo dos links públicos). Cinco senhas erradas para o mesmo e-mail, vindas do mesmo IP, bloqueiam esse e-mail nesse IP por 15 minutos; vinte falhas do mesmo IP, com quaisquer e-mails, bloqueiam o IP. Não há bloqueio só pelo e-mail, para ninguém conseguir trancar a conta de outra pessoa de propósito. Entrar com a senha certa zera a contagem do e-mail. A senha atual errada na troca de senha conta como falha de login da conta. Os contadores ficam em memória e zeram quando a API reinicia. Suíte `login-limite`. Publicado e conferido no site em 09/10/2026. No Railway, o IP do cliente vem de dois saltos de proxy (`trustProxy` em `api/src/server.ts`); com um só, cada tentativa parecia de um IP diferente e nem este limite nem o dos links públicos chegavam a bloquear.
 
 ### Funções que faltavam do SG Nexus
 
