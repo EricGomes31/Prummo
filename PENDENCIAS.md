@@ -5,7 +5,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 ## Urgente (segurança e acesso)
 
 - [x] Aplicar no banco real a passagem para várias empresas e as funções novas. Feito e publicado em 09/10/2026, com cópia de segurança antes em `backups/2026-10-09-0202`. Os dados ficaram na empresa "Infinity Labs".
-- [ ] Depois de publicar, dar as permissões novas aos perfis personalizados que precisarem: alterar pedido faturado, lançar crédito avulso e lançar no caixa (avulso e transferência). Administrador e operador de fábrica já têm.
+- [x] Dar as permissões novas (alterar pedido faturado, lançar crédito avulso, lançar no caixa) aos perfis personalizados. Conferido em 09/10/2026: o banco real não tem nenhum perfil personalizado; os dois usuários usam os perfis de fábrica (Administrador e Operador), que já recebem as permissões novas sozinhos. Ao criar um perfil personalizado, marcar essas permissões para quem precisar.
 - [ ] Informar o CPF ou CNPJ do titular nas contas em banco já cadastradas: agora é obrigatório para salvar uma conta que não seja o caixa.
 - [x] Adaptar os importadores (`api/scripts/importar-*.mjs`) para informar a empresa. Feito em 09/10/2026: opção `--empresa=<id>`, com testes.
 - [x] Numeração dos pedidos por empresa. Feito e publicado em 09/10/2026, com cópia de segurança antes em `backups/2026-10-09-0333`. Os pedidos #2 a #5 mantiveram os números; o próximo da Infinity Labs é o #6.
