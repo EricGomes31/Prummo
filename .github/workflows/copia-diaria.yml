@@ -1,0 +1,44 @@
+# Cópia de segurança diária do banco real, guardada como artefato desta execução (repositório privado).
+# Baixe em Actions > "Cópia diária do banco" > a execução do dia > Artifacts. Para restaurar no banco local:
+#   descompacte em backups/AAAA-MM-DD-HHMM e rode "node --env-file=.env scripts/carregar-copia.mjs <pasta>" em api/.
+# O endereço do banco vem do segredo BANCO_URL (Settings > Secrets and variables > Actions).
+# Se falhar, o GitHub manda e-mail para quem alterou este arquivo por último.
+name: Cópia diária do banco
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # 03:00 em Brasília
+  workflow_dispatch: # e manualmente, pelo botão "Run workflow"
+
+permissions:
+  contents: read
+
+jobs:
+  copia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Copiar o banco
+        env:
+          DIRECT_URL: ${{ secrets.BANCO_URL }}
+        run: |
+          test -n "$DIRECT_URL" || { echo "Falta o segredo BANCO_URL."; exit 1; }
+          echo "PASTA=$(date -u +%Y-%m-%d-%H%M)" >> "$GITHUB_ENV"
+          node scripts/copiar-banco.mjs "$RUNNER_TEMP/copia"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: banco-${{ env.PASTA }}
+          path: ${{ runner.temp }}/copia
+          retention-days: 30
+          if-no-files-found: error
