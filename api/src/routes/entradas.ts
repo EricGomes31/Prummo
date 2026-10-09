@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { AppError, centavos, dataIso, idParam, prisma, texto } from '../lib.js'
+import { AppError, centavos, dataIso, dia, idParam, intervalo, prisma, texto } from '../lib.js'
 import { resolverUnidade } from './produtos.js'
 
 export const NATUREZAS_ENTRADA = ['COMPRA_REVENDA', 'BONIFICACAO'] as const
@@ -53,9 +53,28 @@ const comDetalhes = {
 } as const
 
 export async function rotasEntradas(app: FastifyInstance) {
-  app.get('/entradas', async () => {
+  // Lista as mais recentes; a busca e o período procuram em todas as entradas.
+  app.get('/entradas', async (req) => {
+    const q = z.object({ busca: z.string().trim().optional(), inicio: dia.optional(), fim: dia.optional() }).parse(req.query)
+    // "12" ou "#12" acha a entrada nº 12; o texto procura no fornecedor, no documento e nos produtos.
+    const numero = q.busca ? Number(q.busca.replace(/^#/, '')) : NaN
+    const contem = { contains: q.busca, mode: 'insensitive' as const }
+    const where = {
+      data: intervalo(q.inicio, q.fim),
+      ...(q.busca
+        ? {
+            OR: [
+              ...(Number.isInteger(numero) && numero > 0 ? [{ id: numero }] : []),
+              { fornecedor: { nome: contem } },
+              { fornecedor: { nomeFantasia: contem } },
+              { numeroDocumento: contem },
+              { itens: { some: { produto: { OR: [{ nome: contem }, { sku: contem }] } } } },
+            ],
+          }
+        : {}),
+    }
     const [entradas, anexos] = await Promise.all([
-      prisma.entradaEstoque.findMany({ include: comDetalhes, orderBy: { id: 'desc' }, take: 200 }),
+      prisma.entradaEstoque.findMany({ where, include: comDetalhes, orderBy: { id: 'desc' }, take: 200 }),
       prisma.documento.groupBy({ by: ['origemId'], where: { origem: 'ENTRADA_ESTOQUE' }, _count: true }),
     ])
     const quantos = new Map(anexos.map((a) => [a.origemId, a._count]))

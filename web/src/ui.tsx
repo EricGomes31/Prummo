@@ -192,6 +192,17 @@ export function usePaginacao<T>(itens: T[], porPagina = 25) {
   return { visiveis, controle }
 }
 
+// Devolve o valor só depois que ele parou de mudar por um instante: a busca que consulta o servidor
+// espera a pessoa terminar de digitar, em vez de consultar a cada tecla.
+export function useAtrasado<T>(valor: T, ms = 350) {
+  const [atrasado, setAtrasado] = useState(valor)
+  useEffect(() => {
+    const espera = setTimeout(() => setAtrasado(valor), ms)
+    return () => clearTimeout(espera)
+  }, [valor, ms])
+  return atrasado
+}
+
 type PropsDinheiro = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
   valor: number
   onChange: (centavos: number) => void

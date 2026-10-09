@@ -370,6 +370,7 @@ input.curto { width: 96px; text-align: right; }
 .filtros select, .filtros .filtro-data, .filtro-mes { width: auto; }
 .filtros-relatorio { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; padding: 16px; margin-bottom: 16px; overflow: visible; }
 .filtros-relatorio .campo:last-child { grid-column: span 2; }
+.aviso-lista { margin: -4px 0 12px; font-size: 0.88rem; color: var(--suave); }
 .resumo-filtro { margin-left: auto; color: var(--suave); }
 .resumo-filtro strong { color: var(--tinta); }
 

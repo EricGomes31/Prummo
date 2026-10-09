@@ -1,10 +1,13 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { AppError, centavos, dataIso, idParam, prisma, quantidadeTexto, somarMeses, texto, type Transacao } from '../lib.js'
+import { AppError, centavos, dataIso, dia, idParam, intervalo, prisma, quantidadeTexto, somarMeses, texto, type Transacao } from '../lib.js'
 import { calcularDescontoPromocao } from '../promocao.js'
 import { aplicarCredito } from './devolucoes.js'
 import { resolverUnidade } from './produtos.js'
 import { carregarVigente } from './promocoes.js'
+
+// Quantos pedidos a lista traz de uma vez; a tela avisa quando a lista chega a esse número.
+export const LIMITE_LISTA = 300
 
 export const NATUREZAS = ['VENDA', 'BONIFICACAO', 'PERDA'] as const
 export const MOTIVOS_PERDA = ['AVARIA', 'VENCIMENTO', 'QUEBRA', 'EXTRAVIO', 'OUTROS'] as const
@@ -265,13 +268,40 @@ const assinaturaValores = (p: {
   ])
 
 export async function rotasPedidos(app: FastifyInstance) {
+  // Lista os mais recentes; a busca e o período procuram em todos os pedidos, não só nos que cabem na lista.
   app.get('/pedidos', async (req) => {
-    const q = z.object({ status: z.enum(['ABERTO', 'FATURADO', 'CANCELADO']).optional() }).parse(req.query)
+    const q = z
+      .object({
+        status: z.enum(['ABERTO', 'FATURADO', 'CANCELADO']).optional(),
+        busca: z.string().trim().optional(),
+        inicio: dia.optional(),
+        fim: dia.optional(),
+      })
+      .parse(req.query)
+    // "123" ou "#123" acha o pedido de número 123; o texto procura nas pessoas e na observação.
+    const numero = q.busca ? Number(q.busca.replace(/^#/, '')) : NaN
+    const contem = { contains: q.busca, mode: 'insensitive' as const }
     return prisma.pedido.findMany({
-      where: q.status ? { status: q.status } : {},
+      where: {
+        ...(q.status ? { status: q.status } : {}),
+        criadoEm: intervalo(q.inicio, q.fim),
+        ...(q.busca
+          ? {
+              OR: [
+                ...(Number.isInteger(numero) && numero > 0 ? [{ numero }] : []),
+                { cliente: { nome: contem } },
+                { cliente: { nomeFantasia: contem } },
+                { vendedor: { nome: contem } },
+                { medico: { nome: contem } },
+                { paciente: { nome: contem } },
+                { observacao: contem },
+              ],
+            }
+          : {}),
+      },
       include: comDetalhes,
       orderBy: { id: 'desc' },
-      take: 300,
+      take: LIMITE_LISTA,
     })
   })
 

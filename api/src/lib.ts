@@ -42,6 +42,15 @@ export const dataIso = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
   .transform((s) => new Date(`${s}T12:00:00`))
 
+// Filtro de período: "AAAA-MM-DD" de início e de fim, os dois dias incluídos por inteiro.
+export const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
+export function intervalo(inicio?: string, fim?: string) {
+  if (!inicio && !fim) return undefined
+  const ate = fim ? new Date(`${fim}T00:00:00`) : undefined
+  ate?.setDate(ate.getDate() + 1)
+  return { ...(inicio ? { gte: new Date(`${inicio}T00:00:00`) } : {}), ...(ate ? { lt: ate } : {}) }
+}
+
 // Data com hora opcional. Só a data ("AAAA-MM-DD") vale como meio-dia, como em `dataIso`; com hora, vem
 // do navegador em ISO com o fuso ("2026-10-08T17:30:00.000Z") e é guardada no instante exato.
 export const dataHora = z

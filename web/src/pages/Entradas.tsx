@@ -4,7 +4,7 @@ import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { brl, dataBr, hojeIso, inteiro, unidadesDe } from '../format'
 import type { Entrada, ItemEdicao, Pessoa, Produto } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, totalItens, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, totalItens, useAtrasado, usePaginacao } from '../ui'
 import { Icone } from '../icones'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
@@ -26,7 +26,11 @@ const condicoes: [string, string][] = [
 const rotuloCondicao = (c: string | null) => (c === null ? '—' : (condicoes.find(([valor]) => valor === c)?.[1] ?? `${c} dias`))
 
 export function Entradas() {
-  const { dados, erro, carregando, recarregar } = useDados<Entrada[]>('/entradas')
+  const [filtro, setFiltro] = useState({ busca: '', inicio: '', fim: '' })
+  const busca = useAtrasado(filtro.busca.trim())
+  const consulta = new URLSearchParams(Object.entries({ busca, inicio: filtro.inicio, fim: filtro.fim }).filter(([, v]) => v)).toString()
+  const { dados, erro, carregando, recarregar } = useDados<Entrada[]>(`/entradas${consulta ? `?${consulta}` : ''}`)
+  const filtrando = !!consulta
   const [lancando, setLancando] = useState(false)
   const [documentosDe, setDocumentosDe] = useState<Entrada | null>(null)
   const entradas = dados ?? []
@@ -43,8 +47,32 @@ export function Entradas() {
         )}
       </Cabecalho>
 
+      <div className="filtros">
+        <input
+          type="search"
+          value={filtro.busca}
+          onChange={(e) => setFiltro({ ...filtro, busca: e.target.value })}
+          placeholder="Número, fornecedor, documento ou produto"
+          aria-label="Buscar entrada"
+        />
+        <CampoData type="date" className="filtro-data" value={filtro.inicio} max={filtro.fim || undefined} aria-label="Entradas a partir de"
+          onChange={(e) => setFiltro({ ...filtro, inicio: e.target.value })} />
+        <CampoData type="date" className="filtro-data" value={filtro.fim} min={filtro.inicio || undefined} aria-label="Entradas até"
+          onChange={(e) => setFiltro({ ...filtro, fim: e.target.value })} />
+        {filtrando && (
+          <button type="button" className="botao botao-texto" onClick={() => setFiltro({ busca: '', inicio: '', fim: '' })}>
+            Limpar
+          </button>
+        )}
+      </div>
+      {entradas.length >= 200 && (
+        <p className="aviso-lista">
+          Mostrando as 200 entradas mais recentes{filtrando ? ' que atendem à busca' : ''}. Para achar outras, busque pelo fornecedor, documento ou produto, ou escolha um período.
+        </p>
+      )}
+
       <section className="painel">
-        <EstadoLista carregando={carregando} erro={erro} vazia={entradas.length === 0} textoVazio="Nenhuma entrada lançada." />
+        <EstadoLista carregando={carregando} erro={erro} vazia={entradas.length === 0} textoVazio={filtrando ? 'Nenhuma entrada atende à busca.' : 'Nenhuma entrada lançada.'} />
         {entradas.length > 0 && (
           <table>
             <thead>

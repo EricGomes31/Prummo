@@ -4,13 +4,21 @@ import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { brl, dataBr, formasPagamento, hojeIso, inteiro, motivosPerda, naturezasPedido, unidadesDe } from '../format'
 import type { Classificacao, Credito, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
-import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, usePaginacao } from '../ui'
+import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, useAtrasado, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
 
+// O mesmo limite da API: a lista traz no máximo esse tanto, dos mais recentes.
+const LIMITE_LISTA = 300
+
 export function Pedidos() {
-  const [status, setStatus] = useState('')
-  const { dados, erro, carregando, recarregar } = useDados<Pedido[]>(`/pedidos${status ? `?status=${status}` : ''}`)
+  const [filtro, setFiltro] = useState({ status: '', busca: '', inicio: '', fim: '' })
+  const busca = useAtrasado(filtro.busca.trim())
+  const consulta = new URLSearchParams(
+    Object.entries({ status: filtro.status, busca, inicio: filtro.inicio, fim: filtro.fim }).filter(([, v]) => v),
+  ).toString()
+  const { dados, erro, carregando, recarregar } = useDados<Pedido[]>(`/pedidos${consulta ? `?${consulta}` : ''}`)
+  const filtrando = !!(busca || filtro.inicio || filtro.fim)
   const [editando, setEditando] = useState<Pedido | 'novo' | null>(null)
   const [vendo, setVendo] = useState<Pedido | null>(null)
   const [faturando, setFaturando] = useState<Pedido | null>(null)
@@ -36,16 +44,37 @@ export function Pedidos() {
       </Cabecalho>
 
       <div className="filtros">
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Situação">
+        <input
+          type="search"
+          value={filtro.busca}
+          onChange={(e) => setFiltro({ ...filtro, busca: e.target.value })}
+          placeholder="Número, cliente, vendedor, médico ou paciente"
+          aria-label="Buscar pedido"
+        />
+        <select value={filtro.status} onChange={(e) => setFiltro({ ...filtro, status: e.target.value })} aria-label="Situação">
           <option value="">Todas as situações</option>
           <option value="ABERTO">Em aberto</option>
           <option value="FATURADO">Faturados</option>
           <option value="CANCELADO">Cancelados</option>
         </select>
+        <CampoData type="date" className="filtro-data" value={filtro.inicio} max={filtro.fim || undefined} aria-label="Lançados a partir de"
+          onChange={(e) => setFiltro({ ...filtro, inicio: e.target.value })} />
+        <CampoData type="date" className="filtro-data" value={filtro.fim} min={filtro.inicio || undefined} aria-label="Lançados até"
+          onChange={(e) => setFiltro({ ...filtro, fim: e.target.value })} />
+        {filtrando && (
+          <button type="button" className="botao botao-texto" onClick={() => setFiltro({ ...filtro, busca: '', inicio: '', fim: '' })}>
+            Limpar
+          </button>
+        )}
       </div>
+      {pedidos.length >= LIMITE_LISTA && (
+        <p className="aviso-lista">
+          Mostrando os {LIMITE_LISTA} pedidos mais recentes{filtrando ? ' que atendem à busca' : ''}. Para achar outros, busque pelo número ou pelo cliente, ou escolha um período.
+        </p>
+      )}
 
       <section className="painel">
-        <EstadoLista carregando={carregando} erro={erro} vazia={pedidos.length === 0} textoVazio="Nenhum pedido encontrado." />
+        <EstadoLista carregando={carregando} erro={erro} vazia={pedidos.length === 0} textoVazio={filtrando ? 'Nenhum pedido atende à busca.' : 'Nenhum pedido encontrado.'} />
         {pedidos.length > 0 && (
           <table>
             <thead>

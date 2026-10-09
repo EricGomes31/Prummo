@@ -1,18 +1,9 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { prisma } from '../lib.js'
+import { dia, intervalo, prisma } from '../lib.js'
 import { NATUREZAS } from './pedidos.js'
 
-const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
 const periodo = { inicio: dia.optional(), fim: dia.optional(), busca: z.string().trim().optional() }
-
-// Intervalo de datas com os dois dias incluídos por inteiro.
-function intervalo(inicio?: string, fim?: string) {
-  if (!inicio && !fim) return undefined
-  const ate = fim ? new Date(`${fim}T00:00:00`) : undefined
-  ate?.setDate(ate.getDate() + 1)
-  return { ...(inicio ? { gte: new Date(`${inicio}T00:00:00`) } : {}), ...(ate ? { lt: ate } : {}) }
-}
 
 export async function rotasRelatorios(app: FastifyInstance) {
   app.get('/relatorios/vendas', async (req) => {

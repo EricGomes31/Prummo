@@ -151,6 +151,11 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
       )}
 
       <Erro mensagem={acao.erro} />
+      {contas.length >= 500 && (
+        <p className="aviso-lista">
+          Mostrando as 500 primeiras pelo vencimento. Para achar outras, escolha a pessoa ou o período de vencimento em "Mais filtros".
+        </p>
+      )}
       <section className="painel">
         <EstadoLista carregando={carregando} erro={erro} vazia={contas.length === 0} textoVazio="Nenhum lançamento para estes filtros." />
         {contas.length > 0 && (
