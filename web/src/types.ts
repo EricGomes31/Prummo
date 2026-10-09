@@ -559,6 +559,9 @@ export type ItemRanking ={ nome: string; total: number }
 // Período dos dashboards: um mês ("2026-10"), um ano ("2026") ou todo o período ("tudo").
 export type PeriodoDashboard = { tipo: 'mes' | 'ano' | 'tudo'; chave: string }
 
+// Uma venda de uma coluna do gráfico do dashboard comercial.
+export type VendaDoGrafico = { id: number; numero: number; data: string; total: number; cliente: string; vendedor: string | null }
+
 export type DashboardComercial = {
   periodo: PeriodoDashboard
   kpis: {

@@ -456,6 +456,7 @@ button.indicador:hover { border-color: var(--preto); }
 .grafico-grade:last-of-type { background: var(--borda-forte); }
 .grafico-colunas { position: absolute; inset: 0; display: flex; }
 .grafico-slot { flex: 1; min-width: 0; position: relative; outline-offset: -2px; }
+.grafico-slot-clicavel { cursor: pointer; }
 .grafico-slot:hover, .grafico-slot:focus-visible { background: rgba(10, 10, 10, 0.04); }
 .grafico-barras { height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 0 2px; }
 .grafico-barra { flex: 0 1 24px; min-width: 2px; border-radius: 4px 4px 0 0; }

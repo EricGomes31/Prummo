@@ -43,6 +43,9 @@ conferir('top vendedores', d.topVendedores.length === 1 && d.topVendedores[0].no
 const ant = (await chamar('GET', `/dashboards/comercial?mes=${anterior}`)).json
 conferir('mês anterior vazio', ant.kpis.faturamento === 0 && ant.kpis.margemPercentual === 0 && ant.topClientes.length === 0 && ant.historico[5].chave === anterior)
 conferir('sem parâmetro usa o mês atual', (await chamar('GET', '/dashboards/comercial')).json.periodo.chave === mes)
+const vendasDoDia = (await chamar('GET', `/dashboards/comercial/vendas?inicio=${hoje}&fim=${hoje}`)).json
+conferir('vendas do dia do gráfico: só as faturadas, com cliente e total', vendasDoDia.map((v) => `${v.numero}:${v.cliente}:${v.total}`).join() === `${p1.numero}:Cliente Um:3300,${p2.numero}:Cliente Dois:6000`, JSON.stringify(vendasDoDia))
+conferir('vendas do gráfico sem datas -> 400', (await chamar('GET', '/dashboards/comercial/vendas')).status === 400)
 conferir('mês inválido -> 400', (await chamar('GET', '/dashboards/comercial?mes=2026-13')).status === 400)
 
 // Financeiro: recebe o pedido 1 (3300, Pix), um avulso (700) e paga a entrada (24000 = 10×400 + 10×2000).

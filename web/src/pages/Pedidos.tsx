@@ -9,6 +9,7 @@ import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, Estado
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
 import { dividirParcelas, somaParcelas, TabelaParcelas, type Parcela } from '../parcelas'
+import { useSearchParams } from 'react-router-dom'
 
 // "Rua, número, complemento — bairro, cidade/UF, CEP", com o que houver preenchido.
 type PartesEndereco = Partial<Pick<EnderecoEntrega, 'logradouro' | 'numero' | 'complemento' | 'bairro' | 'cidade' | 'uf' | 'cep'>>
@@ -22,6 +23,9 @@ function enderecoTexto(e: { [K in keyof PartesEndereco]?: string | null }) {
 const LIMITE_LISTA = 300
 
 export function Pedidos() {
+  // Vindo de outra tela (o dashboard), "?abrir=<id>" já abre os detalhes desse pedido.
+  const [parametros, setParametros] = useSearchParams()
+  const abrir = Number(parametros.get('abrir')) || 0
   const [filtro, setFiltro] = useState({ status: '', busca: '', inicio: '', fim: '' })
   const busca = useAtrasado(filtro.busca.trim())
   const consulta = new URLSearchParams(
@@ -30,7 +34,7 @@ export function Pedidos() {
   const { dados, erro, carregando, recarregar } = useDados<Pedido[]>(`/pedidos${consulta ? `?${consulta}` : ''}`)
   const filtrando = !!(busca || filtro.inicio || filtro.fim)
   const [editando, setEditando] = useState<Pedido | 'novo' | null>(null)
-  const [vendo, setVendo] = useState<Pedido | null>(null)
+  const [vendo, setVendo] = useState<Pedido | null>(abrir ? ({ id: abrir } as Pedido) : null)
   const [faturando, setFaturando] = useState<Pedido | null>(null)
   const pedidos = dados ?? []
   const paginas = usePaginacao(pedidos)
@@ -154,7 +158,10 @@ export function Pedidos() {
       {vendo && (
         <Detalhes
           pedidoId={vendo.id}
-          onFechar={() => setVendo(null)}
+          onFechar={() => {
+            setVendo(null)
+            if (parametros.has('abrir')) setParametros({}, { replace: true })
+          }}
           onAlterado={fecharTudo}
           onAlterar={(p) => {
             setVendo(null)

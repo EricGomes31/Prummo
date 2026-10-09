@@ -35,6 +35,8 @@ export function Colunas(props: {
   mostrarRotulo?: (indice: number) => boolean
   // Valor escrito sobre a coluna; use só com poucos pontos e uma série.
   valorNoTopo?: boolean
+  // Coluna clicável (e com Enter): abre o que há por trás dela. Pontos sem valor não reagem.
+  onEscolher?: (indice: number) => void
 }) {
   const { series, pontos } = props
   const maximo = tetoRedondo(Math.max(0, ...pontos.flatMap((p) => p.valores)))
@@ -66,8 +68,11 @@ export function Colunas(props: {
             {pontos.map((p, i) => (
               <div
                 key={p.rotulo}
-                className="grafico-slot"
+                className={`grafico-slot ${props.onEscolher && p.valores.some((v) => v !== 0) ? 'grafico-slot-clicavel' : ''}`}
                 tabIndex={0}
+                role={props.onEscolher ? 'button' : undefined}
+                onClick={() => props.onEscolher && p.valores.some((v) => v !== 0) && props.onEscolher(i)}
+                onKeyDown={(e) => e.key === 'Enter' && props.onEscolher && p.valores.some((v) => v !== 0) && props.onEscolher(i)}
                 aria-label={`${p.titulo}: ${p.valores.map((v, s) => `${series[s].nome} ${brl(v)}`).join(', ')}`}
               >
                 <div className="grafico-barras">

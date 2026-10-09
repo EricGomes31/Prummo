@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { inicioDeHoje, prisma } from '../lib.js'
+import { dia, inicioDeHoje, intervalo, prisma } from '../lib.js'
 
 const PERIODOS_DE_HISTORICO = 6
 // Início de "todo o período": antes de qualquer lançamento possível.
@@ -85,7 +85,7 @@ async function primeiroAno() {
 }
 
 // Soma valores por chave e devolve os maiores, para os rankings.
-function ranking(entradas: { chave: string; nome: string; valor: number }[], limite = 5) {
+function ranking(entradas: { chave: string; nome: string; valor: number }[], limite = 10) {
   const mapa = new Map<string, { nome: string; total: number }>()
   for (const e of entradas) {
     const atual = mapa.get(e.chave) ?? { nome: e.nome, total: 0 }
@@ -204,6 +204,18 @@ export async function rotasDashboards(app: FastifyInstance) {
         })),
       ]),
     }
+  })
+
+  // As vendas de um dia, mês ou ano do gráfico do dashboard comercial (as mesmas que ele soma).
+  app.get('/dashboards/comercial/vendas', async (req) => {
+    const q = z.object({ inicio: dia, fim: dia }).parse(req.query)
+    const pedidos = await prisma.pedido.findMany({
+      where: { status: 'FATURADO', natureza: 'VENDA', data: intervalo(q.inicio, q.fim) },
+      select: { id: true, numero: true, data: true, total: true, cliente: { select: { nome: true } }, vendedor: { select: { nome: true } } },
+      orderBy: [{ data: 'asc' }, { numero: 'asc' }],
+      take: 1000,
+    })
+    return pedidos.map((p) => ({ id: p.id, numero: p.numero, data: p.data, total: p.total, cliente: p.cliente.nome, vendedor: p.vendedor?.nome ?? null }))
   })
 
   // Recebido e pago contam pelo dia da baixa; a receber e a pagar, pelo vencimento; despesas, pela competência.

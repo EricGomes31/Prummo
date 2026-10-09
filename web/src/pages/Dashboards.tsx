@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDados } from '../api'
 import { useSessao } from '../auth'
 import { brl, formasPagamento, hojeIso } from '../format'
 import { Colunas, Ranking } from '../graficos'
-import type { DashboardComercial, DashboardFinanceiro, PeriodoDashboard } from '../types'
-import { Cabecalho, EstadoLista } from '../ui'
+import type { DashboardComercial, DashboardFinanceiro, PeriodoDashboard, VendaDoGrafico } from '../types'
+import { Cabecalho, EstadoLista, Modal } from '../ui'
 import { CampoData } from '../calendario'
 import { Icone } from '../icones'
 
@@ -113,10 +114,76 @@ export function Dashboards() {
   )
 }
 
+// Intervalo de datas de uma coluna do gráfico: o dia (no mês), o mês (no ano) ou o ano (em todo o período).
+function intervaloDaColuna(periodo: PeriodoDashboard, chave: string) {
+  if (periodo.tipo === 'mes') {
+    const diaDoMes = `${periodo.chave}-${chave.padStart(2, '0')}`
+    return { inicio: diaDoMes, fim: diaDoMes, titulo: new Date(`${diaDoMes}T12:00:00`).toLocaleDateString('pt-BR') }
+  }
+  if (ehMes(chave)) {
+    const ultimo = new Date(Number(chave.slice(0, 4)), Number(chave.slice(5)), 0).getDate()
+    return { inicio: `${chave}-01`, fim: `${chave}-${ultimo}`, titulo: mesPorExtenso(chave) }
+  }
+  return { inicio: `${chave}-01-01`, fim: `${chave}-12-31`, titulo: chave }
+}
+
+// As vendas de uma coluna do gráfico, com o atalho para abrir cada pedido.
+function VendasDaColuna(props: { inicio: string; fim: string; titulo: string; onFechar: () => void }) {
+  const { dados, erro, carregando } = useDados<VendaDoGrafico[]>(`/dashboards/comercial/vendas?inicio=${props.inicio}&fim=${props.fim}`)
+  const navegar = useNavigate()
+  const abre = useSessao().pode('PEDIDOS_VISUALIZAR', 'PEDIDOS_CADASTRAR')
+  const vendas = dados ?? []
+  const total = vendas.reduce((s, v) => s + v.total, 0)
+  const umDia = props.inicio === props.fim
+  return (
+    <Modal titulo={`Vendas de ${props.titulo}`} onFechar={props.onFechar} largo>
+      <EstadoLista carregando={carregando} erro={erro} vazia={vendas.length === 0} textoVazio="Nenhuma venda faturada neste período." />
+      {vendas.length > 0 && (
+        <>
+          <p className="texto-suave">
+            {vendas.length} venda(s) · <strong>{brl(total)}</strong> (antes das devoluções)
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                {!umDia && <th>Data</th>}
+                <th>Cliente</th>
+                <th>Vendedor</th>
+                <th className="num">Valor</th>
+                {abre && <th />}
+              </tr>
+            </thead>
+            <tbody>
+              {vendas.map((v) => (
+                <tr key={v.id}>
+                  <td className="texto-suave">#{v.numero}</td>
+                  {!umDia && <td>{new Date(v.data).toLocaleDateString('pt-BR')}</td>}
+                  <td>{v.cliente}</td>
+                  <td>{v.vendedor ?? '—'}</td>
+                  <td className="num">{brl(v.total)}</td>
+                  {abre && (
+                    <td className="num">
+                      <button type="button" className="botao botao-texto" onClick={() => navegar(`/pedidos?abrir=${v.id}`)}>
+                        Abrir pedido
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </Modal>
+  )
+}
+
 function Comercial({ d }: { d: DashboardComercial }) {
   const nome = nomeDoPeriodo(d.periodo)
   const t = titulos[d.periodo.tipo]
   const porDia = d.periodo.tipo === 'mes'
+  const [coluna, setColuna] = useState<{ inicio: string; fim: string; titulo: string } | null>(null)
   return (
     <>
       <section className="indicadores em-3">
@@ -135,6 +202,7 @@ function Comercial({ d }: { d: DashboardComercial }) {
           series={[{ nome: 'Vendas', cor: COR.principal }]}
           mostrarRotulo={porDia ? (i) => i === 0 || (i + 1) % 5 === 0 : undefined}
           valorNoTopo={!porDia}
+          onEscolher={(i) => setColuna(intervaloDaColuna(d.periodo, d.detalhe[i].chave))}
           pontos={d.detalhe.map((x) => ({
             rotulo: rotuloCurto(x.chave),
             titulo: rotuloLongo(x.chave, porDia ? 'dia' : undefined),
@@ -179,6 +247,7 @@ function Comercial({ d }: { d: DashboardComercial }) {
           <Ranking itens={d.topProdutos} cor={COR.principal} textoVazio={`Sem vendas ${t.doPeriodo}.`} />
         </Cartao>
       </div>
+      {coluna && <VendasDaColuna {...coluna} onFechar={() => setColuna(null)} />}
     </>
   )
 }

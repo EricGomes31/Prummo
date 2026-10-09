@@ -246,6 +246,7 @@ const REGRAS: Record<string, Permissao[]> = {
 // Cada dashboard é liberado pelo perfil, não por permissão.
 const REGRAS_DASHBOARDS: Record<string, string> = {
   'GET /dashboards/comercial': 'COMERCIAL',
+  'GET /dashboards/comercial/vendas': 'COMERCIAL',
   'GET /dashboards/financeiro': 'FINANCEIRO',
 }
 
