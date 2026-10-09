@@ -55,6 +55,12 @@ const corpo = z
     if (d.condicaoPagamento && d.parcelas?.length) erro('Informe a condição ou as parcelas, não as duas.')
   })
 
+// Quanto o custo de cada item cresce com o frete e as outras despesas da entrada: a parte de cada item é
+// proporcional ao valor dele. Bonificação e entrada sem valor de itens não rateiam.
+export function fatorDeRateio(e: { frete: number; outrasDespesas: number; totalItens: number; compra: boolean }) {
+  return e.compra && e.totalItens > 0 ? (e.totalItens + e.frete + e.outrasDespesas) / e.totalItens : 1
+}
+
 const comDetalhes = {
   fornecedor: { select: { id: true, nome: true } },
   itens: { include: { produto: { select: { id: true, sku: true, nome: true, unidade: true } } } },
@@ -94,6 +100,8 @@ export async function rotasEntradas(app: FastifyInstance) {
     const totalItens = dados.itens.reduce((soma, i) => soma + i.quantidade * i.custoUnitario, 0)
     const total = totalItens + dados.frete + dados.outrasDespesas
     const compra = dados.natureza === 'COMPRA_REVENDA'
+    // Frete e outras despesas entram no custo dos produtos, rateados pelo valor de cada item.
+    const rateio = fatorDeRateio({ ...dados, totalItens, compra })
     // Parcelas à mão: em ordem de data, precisam fechar o total. A condição gravada (o que a lista mostra)
     // são os dias de cada vencimento contados da data da entrada.
     const parcelas = dados.parcelas?.length ? [...dados.parcelas].sort((a, b) => a.vencimento.localeCompare(b.vencimento)) : null
@@ -136,7 +144,7 @@ export async function rotasEntradas(app: FastifyInstance) {
         const produto = await tx.produto.update({
           where: { id: item.produtoId },
           // Mercadoria bonificada entra no saldo sem mexer no custo do produto.
-          data: { saldo: { increment: partes }, ...(compra ? { precoCusto: item.custoUnitario * item.fator } : {}) },
+          data: { saldo: { increment: partes }, ...(compra ? { precoCusto: Math.round(item.custoUnitario * item.fator * rateio) } : {}) },
         })
         await tx.movimentoEstoque.create({
           data: {

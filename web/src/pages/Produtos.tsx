@@ -242,7 +242,7 @@ function FormProduto(props: { inicial: Rascunho; onFechar: () => void; onSalvo: 
             onChange={(e) => setP({ ...p, estoqueMinimo: inteiro(e.target.value) })} />
         </Campo>
         <Campo rotulo="Custo atual">
-          <input disabled value={brl(p.precoCusto)} title="Atualizado pela última entrada de estoque" />
+          <input disabled value={brl(p.precoCusto)} title="Atualizado pela última entrada de estoque, com o frete rateado" />
         </Campo>
 
         <fieldset className="marcacoes col-3">

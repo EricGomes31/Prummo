@@ -28,12 +28,13 @@ conferir('3 parcelas somam o total', parcelas.length === 3 && parcelas.reduce((s
 conferir('vencimentos pelos prazos em dias', parcelas.map((c) => c.vencimento.slice(0, 10)).join(',') === '2026-11-30,2026-12-30,2027-01-29', parcelas.map((c) => c.vencimento.slice(0, 10)).join(','))
 conferir('parcelas ficam no fornecedor', (await chamar('GET', '/contas-pagar')).json.filter((c) => c.pessoa?.id === forn.id).length === 3)
 let prods = (await chamar('GET', '/produtos')).json
-conferir('compra soma saldo e atualiza custo', prods.find((p) => p.id === A.id).saldo === 4 && prods.find((p) => p.id === A.id).precoCusto === 2500 && prods.find((p) => p.id === B.id).precoCusto === 300)
+// Frete e despesas (1.001) rateados pelo valor dos itens (13.000): A 25,00 -> 26,925 -> 26,93; B 3,00 -> 3,231 -> 3,23.
+conferir('compra soma saldo e atualiza custo com o rateio do frete', prods.find((p) => p.id === A.id).saldo === 4 && prods.find((p) => p.id === A.id).precoCusto === 2693 && prods.find((p) => p.id === B.id).precoCusto === 323, prods.map((p) => p.precoCusto).join())
 
 // Bonificação: soma saldo, não muda custo, não gera conta
 const bonus = await chamar('POST', '/entradas', { fornecedorId: forn.id, natureza: 'BONIFICACAO', data: '2026-10-31', itens: [{ produtoId: A.id, quantidade: 2, custoUnitario: 0 }] })
 prods = (await chamar('GET', '/produtos')).json
-conferir('bonificação soma saldo sem mudar custo', bonus.status === 201 && prods.find((p) => p.id === A.id).saldo === 6 && prods.find((p) => p.id === A.id).precoCusto === 2500)
+conferir('bonificação soma saldo sem mudar custo', bonus.status === 201 && prods.find((p) => p.id === A.id).saldo === 6 && prods.find((p) => p.id === A.id).precoCusto === 2693)
 conferir('bonificação não gera conta a pagar', (await chamar('GET', `/entradas/${bonus.json.id}`)).json.contasPagar.length === 0)
 
 // À vista vence na data da entrada; sem condição não gera conta

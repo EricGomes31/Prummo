@@ -314,7 +314,7 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
       )}
       <p className="texto-suave">
         {compra
-          ? 'A entrada soma ao saldo, atualiza o custo dos produtos e gera as contas a pagar conforme a condição de pagamento.'
+          ? 'A entrada soma ao saldo, atualiza o custo dos produtos (com o frete e as outras despesas rateados pelo valor de cada item) e gera as contas a pagar conforme a condição de pagamento.'
           : 'A bonificação soma ao saldo sem alterar o custo dos produtos e não gera conta a pagar.'}
       </p>
       <Erro mensagem={erro} />
