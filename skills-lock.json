@@ -1,6 +1,18 @@
 {
   "version": 1,
   "skills": {
+    "fastify-best-practices": {
+      "source": "mcollina/skills",
+      "sourceType": "github",
+      "skillPath": "skills/fastify/SKILL.md",
+      "computedHash": "980cf47d3f104df8be0a2767ccc604e4fa1b94db4405589594dd9f5029b40d25"
+    },
+    "prisma-client-api": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-client-api/SKILL.md",
+      "computedHash": "5dcc0793337151efa73a444e5adbc7e1c24180778e83b4fe94c9109c391bd333"
+    },
     "reverse-engineer-anything": {
       "source": "../../AppData/Local/Temp/claude/c--Users-Eric-Desktop-Douglas/7de25431-c0de-42aa-8216-ace328d5ea16/scratchpad/rea-src/rea-main",
       "sourceType": "local",
@@ -15,6 +27,12 @@
       "source": "../../AppData/Local/Temp/claude/c--Users-Eric-Desktop-Douglas/7de25431-c0de-42aa-8216-ace328d5ea16/scratchpad/supabase-skills-src/agent-skills-main",
       "sourceType": "local",
       "computedHash": "e14e276241805c97dbcfe40dcbea1a3035269cc7293cac4b1832dda41a835e60"
+    },
+    "webapp-testing": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/webapp-testing/SKILL.md",
+      "computedHash": "3f14af7f5690695209c22fbf8c8d133769a86d64892602c09bb13f135e14e857"
     }
   }
 }

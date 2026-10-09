@@ -8,8 +8,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 - [ ] Depois de publicar, dar as permissões novas aos perfis personalizados que precisarem: alterar pedido faturado, lançar crédito avulso e lançar no caixa (avulso e transferência). Administrador e operador de fábrica já têm.
 - [ ] Informar o CPF ou CNPJ do titular nas contas em banco já cadastradas: agora é obrigatório para salvar uma conta que não seja o caixa.
 - [x] Adaptar os importadores (`api/scripts/importar-*.mjs`) para informar a empresa. Feito em 09/10/2026: opção `--empresa=<id>`, com testes.
-- [x] Numeração dos pedidos por empresa. Feito em 09/10/2026 no código, com testes.
-- [ ] Aplicar no banco real a numeração por empresa e publicar: cópia de segurança, `api/prisma/migracoes/2026-10-09-numero-pedido.sql`, `db:push`, `railway up`.
+- [x] Numeração dos pedidos por empresa. Feito e publicado em 09/10/2026, com cópia de segurança antes em `backups/2026-10-09-0333`. Os pedidos #2 a #5 mantiveram os números; o próximo da Infinity Labs é o #6.
 
 - [x] Trocar a senha do administrador (`admin@prumo.local`). Feito em 08/10/2026: senha aleatória de 24 caracteres, guardada em `SEED_ADMIN_PASSWORD` no `api/.env` desta máquina.
 - [ ] Redefinir a senha do banco no Supabase e atualizar `DATABASE_URL` e `DIRECT_URL` no `api/.env` e nas variáveis do Railway. A senha atual foi digitada em uma conversa.

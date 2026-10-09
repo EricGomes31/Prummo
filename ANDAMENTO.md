@@ -64,7 +64,7 @@ Feito em 08/10/2026. O Prumo deixa de ser de uma empresa só: cada empresa vê a
 
 ### Numeração dos pedidos por empresa
 
-Feito em 09/10/2026, **ainda não aplicado ao banco real nem publicado**. Cada empresa numera os próprios pedidos a partir do 1.
+Feito, aplicado ao banco real e publicado em 09/10/2026 (cópia de segurança antes em `backups/2026-10-09-0333`). Cada empresa numera os próprios pedidos a partir do 1.
 
 - `Pedido.numero`, único dentro da empresa, é o número que as telas mostram; o `id` continua interno (endereços da API, ligações entre tabelas). O contador fica em `Empresa.ultimoPedido`, incrementado na mesma transação que cria o pedido, o que impede dois pedidos com o mesmo número.
 - A descrição das parcelas ("Pedido nº …"), os relatórios, as entregas, o link do entregador, as devoluções e as movimentações de estoque (`origemNumero`) usam o número.
