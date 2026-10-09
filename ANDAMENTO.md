@@ -4,7 +4,7 @@ Registro do que foi feito até 09/10/2026 e de como retomar. O que falta está e
 
 ## Situação
 
-O Prumo está publicado e funcionando, com os dados do SG Nexus importados. Dos módulos do SG Nexus levantados na comparação, só falta um: **cartões e operadoras**. As funções menores que faltavam foram feitas em 09/10/2026, menos as que dependem de serviço de mapas; elas ainda não estão publicadas. O sistema ainda não substitui o SG Nexus no dia a dia porque faltam cadastros (usuários, fornecedores, contas bancárias) e alguns itens de segurança, listados no fim deste arquivo.
+O Prumo está publicado e funcionando, com os dados do SG Nexus importados. Dos módulos do SG Nexus levantados na comparação, só falta um: **cartões e operadoras**. As funções menores que faltavam foram feitas e publicadas em 09/10/2026, menos as que dependem de serviço de mapas. O sistema ainda não substitui o SG Nexus no dia a dia porque faltam cadastros (usuários, fornecedores, contas bancárias) e alguns itens de segurança, listados no fim deste arquivo.
 
 ## Onde está cada coisa
 
@@ -64,7 +64,7 @@ Feito em 08/10/2026. O Prumo deixa de ser de uma empresa só: cada empresa vê a
 
 ### Funções que faltavam do SG Nexus
 
-Feito em 09/10/2026, ainda não aplicado ao banco real nem publicado (ver o passo a passo no `PENDENCIAS.md`). Estrutura nova no banco: condição de pagamento no `Pedido`, `Devolucao.estornada`, origem e cancelamento no `Credito`, estorno no `CreditoUso`, hora e transferência no `MovimentoFinanceiro`, acessos do link na `Rota` e link de cadastro na `Pessoa`. Os dados antigos são ajustados por `api/prisma/migracoes/2026-10-09-funcoes.sql`. Permissões novas: alterar pedido faturado, lançar crédito avulso e lançar no caixa (36 no total).
+Feito, aplicado ao banco real e publicado em 09/10/2026. Estrutura nova no banco: condição de pagamento no `Pedido`, `Devolucao.estornada`, origem e cancelamento no `Credito`, estorno no `CreditoUso`, hora e transferência no `MovimentoFinanceiro`, acessos do link na `Rota` e link de cadastro na `Pessoa`. Os dados antigos são ajustados por `api/prisma/migracoes/2026-10-09-funcoes.sql`. Permissões novas: alterar pedido faturado, lançar crédito avulso e lançar no caixa (36 no total).
 
 - **Pedidos:** forma, parcelas e primeiro vencimento já no pedido (nova forma: cartão por link); faturar usa o que foi escolhido e aceita créditos do cliente, que abatem as parcelas. Pedido faturado pode ser alterado: cadastro muda direto; itens, valores ou pagamento refazem o faturamento (estoque volta com origem `ALTERACAO`, parcelas em aberto são substituídas), desde que nada tenha sido recebido, devolvido ou esteja em rota. Anexos na tela do pedido. A campanha bloqueia o desconto manual só nos produtos dela; o desconto no total continua bloqueado.
 - **Despesas:** à vista pode ser paga no lançamento (exige a permissão de pagar contas); fornecedor cadastrado numa janela por cima do lançamento; lista exportada para o Excel; despesas no dashboard financeiro e no relatório novo, por elemento e por competência.

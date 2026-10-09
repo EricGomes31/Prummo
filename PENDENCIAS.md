@@ -4,7 +4,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 
 ## Urgente (segurança e acesso)
 
-- [ ] Aplicar no banco real a passagem para várias empresas e as funções novas de 09/10/2026 (código pronto e testado, ainda não publicado). Na pasta `api`, nesta ordem: `node --env-file=.env scripts/copiar-banco.mjs` (cópia de segurança nova), `npx prisma db execute --file prisma/migracoes/2026-10-08-empresas.sql --schema prisma/schema.prisma`, `npm run db:push`, `npx prisma db execute --file prisma/migracoes/2026-10-09-funcoes.sql --schema prisma/schema.prisma`, e logo em seguida `railway up` na raiz. Entre o `db:push` e a publicação, o site antigo não consegue gravar.
+- [x] Aplicar no banco real a passagem para várias empresas e as funções novas. Feito e publicado em 09/10/2026, com cópia de segurança antes em `backups/2026-10-09-0202`. Os dados ficaram na empresa "Infinity Labs".
 - [ ] Depois de publicar, dar as permissões novas aos perfis personalizados que precisarem: alterar pedido faturado, lançar crédito avulso e lançar no caixa (avulso e transferência). Administrador e operador de fábrica já têm.
 - [ ] Informar o CPF ou CNPJ do titular nas contas em banco já cadastradas: agora é obrigatório para salvar uma conta que não seja o caixa.
 - [ ] Adaptar os importadores (`api/scripts/importar-*.mjs`) para informar a empresa. Depois da passagem para várias empresas, gravação sem empresa é recusada pelo banco.
