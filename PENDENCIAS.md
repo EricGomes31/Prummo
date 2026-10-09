@@ -7,8 +7,9 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 - [x] Aplicar no banco real a passagem para várias empresas e as funções novas. Feito e publicado em 09/10/2026, com cópia de segurança antes em `backups/2026-10-09-0202`. Os dados ficaram na empresa "Infinity Labs".
 - [ ] Depois de publicar, dar as permissões novas aos perfis personalizados que precisarem: alterar pedido faturado, lançar crédito avulso e lançar no caixa (avulso e transferência). Administrador e operador de fábrica já têm.
 - [ ] Informar o CPF ou CNPJ do titular nas contas em banco já cadastradas: agora é obrigatório para salvar uma conta que não seja o caixa.
-- [ ] Adaptar os importadores (`api/scripts/importar-*.mjs`) para informar a empresa. Depois da passagem para várias empresas, gravação sem empresa é recusada pelo banco.
-- [ ] Numeração dos pedidos por empresa. Hoje o número do pedido é o id, comum a todas as empresas: a segunda empresa não começa no pedido nº 1.
+- [x] Adaptar os importadores (`api/scripts/importar-*.mjs`) para informar a empresa. Feito em 09/10/2026: opção `--empresa=<id>`, com testes.
+- [x] Numeração dos pedidos por empresa. Feito em 09/10/2026 no código, com testes.
+- [ ] Aplicar no banco real a numeração por empresa e publicar: cópia de segurança, `api/prisma/migracoes/2026-10-09-numero-pedido.sql`, `db:push`, `railway up`.
 
 - [x] Trocar a senha do administrador (`admin@prumo.local`). Feito em 08/10/2026: senha aleatória de 24 caracteres, guardada em `SEED_ADMIN_PASSWORD` no `api/.env` desta máquina.
 - [ ] Redefinir a senha do banco no Supabase e atualizar `DATABASE_URL` e `DIRECT_URL` no `api/.env` e nas variáveis do Railway. A senha atual foi digitada em uma conversa.
@@ -38,7 +39,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 
 ## Antes de desligar o SG Nexus
 
-- [ ] Rodar de novo os importadores (`api/scripts/importar-*.mjs`) para trazer o que for lançado no SG Nexus até a virada. Eles não duplicam o que já existe.
+- [ ] Rodar de novo os importadores (`api/scripts/importar-*.mjs`, com `--empresa=1`) para trazer o que for lançado no SG Nexus até a virada. Eles não duplicam o que já existe. Os pedidos importados mantêm o número do SG Nexus: se antes disso forem lançados pedidos no Prumo, eles ocupam os próximos números e a importação de um pedido do SG Nexus com o mesmo número para com aviso.
 - [ ] Conferir se os horários importados estão certos. O SG Nexus não informa o fuso; foram tratados como horário de Brasília.
 - [ ] Confirmar com quem usa o SG Nexus as regras que foram definidas sem conseguir ver o servidor dele: bonificação e perda só baixam o estoque e ficam fora do faturamento; o crédito da devolução rateia os descontos do pedido e não inclui o frete; o crédito só baixa contas da própria pessoa elegível.
 

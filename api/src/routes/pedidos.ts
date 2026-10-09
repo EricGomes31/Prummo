@@ -200,7 +200,7 @@ async function faturarNaTransacao(tx: Transacao, id: number, condicao: Condicao 
         data: {
           pessoaId: pedido.clienteId,
           pedidoId: id,
-          descricao: `Pedido nº ${id} — parcela ${n + 1}/${condicao.parcelas}`,
+          descricao: `Pedido nº ${pedido.numero} — parcela ${n + 1}/${condicao.parcelas}`,
           valor: base + (n === 0 ? resto : 0),
           vencimento: somarMeses(condicao.primeiroVencimento, n),
         },
@@ -287,16 +287,22 @@ export async function rotasPedidos(app: FastifyInstance) {
 
   app.post('/pedidos', async (req, reply) => {
     const dados = corpo.parse(req.body)
-    const pedido = await prisma.pedido.create({
-      data: {
-        clienteId: dados.clienteId,
-        usuarioId: req.usuario.id,
-        observacao: dados.observacao,
-        ...(await pessoasDoPedido(dados)),
-        ...(await valores(dados)),
-        ...condicaoDoPedido(dados),
-      },
-      include: comDetalhes,
+    const campos = {
+      clienteId: dados.clienteId,
+      usuarioId: req.usuario.id,
+      observacao: dados.observacao,
+      ...(await pessoasDoPedido(dados)),
+      ...(await valores(dados)),
+      ...condicaoDoPedido(dados),
+    }
+    const pedido = await prisma.$transaction(async (tx) => {
+      // O incremento trava a linha da empresa até o fim da transação: dois pedidos simultâneos não pegam o mesmo número.
+      const { ultimoPedido: numero } = await tx.empresa.update({
+        where: { id: req.usuario.empresa.id },
+        data: { ultimoPedido: { increment: 1 } },
+        select: { ultimoPedido: true },
+      })
+      return tx.pedido.create({ data: { ...campos, numero }, include: comDetalhes })
     })
     return reply.status(201).send(pedido)
   })

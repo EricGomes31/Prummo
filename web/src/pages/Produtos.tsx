@@ -337,7 +337,7 @@ function Estoque(props: { produto: Produto; onFechar: () => void; onAjustado: ()
                 <tr key={m.id}>
                   <td>{dataBr(m.criadoEm)}</td>
                   <td>
-                    {rotuloOrigem[m.origem] ?? m.origem} {m.origemId ?? ''}
+                    {rotuloOrigem[m.origem] ?? m.origem} {m.origemNumero ?? ''}
                     {m.observacao && <small className="texto-suave"> · {m.observacao}</small>}
                   </td>
                   <td className={`num ${sinal < 0 ? 'texto-ruim' : 'texto-bom'}`}>{sinal > 0 ? `+${qtd(sinal)}` : qtd(sinal)}</td>

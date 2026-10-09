@@ -31,7 +31,7 @@ const corpo = z.object({
 })
 
 const comDetalhes = {
-  pedido: { select: { id: true, total: true, cliente: { select: { id: true, nome: true } } } },
+  pedido: { select: { id: true, numero: true, total: true, cliente: { select: { id: true, nome: true } } } },
   entregador: { select: { id: true, nome: true } },
   rota: { select: { id: true, nome: true } },
 } as const
@@ -95,7 +95,7 @@ export async function rotasEntregas(app: FastifyInstance) {
   app.get('/entregas/pedidos-disponiveis', async () =>
     prisma.pedido.findMany({
       where: { status: 'FATURADO', natureza: { not: 'PERDA' }, entregas: { none: { status: { not: 'CANCELADA' } } } },
-      select: { id: true, total: true, faturadoEm: true, cliente: true },
+      select: { id: true, numero: true, total: true, faturadoEm: true, cliente: true },
       orderBy: { id: 'desc' },
     }),
   )

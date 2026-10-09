@@ -7,7 +7,7 @@ import { Cabecalho, Campo, EstadoLista, Selo } from '../ui'
 
 type LinhaVenda = RelatorioVendas['linhas'][number]
 const colunasVendas: Coluna<LinhaVenda>[] = [
-  { rotulo: 'Pedido', valor: (l) => l.id, exibir: (l) => `#${l.id}` },
+  { rotulo: 'Pedido', valor: (l) => l.numero, exibir: (l) => `#${l.numero}` },
   { rotulo: 'Lançamento', valor: (l) => l.criadoEm, tipo: 'data' },
   { rotulo: 'Pagamento', valor: (l) => l.pagoEm, tipo: 'data' },
   { rotulo: 'Natureza', valor: (l) => naturezasPedido[l.natureza] ?? l.natureza },

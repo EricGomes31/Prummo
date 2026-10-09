@@ -80,6 +80,7 @@ export type Movimento = {
   saldoApos: number
   origem: string
   origemId: number | null
+  origemNumero: number | null // número que a tela mostra: o do pedido, quando a origem é um pedido
   observacao: string | null
   criadoEm: string
 }
@@ -108,6 +109,7 @@ export type NaturezaPedido = 'VENDA' | 'BONIFICACAO' | 'PERDA'
 
 export type Pedido = {
   id: number
+  numero: number // sequencial dentro da empresa; é o que o usuário vê
   clienteId: number
   cliente: PessoaRef
   usuario: PessoaRef | null // quem lançou
@@ -148,7 +150,7 @@ export type Conta = {
   pagoEm: string | null
   pedidoId?: number | null
   // Só nas contas a receber: a venda de origem, com as pessoas dela.
-  pedido?: { id: number; vendedor: PessoaRef | null; medico: PessoaRef | null; paciente: PessoaRef | null } | null
+  pedido?: { id: number; numero: number; vendedor: PessoaRef | null; medico: PessoaRef | null; paciente: PessoaRef | null } | null
 }
 
 // Item de uma venda com o que ainda pode ser devolvido e o valor líquido de cada unidade.
@@ -164,7 +166,7 @@ export type SaldoDevolucao = {
 
 export type Devolucao = {
   id: number
-  pedido: { id: number; cliente: PessoaRef }
+  pedido: { id: number; numero: number; cliente: PessoaRef }
   observacao: string | null
   valorCredito: number
   criadoEm: string
@@ -180,7 +182,7 @@ export type Credito = {
   pessoa: PessoaRef
   origem: 'DEVOLUCAO' | 'DEPOSITO' | 'AVULSO'
   descricao: string | null
-  devolucao: { id: number; pedido: { id: number } } | null
+  devolucao: { id: number; pedido: { id: number; numero: number } } | null
   valorOriginal: number
   saldo: number
   status: 'DISPONIVEL' | 'ESGOTADO' | 'CANCELADO'
@@ -299,7 +301,7 @@ export type Endereco = {
 export type Entrega = Endereco & {
   id: number
   pedidoId: number
-  pedido: { id: number; total: number; cliente: PessoaRef }
+  pedido: { id: number; numero: number; total: number; cliente: PessoaRef }
   entregador: PessoaRef | null
   status: StatusEntrega
   dataPrevista: string
@@ -327,6 +329,7 @@ export type Veiculo = { id: number; placa: string; descricao: string | null; cap
 export type ParadaRota = {
   id: number
   pedidoId: number
+  pedido: { numero: number }
   sequencia: number | null
   status: StatusEntrega
   destinatario: string
@@ -381,6 +384,7 @@ export type RotaDoEntregador = {
   entregas: {
     id: number
     pedidoId: number
+    pedidoNumero: number
     status: StatusEntrega
     destinatario: string
     telefone: string | null
@@ -401,6 +405,7 @@ export type RotaDoEntregador = {
 export type RelatorioVendas = {
   linhas: {
     id: number
+    numero: number
     criadoEm: string
     pagoEm: string | null
     cliente: string
@@ -428,6 +433,7 @@ export type RelatorioCobranca = {
     email: string | null
     descricao: string
     pedidoId: number | null
+    pedidoNumero: number | null
     vendedor: string | null
     medico: string | null
     paciente: string | null
@@ -541,7 +547,7 @@ export type DashboardFinanceiro = {
   despesasPorElemento: ItemRanking[]
 }
 
-export type PedidoParaEntrega = { id: number; total: number; faturadoEm: string | null; cliente: Pessoa }
+export type PedidoParaEntrega = { id: number; numero: number; total: number; faturadoEm: string | null; cliente: Pessoa }
 
 export type Resumo = {
   entregas: { pendentes: number; emRota: number; falhas: number }
@@ -559,7 +565,7 @@ export type Resumo = {
     semEstoque: number
     criticos: { id: number; sku: string; nome: string; saldo: number; estoqueMinimo: number }[]
   }
-  ultimosPedidos: { id: number; cliente: string; status: StatusPedido; total: number; criadoEm: string }[]
+  ultimosPedidos: { id: number; numero: number; cliente: string; status: StatusPedido; total: number; criadoEm: string }[]
 }
 
 // Linha de item em edição, usada em pedidos e entradas.

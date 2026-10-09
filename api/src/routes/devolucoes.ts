@@ -36,7 +36,7 @@ function elegiveis(credito: { pessoa: Ref; devolucao: { pedido: { cliente: Ref; 
 
 const comVenda = {
   pessoa,
-  devolucao: { select: { id: true, pedido: { select: { id: true, cliente: pessoa, medico: pessoa, vendedor: pessoa, paciente: pessoa } } } },
+  devolucao: { select: { id: true, pedido: { select: { id: true, numero: true, cliente: pessoa, medico: pessoa, vendedor: pessoa, paciente: pessoa } } } },
 } as const
 // O crédito como a tela mostra: com a venda de origem e onde já foi usado.
 const completo = {
@@ -88,7 +88,7 @@ export async function rotasDevolucoes(app: FastifyInstance) {
   app.get('/devolucoes', async () =>
     prisma.devolucao.findMany({
       include: {
-        pedido: { select: { id: true, cliente: pessoa } },
+        pedido: { select: { id: true, numero: true, cliente: pessoa } },
         usuario: pessoa,
         credito: { select: { id: true, saldo: true, valorOriginal: true, status: true } },
         itens: { include: { pedidoItem: { select: { unidade: true, produto: { select: { sku: true, nome: true, unidade: true } } } } } },

@@ -87,7 +87,7 @@ export function RotaEntregador() {
           <article key={e.id} className="painel parada">
             <button type="button" className="parada-topo" onClick={() => setAberta(aberta === e.id ? null : e.id)} aria-expanded={aberta === e.id}>
               <strong>{i + 1}. {e.destinatario}</strong>
-              <span>Pedido nº {e.pedidoId} · {situacoes[e.status] ?? e.status}</span>
+              <span>Pedido nº {e.pedidoNumero} · {situacoes[e.status] ?? e.status}</span>
               <span>{e.endereco}</span>
             </button>
             {aberta === e.id && (

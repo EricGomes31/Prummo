@@ -99,7 +99,7 @@ export function Rotas() {
                 {rota.entregas.map((e, i) => (
                   <tr key={e.id}>
                     <td>{i + 1}</td>
-                    <td>#{e.pedidoId}</td>
+                    <td>#{e.pedido.numero}</td>
                     <td>
                       {e.destinatario}
                       <small className="bloco texto-suave">
@@ -139,7 +139,7 @@ export function Rotas() {
               <option value="">{semRota.length ? 'Incluir entrega pendente…' : 'Sem entregas pendentes fora de rota'}</option>
               {semRota.map((e) => (
                 <option key={e.id} value={e.id}>
-                  #{e.pedidoId} · {e.destinatario} · {e.cidade}
+                  #{e.pedido.numero} · {e.destinatario} · {e.cidade}
                   {e.pesoKg !== null && ` · ${qtd(e.pesoKg)} kg`}
                 </option>
               ))}
@@ -464,7 +464,7 @@ export function HistoricoDaEntrega({ entrega, onFechar }: { entrega: Entrega; on
   const lista = dados ?? []
 
   return (
-    <Modal titulo={`Histórico e documentos da entrega · pedido nº ${entrega.pedidoId}`} onFechar={onFechar} largo>
+    <Modal titulo={`Histórico e documentos da entrega · pedido nº ${entrega.pedido.numero}`} onFechar={onFechar} largo>
       <h3>Documentos</h3>
       <p className="texto-suave">Comprovante assinado, foto da entrega ou do local. O entregador também envia pelo link da rota.</p>
       <Documentos origem="ENTREGA" origemId={entrega.id} />

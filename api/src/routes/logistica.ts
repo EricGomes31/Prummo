@@ -46,6 +46,7 @@ const comDetalhes = {
     select: {
       id: true, pedidoId: true, sequencia: true, status: true, destinatario: true, logradouro: true, numero: true, bairro: true,
       cidade: true, uf: true, pesoKg: true, latitude: true, longitude: true, inicioRecebimento: true, fimRecebimento: true,
+      pedido: { select: { numero: true } },
     },
   },
 } satisfies Prisma.RotaInclude
@@ -207,6 +208,7 @@ export async function rotasEntregador(app: FastifyInstance) {
       include: {
         pedido: {
           select: {
+            numero: true,
             total: true,
             formaPagamento: true,
             observacao: true,
@@ -229,6 +231,7 @@ export async function rotasEntregador(app: FastifyInstance) {
       entregas: entregas.map((e) => ({
         id: e.id,
         pedidoId: e.pedidoId,
+        pedidoNumero: e.pedido.numero,
         status: e.status,
         destinatario: e.destinatario,
         telefone: e.telefone,

@@ -59,6 +59,7 @@ export async function rotasRelatorios(app: FastifyInstance) {
         : null
       return {
         id: p.id,
+        numero: p.numero,
         criadoEm: p.criadoEm,
         pagoEm,
         cliente: p.cliente.nome,
@@ -173,7 +174,7 @@ export async function rotasRelatorios(app: FastifyInstance) {
       },
       include: {
         pessoa: { select: { id: true, nome: true, telefone: true, celular: true, email: true } },
-        pedido: { select: { id: true, vendedor: pessoa, medico: pessoa, paciente: pessoa } },
+        pedido: { select: { id: true, numero: true, vendedor: pessoa, medico: pessoa, paciente: pessoa } },
       },
       orderBy: [{ vencimento: 'asc' }, { id: 'asc' }],
       take: 5000,
@@ -190,6 +191,7 @@ export async function rotasRelatorios(app: FastifyInstance) {
         email: c.pessoa?.email ?? null,
         descricao: c.descricao,
         pedidoId: c.pedido?.id ?? null,
+        pedidoNumero: c.pedido?.numero ?? null,
         vendedor: c.pedido?.vendedor?.nome ?? null,
         medico: c.pedido?.medico?.nome ?? null,
         paciente: c.pedido?.paciente?.nome ?? null,

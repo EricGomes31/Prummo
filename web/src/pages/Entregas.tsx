@@ -56,7 +56,7 @@ export function Entregas() {
   const entregas = dados ?? []
 
   function direto(entrega: Entrega, operacao: 'sair' | 'cancelar') {
-    if (operacao === 'cancelar' && !window.confirm(`Cancelar a entrega do pedido nº ${entrega.pedidoId}?`)) return
+    if (operacao === 'cancelar' && !window.confirm(`Cancelar a entrega do pedido nº ${entrega.pedido.numero}?`)) return
     acao.executar(async () => {
       await api(`/entregas/${entrega.id}/${operacao}`, { method: 'POST' })
       recarregar()
@@ -145,7 +145,7 @@ export function Entregas() {
                   <tr key={e.id}>
                     <td>{dataBr(e.dataPrevista)}</td>
                     <td>
-                      #{e.pedidoId} <span className="texto-suave">· {brl(e.pedido.total)}</span>
+                      #{e.pedido.numero} <span className="texto-suave">· {brl(e.pedido.total)}</span>
                       <small className="bloco texto-suave">{e.pedido.cliente.nome}</small>
                     </td>
                     <td>
@@ -298,7 +298,7 @@ function FormEntrega(props: { entrega: Entrega | null; entregadores: Entregador[
   }
 
   return (
-    <Modal titulo={entrega ? `Entrega do pedido nº ${entrega.pedidoId}` : 'Nova entrega'} onFechar={props.onFechar} largo>
+    <Modal titulo={entrega ? `Entrega do pedido nº ${entrega.pedido.numero}` : 'Nova entrega'} onFechar={props.onFechar} largo>
       <form onSubmit={enviar} className="form">
         {!entrega && (
           <Campo rotulo="Pedido faturado" largura={3}>
@@ -306,7 +306,7 @@ function FormEntrega(props: { entrega: Entrega | null; entregadores: Entregador[
               <option value="">{pedidos.carregando ? 'Carregando…' : 'Selecione…'}</option>
               {disponiveis.map((p) => (
                 <option key={p.id} value={p.id}>
-                  #{p.id} · {p.cliente.nome} · {brl(p.total)}
+                  #{p.numero} · {p.cliente.nome} · {brl(p.total)}
                 </option>
               ))}
             </select>
@@ -407,7 +407,7 @@ function FormOperacao(props: { entrega: Entrega; operacao: Operacao; onFechar: (
     <Modal titulo={config.titulo} onFechar={props.onFechar}>
       <form onSubmit={enviar} className="form">
         <p className="col-3 texto-suave">
-          Pedido nº {props.entrega.pedidoId} · {props.entrega.destinatario}
+          Pedido nº {props.entrega.pedido.numero} · {props.entrega.destinatario}
         </p>
         <Campo rotulo={config.rotulo} largura={3}>
           <input type={config.tipo} required autoFocus value={valor} onChange={(e) => setValor(e.target.value)} />

@@ -211,7 +211,7 @@ export async function rotasFinanceiro(app: FastifyInstance) {
         },
         include: {
           pessoa,
-          ...(receber ? { pedido: { select: { id: true, vendedor: pessoa, medico: pessoa, paciente: pessoa } } } : {}),
+          ...(receber ? { pedido: { select: { id: true, numero: true, vendedor: pessoa, medico: pessoa, paciente: pessoa } } } : {}),
         },
         orderBy: [{ vencimento: 'asc' }, { id: 'asc' }],
         take: 500,

@@ -48,7 +48,7 @@ export function Inicio() {
                   <tbody>
                     {dados.ultimosPedidos.map((p) => (
                       <tr key={p.id}>
-                        <td className="texto-suave">#{p.id}</td>
+                        <td className="texto-suave">#{p.numero}</td>
                         <td>{p.cliente}</td>
                         <td className="texto-suave">{dataBr(p.criadoEm)}</td>
                         <td><Selo valor={p.status} /></td>

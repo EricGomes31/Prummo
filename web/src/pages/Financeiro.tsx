@@ -176,7 +176,7 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
                     <td>{c.pessoa?.nome ?? '—'}</td>
                     {receber && (
                       <td>
-                        {c.pedido ? `#${c.pedido.id}` : '—'}
+                        {c.pedido ? `#${c.pedido.numero}` : '—'}
                         {c.pedido && (c.pedido.vendedor || c.pedido.medico || c.pedido.paciente) && (
                           <small className="bloco texto-suave">
                             {[c.pedido.vendedor && `Vend.: ${c.pedido.vendedor.nome}`, c.pedido.medico && `Méd.: ${c.pedido.medico.nome}`, c.pedido.paciente && `Pac.: ${c.pedido.paciente.nome}`]
@@ -254,7 +254,7 @@ const colunasCobranca: Coluna<LinhaCobranca>[] = [
   { rotulo: 'Cliente', valor: (l) => l.cliente, largura: 160 },
   { rotulo: 'Contato', valor: (l) => [l.telefone, l.email].filter(Boolean).join(' · ') || null },
   { rotulo: 'Descrição', valor: (l) => l.descricao, largura: 180 },
-  { rotulo: 'Venda', valor: (l) => (l.pedidoId ? `#${l.pedidoId}` : null) },
+  { rotulo: 'Venda', valor: (l) => (l.pedidoNumero ? `#${l.pedidoNumero}` : null) },
   { rotulo: 'Vendedor', valor: (l) => l.vendedor },
   { rotulo: 'Vencimento', valor: (l) => l.vencimento, tipo: 'data' },
   { rotulo: 'Dias de atraso', valor: (l) => l.diasAtraso, exibir: (l) => (l.diasAtraso > 0 ? <span className="texto-ruim">{l.diasAtraso}</span> : '—') },

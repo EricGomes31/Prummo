@@ -21,6 +21,8 @@ model Empresa {
   documento String? // CNPJ ou CPF
   // Empresa inativa: ninguém dela consegue entrar, e as sessões abertas param na próxima chamada.
   ativa     Boolean  @default(true)
+  // Último número de pedido usado. Cada empresa numera os próprios pedidos a partir do 1.
+  ultimoPedido Int   @default(0)
   criadoEm  DateTime @default(now())
 
   usuarios Usuario[]
@@ -269,6 +271,8 @@ model EntradaItem {
 model Pedido {
   id                 Int       @id @default(autoincrement())
   empresaId          Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  // Número que o usuário vê, sequencial dentro da empresa (ver Empresa.ultimoPedido). O id é interno.
+  numero             Int
   clienteId          Int
   cliente            Pessoa    @relation("PedidoCliente", fields: [clienteId], references: [id])
   // Quem lançou o pedido. O vendedor, o médico e o paciente são pessoas do cadastro, todos opcionais.
@@ -306,6 +310,7 @@ model Pedido {
   entregas      Entrega[]
   devolucoes    Devolucao[]
 
+  @@unique([empresaId, numero])
   @@index([status])
   @@index([empresaId])
 }

@@ -11,6 +11,9 @@ conferir('sessão traz a empresa e o administrador do sistema', eu.sistema === t
 const cliente1 = (await chamar('POST', '/pessoas', { cliente: true, nome: 'Cliente da Empresa 1' })).json
 const produto1 = (await chamar('POST', '/produtos', { sku: 'ISO-1', nome: 'Produto da Empresa 1', precoCusto: 100, precoVenda: 500 })).json
 const perfil1 = (await chamar('POST', '/perfis', { nome: 'Vendas', permissoes: ['PEDIDOS_VISUALIZAR'], dashboards: [] })).json
+const pedirNa1 = async () => (await chamar('POST', '/pedidos', { clienteId: cliente1.id, itens: [{ produtoId: produto1.id, quantidade: 1, precoUnitario: 500 }] })).json
+const pedidosDa1 = [await pedirNa1(), await pedirNa1()]
+conferir('pedidos numerados em sequência', pedidosDa1[0].numero === 1 && pedidosDa1[1].numero === 2, pedidosDa1.map((p) => p.numero).join())
 
 // Criação de outra empresa.
 const corpo = { nome: 'Empresa Dois', documento: '12345678000199', administrador: { nome: 'Dona da Dois', email: 'dona@dois.test', senha: 'senha-da-dois' } }
@@ -62,6 +65,9 @@ const usuarioPerfilAlheio = await chamar('POST', '/usuarios', { nome: 'Vendedor'
 conferir('usuário com perfil alheio -> recusado', usuarioPerfilAlheio.status === 400, `${usuarioPerfilAlheio.status}`)
 const pedido2 = await chamar('POST', '/pedidos', { clienteId: cliente2.id, itens: [{ produtoId: produto2.json.id, quantidade: 1, precoUnitario: 700 }] })
 conferir('pedido com dados próprios', pedido2.status === 201, JSON.stringify(pedido2.json))
+conferir('empresa nova começa no pedido nº 1', pedido2.json.numero === 1, `${pedido2.json.numero}`)
+const outroPedido2 = await chamar('POST', '/pedidos', { clienteId: cliente2.id, itens: [{ produtoId: produto2.json.id, quantidade: 1, precoUnitario: 700 }] })
+conferir('e segue a própria contagem', outroPedido2.json.numero === 2, `${outroPedido2.json.numero}`)
 
 // A trava do banco, direto, sem a API: gravar ligando registros de empresas diferentes é recusado,
 // e gravar sem informar a empresa também.
@@ -70,12 +76,14 @@ if (/^postgresql:\/\/prumo:prumo@127\.0\.0\.1:\d+\/suite_/.test(banco)) {
   const { PrismaClient } = await import('@prisma/client')
   const db = new PrismaClient({ datasourceUrl: banco })
   const recusa = async (gravar) => gravar.then(() => '', (e) => String(e.message))
-  const misturado = await recusa(db.pedido.create({ data: { empresaId: criada.json.id, clienteId: cliente1.id, subtotal: 0, total: 0 } }))
+  const misturado = await recusa(db.pedido.create({ data: { empresaId: criada.json.id, numero: 900, clienteId: cliente1.id, subtotal: 0, total: 0 } }))
   conferir('banco recusa pedido ligado a cliente de outra empresa', misturado.includes('PRUMO_OUTRA_EMPRESA'), misturado.slice(0, 200))
   const semEmpresa = await recusa(db.pessoa.create({ data: { nome: 'Sem empresa' } }))
   conferir('banco recusa gravação sem empresa', semEmpresa.includes('prumo.empresa'), semEmpresa.slice(0, 200))
-  const mesmo = await recusa(db.pedido.create({ data: { empresaId: criada.json.id, clienteId: cliente2.id, subtotal: 0, total: 0 } }))
+  const mesmo = await recusa(db.pedido.create({ data: { empresaId: criada.json.id, numero: 901, clienteId: cliente2.id, subtotal: 0, total: 0 } }))
   conferir('banco aceita ligação dentro da mesma empresa', mesmo === '', mesmo.slice(0, 200))
+  const repetido = await recusa(db.pedido.create({ data: { empresaId: criada.json.id, numero: 1, clienteId: cliente2.id, subtotal: 0, total: 0 } }))
+  conferir('banco recusa número de pedido repetido na mesma empresa', repetido.includes('Unique constraint'), repetido.slice(0, 200))
   await db.$disconnect()
 } else {
   conferir('endereço do banco de teste recebido do executor', false, banco)

@@ -43,7 +43,7 @@ const saldoAntes = await saldo(A)
 const cadastro = await alterar({ ...corpoAtual, clienteId: outro.id, vendedorId: vendedor.id, observacao: 'Ajuste de cadastro' })
 contas = await contasDo(id)
 conferir('alteração só de cadastro mantém parcelas e estoque', cadastro.status === 200 && cadastro.json.vendedor.nome === 'Vito Vendedor' && cadastro.json.cliente.id === outro.id && contas.filter((c) => c.status === 'ABERTA').length === 3 && (await saldo(A)) === saldoAntes, JSON.stringify(cadastro.json?.erro ?? ''))
-conferir('parcelas acompanham o novo cliente', (await chamar('GET', '/contas-receber?status=ABERTA')).json.filter((c) => c.descricao.startsWith(`Pedido nº ${id} `)).every((c) => c.pessoa.id === outro.id))
+conferir('parcelas acompanham o novo cliente', (await chamar('GET', '/contas-receber?status=ABERTA')).json.filter((c) => c.descricao.startsWith(`Pedido nº ${comCondicao.json.numero} `)).every((c) => c.pessoa.id === outro.id))
 conferir('natureza não muda depois do faturamento -> 400', (await alterar({ ...corpoAtual, natureza: 'BONIFICACAO' })).status === 400)
 conferir('pedido em aberto não usa esta rota -> 409', (await chamar('PUT', `/pedidos/${bonificacao.json.id}/faturado`, { clienteId: cliente.id, natureza: 'BONIFICACAO', itens: [item(A, 1)] })).status === 409)
 

@@ -60,7 +60,7 @@ export function Pedidos() {
             <tbody>
               {paginas.visiveis.map((p) => (
                 <tr key={p.id}>
-                  <td className="texto-suave">#{p.id}</td>
+                  <td className="texto-suave">#{p.numero}</td>
                   <td>{naturezasPedido[p.natureza] ?? p.natureza}</td>
                   <td>{dataBr(p.criadoEm)}</td>
                   <td>{p.cliente.nome}</td>
@@ -232,7 +232,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   }
 
   function cancelar() {
-    if (!pedido || !window.confirm(`Cancelar o pedido nº ${pedido.id}?`)) return
+    if (!pedido || !window.confirm(`Cancelar o pedido nº ${pedido.numero}?`)) return
     executar(async () => {
       await api(`/pedidos/${pedido.id}/cancelar`, { method: 'POST' })
       props.onSalvo()
@@ -253,7 +253,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   )
 
   return (
-    <Modal titulo={pedido ? `Pedido nº ${pedido.id}` : 'Novo pedido'} onFechar={props.onFechar} largo>
+    <Modal titulo={pedido ? `Pedido nº ${pedido.numero}` : 'Novo pedido'} onFechar={props.onFechar} largo>
       <form onSubmit={enviar} className="form">
         <Campo rotulo="Cliente" largura={2}>
           <select required value={clienteId || ''} onChange={(e) => setClienteId(Number(e.target.value))}>
@@ -427,7 +427,7 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
   }
 
   return (
-    <Modal titulo={`${venda ? 'Faturar' : 'Confirmar'} pedido nº ${pedido.id}`} onFechar={props.onFechar}>
+    <Modal titulo={`${venda ? 'Faturar' : 'Confirmar'} pedido nº ${pedido.numero}`} onFechar={props.onFechar}>
       <form onSubmit={enviar} className="form">
         <p className="col-3">
           {pedido.cliente.nome} · {naturezasPedido[pedido.natureza]} · <strong>{brl(pedido.total)}</strong>
@@ -524,7 +524,7 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
   const temDescontoNosItens = pedido?.itens.some((i) => i.desconto > 0)
 
   return (
-    <Modal titulo={`Pedido nº ${props.pedidoId}`} onFechar={props.onFechar} largo>
+    <Modal titulo={pedido ? `Pedido nº ${pedido.numero}` : 'Pedido'} onFechar={props.onFechar} largo>
       <EstadoLista carregando={carregando} erro={erroCarga} vazia={!pedido} textoVazio="" />
       {pedido && (
         <>

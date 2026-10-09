@@ -37,7 +37,7 @@ O Prumo está publicado e funcionando, com os dados do SG Nexus importados. Dos 
 | Entregas pendentes | 2 | `api/scripts/importar-vendas.mjs` |
 | Motoristas e veículo | 2 e 1 | `api/scripts/importar-logistica.mjs` |
 
-Os importadores podem ser rodados de novo sem duplicar. Os arquivos JSON baixados ficaram em uma pasta temporária e não existem mais; para baixar de novo, use `api/scripts/sgnexus/baixar.mjs`, que explica no cabeçalho como abrir o Chrome e fazer o login.
+Os importadores podem ser rodados de novo sem duplicar. Desde 09/10/2026 eles gravam na empresa informada e rodam pelo tsx: `npx tsx --env-file=.env scripts/importar-<x>.mjs --empresa=<id> ...` (sem `--empresa`, listam as empresas e param). Os arquivos JSON baixados ficaram em uma pasta temporária e não existem mais; para baixar de novo, use `api/scripts/sgnexus/baixar.mjs`, que explica no cabeçalho como abrir o Chrome e fazer o login.
 
 ### Módulos acrescentados ao Prumo
 
@@ -59,8 +59,17 @@ Feito em 08/10/2026. O Prumo deixa de ser de uma empresa só: cada empresa vê a
 - `api/src/empresa.ts`: cada requisição guarda a empresa do usuário, e o cliente do Prisma acrescenta a empresa em toda consulta e gravação, inclusive nas aninhadas. Consulta sem empresa definida é recusada. Para o que precisa ver todas (login, sessão, link do entregador, administração), há `semEmpresa`.
 - `api/prisma/empresas.sql`: gatilhos no banco recusam ligar um registro a outro de empresa diferente, e o valor padrão do `empresaId` falha se a empresa não for informada. Roda junto com o `npm run db:rls`.
 - Administrador do sistema (`Usuario.sistema`, hoje só o `admin@prumo.local`): tela Sistema → Empresas, onde cria a empresa já com o administrador dela e a conta Caixa, e ativa ou desativa empresas. Empresa inativa não entra, e as sessões abertas caem na próxima chamada.
-- A suíte `empresas` (36 verificações) confere o isolamento pela API e direto no banco.
+- A suíte `empresas` (40 verificações) confere o isolamento pela API e direto no banco.
 - Para o banco que já tinha dados: `api/prisma/migracoes/2026-10-08-empresas.sql` (roda uma vez, antes do `db:push`) cria a empresa "Infinity Labs" e atribui a ela tudo o que existia. Cópia de segurança antes: `api/scripts/copiar-banco.mjs`, que grava em `backups/` (fora do Git).
+
+### Numeração dos pedidos por empresa
+
+Feito em 09/10/2026, **ainda não aplicado ao banco real nem publicado**. Cada empresa numera os próprios pedidos a partir do 1.
+
+- `Pedido.numero`, único dentro da empresa, é o número que as telas mostram; o `id` continua interno (endereços da API, ligações entre tabelas). O contador fica em `Empresa.ultimoPedido`, incrementado na mesma transação que cria o pedido, o que impede dois pedidos com o mesmo número.
+- A descrição das parcelas ("Pedido nº …"), os relatórios, as entregas, o link do entregador, as devoluções e as movimentações de estoque (`origemNumero`) usam o número.
+- Banco que já tem pedidos: `api/prisma/migracoes/2026-10-09-numero-pedido.sql`, **antes** do `db:push`. Os pedidos existentes ficam com o número igual ao id (o que já aparecia) e a contagem continua do maior.
+- Importadores (`api/scripts/empresa.mjs`): usam o cliente do Prisma da API, com a empresa de `--empresa`. O número do pedido do SG Nexus vira o número no Prumo; se o número já for de outro pedido (outro cliente ou outro total), a importação para com aviso. A suíte `importadores` roda os quatro scripts de verdade numa segunda empresa.
 
 ### Funções que faltavam do SG Nexus
 
@@ -91,7 +100,7 @@ Para conferir telas sem tocar nos dados reais, suba uma instância com PostgreSQ
 
 ### Testes
 
-A API tem 23 suítes com 648 verificações (`cd api`, depois `npm test`). Elas sobem um PostgreSQL descartável e nunca usam o banco do `.env`. O frontend não tem testes automatizados; cada tela nova foi conferida no navegador, sem gravar nos dados reais.
+A API tem 24 suítes com 668 verificações (`cd api`, depois `npm test`). Elas sobem um PostgreSQL descartável e nunca usam o banco do `.env`. O frontend não tem testes automatizados; cada tela nova foi conferida no navegador, sem gravar nos dados reais.
 
 O PostgreSQL descartável se recusa a rodar num terminal aberto como administrador ("Execution of PostgreSQL by a user with administrative permissions is not permitted"); nesse caso o `npm test` termina logo depois de "Preparando o banco de teste…". Rode num terminal comum, ou com privilégio reduzido: `runas /trustlevel:0x20000 "cmd /c cd /d <pasta>\api && npm test > saida.txt 2>&1"`.
 

@@ -61,6 +61,7 @@ export async function rotasDashboard(app: FastifyInstance) {
       },
       ultimosPedidos: ultimosPedidos.map((p) => ({
         id: p.id,
+        numero: p.numero,
         cliente: p.cliente.nome,
         status: p.status,
         total: p.total,

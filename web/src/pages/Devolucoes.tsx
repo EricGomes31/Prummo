@@ -19,7 +19,7 @@ const SeloCredito = ({ status }: { status: Credito['status'] }) =>
 // De onde veio o crédito.
 const origemDoCredito = (c: Credito) =>
   c.origem === 'DEVOLUCAO' && c.devolucao
-    ? `Devolução nº ${c.devolucao.id} · pedido nº ${c.devolucao.pedido.id}`
+    ? `Devolução nº ${c.devolucao.id} · pedido nº ${c.devolucao.pedido.numero}`
     : c.origem === 'DEPOSITO'
       ? 'Depósito a maior'
       : `Avulso${c.descricao ? `: ${c.descricao}` : ''}`
@@ -164,7 +164,7 @@ export function Devolucoes() {
                     <tr key={d.id} className={d.estornada ? 'linha-inativa' : ''}>
                       <td className="texto-suave">#{d.id}</td>
                       <td>{dataBr(d.criadoEm)}</td>
-                      <td>Pedido nº {d.pedido.id}</td>
+                      <td>Pedido nº {d.pedido.numero}</td>
                       <td>{d.pedido.cliente.nome}</td>
                       <td>
                         {d.itens.map((i) => (
@@ -270,7 +270,7 @@ function RegistrarDevolucao({ onFechar, onRegistrada }: { onFechar: () => void; 
             <option value="">{pedidos.carregando ? 'Carregando vendas…' : vendas.length === 0 ? 'Nenhuma venda faturada' : 'Selecione…'}</option>
             {vendas.map((p) => (
               <option key={p.id} value={p.id}>
-                Pedido nº {p.id} · {p.cliente.nome} · {brl(p.total)}
+                Pedido nº {p.numero} · {p.cliente.nome} · {brl(p.total)}
               </option>
             ))}
           </select>

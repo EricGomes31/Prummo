@@ -63,6 +63,8 @@ export function resolverUnidade(produto: ComUnidades, sigla?: string | null) {
 }
 
 const comUnidades = { unidades: { orderBy: { fator: 'asc' } } } as const
+// Origens de movimento de estoque em que origemId é o id de um pedido.
+const ORIGENS_DE_PEDIDO = new Set(['PEDIDO', 'CANCELAMENTO', 'ALTERACAO'])
 
 export async function rotasProdutos(app: FastifyInstance) {
   app.get('/produtos', async (req) => {
@@ -130,8 +132,13 @@ export async function rotasProdutos(app: FastifyInstance) {
     const produto = await prisma.produto.findUnique({ where: { id }, select: { divisor: true } })
     if (!produto) throw new AppError(404, 'Produto não encontrado.')
     const movimentos = await prisma.movimentoEstoque.findMany({ where: { produtoId: id }, orderBy: { id: 'desc' }, take: 100 })
+    // O movimento guarda o id do pedido; a tela mostra o número que o usuário conhece.
+    const dePedido = movimentos.filter((m) => ORIGENS_DE_PEDIDO.has(m.origem) && m.origemId).map((m) => m.origemId!)
+    const pedidos = await prisma.pedido.findMany({ where: { id: { in: dePedido } }, select: { id: true, numero: true } })
+    const numeros = new Map(pedidos.map((p) => [p.id, p.numero]))
     return movimentos.map((m) => ({
       ...m,
+      origemNumero: (ORIGENS_DE_PEDIDO.has(m.origem) && m.origemId ? numeros.get(m.origemId) : m.origemId) ?? null,
       quantidade: m.quantidade / produto.divisor,
       saldoApos: m.saldoApos / produto.divisor,
     }))
