@@ -132,7 +132,7 @@ Cuidados ao retomar:
 ## Próximos passos, na ordem sugerida
 
 1. **Segurança, antes de qualquer uso real:** redefinir a senha do banco no Supabase. A senha do administrador já foi trocada.
-2. **Cadastros que destravam o uso:** usuários de Douglas e Lethícia, fornecedores e prestadores, contas bancárias com o número da conta, e as classificações de vendedor, médico e paciente nas pessoas.
+2. **Cadastros que destravam o uso:** fornecedores e prestadores, contas bancárias com o número da conta, e as classificações de vendedor, médico e paciente nas pessoas.
 3. **Cartões e operadoras:** o último módulo do SG Nexus que falta (liquidações, taxas e prazo de recebimento).
 4. **Testar a conciliação com um extrato OFX real** dos bancos usados.
 5. **Decidir a hospedagem definitiva** (VPS em São Paulo ou banco em East US) e apontar o subdomínio.

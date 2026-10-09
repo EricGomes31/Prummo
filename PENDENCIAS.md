@@ -13,7 +13,6 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 - [x] Trocar a senha do administrador (`admin@prumo.local`). Feito em 08/10/2026: senha aleatória de 24 caracteres, guardada em `SEED_ADMIN_PASSWORD` no `api/.env` desta máquina.
 - [ ] Redefinir a senha do banco no Supabase e atualizar `DATABASE_URL` e `DIRECT_URL` no `api/.env` e nas variáveis do Railway. A senha atual foi digitada em uma conversa.
 - [x] Remover a chave SSH `prumo-deploy`. Feito em 08/10/2026: excluída no cPanel da HostGator e apagada deste computador.
-- [ ] Criar os usuários de Douglas e Lethícia, que existem no SG Nexus, cada um com o perfil de acesso adequado.
 
 ## Cadastros a completar
 
