@@ -1,0 +1,24 @@
+# Serviço do Prumo na VPS: API + site, atrás do Caddy. Instalado em /etc/systemd/system/prumo.service.
+# A configuração (banco, segredo do login) fica em /etc/prumo/prumo.env, só no servidor.
+[Unit]
+Description=Prumo (API e site)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=prumo
+Group=prumo
+WorkingDirectory=/opt/prumo/atual/api
+EnvironmentFile=/etc/prumo/prumo.env
+ExecStart=/usr/bin/node --import tsx src/server.ts
+Restart=always
+RestartSec=3
+# O processo só escreve na pasta de anexos.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/prumo
+
+[Install]
+WantedBy=multi-user.target
