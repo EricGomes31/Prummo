@@ -1,0 +1,6 @@
+[Unit]
+Description=Cópia de segurança do Prumo (banco e anexos)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/prumo-copia
