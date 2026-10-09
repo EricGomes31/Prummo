@@ -32,13 +32,16 @@ export function Pessoas() {
   const [editando, setEditando] = useState<Rascunho | null>(null)
   const pessoas = dados ?? []
   const paginas = usePaginacao(pessoas)
+  const { pode } = useSessao()
 
   return (
     <>
       <Cabecalho titulo="Pessoas" descricao="Cadastro único de clientes, fornecedores e demais contatos.">
-        <button type="button" className="botao botao-primario" onClick={() => setEditando(nova())}>
-          Nova pessoa
-        </button>
+        {pode('PESSOAS_CADASTRAR') && (
+          <button type="button" className="botao botao-primario" onClick={() => setEditando(nova())}>
+            Nova pessoa
+          </button>
+        )}
       </Cabecalho>
 
       <div className="filtros">
@@ -79,9 +82,11 @@ export function Pessoas() {
                   <td>{[telefoneBr(p.celular), telefoneBr(p.telefone), p.email].filter(Boolean).join(' · ')}</td>
                   <td>{[p.cidade, p.uf].filter(Boolean).join('/')}</td>
                   <td className="num">
-                    <button type="button" className="botao botao-texto" onClick={() => setEditando(p)}>
-                      Editar
-                    </button>
+                    {pode('PESSOAS_ALTERAR') && (
+                      <button type="button" className="botao botao-texto" onClick={() => setEditando(p)}>
+                        Editar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

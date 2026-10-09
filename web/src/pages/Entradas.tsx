@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { anexar, api, TAMANHO_MAXIMO_ANEXO, TIPOS_DE_ANEXO, useAcao, useDados } from '../api'
+import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { brl, dataBr, hojeIso, inteiro, unidadesDe } from '../format'
 import type { Entrada, ItemEdicao, Pessoa, Produto } from '../types'
@@ -26,13 +27,16 @@ export function Entradas() {
   const [lancando, setLancando] = useState(false)
   const [documentosDe, setDocumentosDe] = useState<Entrada | null>(null)
   const entradas = dados ?? []
+  const { pode } = useSessao()
 
   return (
     <>
       <Cabecalho titulo="Entradas de estoque" descricao="Compras para revenda e bonificações.">
-        <button type="button" className="botao botao-primario" onClick={() => setLancando(true)}>
-          Nova entrada
-        </button>
+        {pode('ESTOQUE_ENTRADA') && (
+          <button type="button" className="botao botao-primario" onClick={() => setLancando(true)}>
+            Nova entrada
+          </button>
+        )}
       </Cabecalho>
 
       <section className="painel">

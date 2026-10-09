@@ -66,7 +66,7 @@ Ficaram para depois, por decisão de 09/10/2026:
 - [ ] Seleção múltipla e menu de ações "..." nas tabelas. Não há ações em lote no sistema ainda.
 - [ ] Visualização dos produtos em cartões, como alternativa à tabela.
 - [ ] Modo escuro.
-- [ ] Esconder, em cada tela, os botões das operações que o perfil do usuário não permite. Hoje eles aparecem e a API recusa com uma mensagem.
+- [x] Esconder, em cada tela, os botões das operações que o perfil do usuário não permite. Feito em 09/10/2026 em Pessoas, Produtos, Entradas, Pedidos, Entregas, Logística e Contas a receber e a pagar (as demais telas já escondiam). Quem só pode ver uma conta abre o histórico, sem o formulário de baixa; quem não pode editar um pedido em aberto vê os detalhes.
 - [ ] Criar as permissões dos cartões e operadoras, quando o módulo entrar.
 - [x] Máscara de CPF/CNPJ, telefone e CEP. Feito em 09/10/2026: a API guarda só os dígitos e as telas formatam ao mostrar e ao digitar.
 - [ ] Rodar no banco real `api/prisma/migracoes/2026-10-09-so-digitos.sql`, que tira a pontuação do que foi gravado antes, e publicar.

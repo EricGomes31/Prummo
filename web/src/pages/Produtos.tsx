@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { useSessao } from '../auth'
 import { brl, dataBr, inteiro, qtd, saldoBase, unidades } from '../format'
 import type { Movimento, Produto } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
@@ -17,13 +18,16 @@ export function Produtos() {
   const [estoqueDe, setEstoqueDe] = useState<Produto | null>(null)
   const produtos = dados ?? []
   const paginas = usePaginacao(produtos)
+  const { pode } = useSessao()
 
   return (
     <>
       <Cabecalho titulo="Produtos e estoque" descricao="Cadastro, preços e saldo em estoque.">
-        <button type="button" className="botao botao-primario" onClick={() => setEditando(novo())}>
-          Novo produto
-        </button>
+        {pode('PRODUTOS_CADASTRAR') && (
+          <button type="button" className="botao botao-primario" onClick={() => setEditando(novo())}>
+            Novo produto
+          </button>
+        )}
       </Cabecalho>
 
       <div className="filtros">
@@ -72,14 +76,16 @@ export function Produtos() {
                     )}
                   </td>
                   <td className="num">
-                    {p.controlaEstoque && (
+                    {p.controlaEstoque && pode('ESTOQUE_VISUALIZAR', 'ESTOQUE_INVENTARIO') && (
                       <button type="button" className="botao botao-texto" onClick={() => setEstoqueDe(p)}>
                         Estoque
                       </button>
                     )}
-                    <button type="button" className="botao botao-texto" onClick={() => setEditando(p)}>
-                      Editar
-                    </button>
+                    {pode('PRODUTOS_ALTERAR') && (
+                      <button type="button" className="botao botao-texto" onClick={() => setEditando(p)}>
+                        Editar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -289,6 +295,7 @@ function Estoque(props: { produto: Produto; onFechar: () => void; onAjustado: ()
   const [observacao, setObservacao] = useState('')
   const { erro, ocupado, executar } = useAcao()
   const movimentos = dados ?? []
+  const ajusta = useSessao().pode('ESTOQUE_INVENTARIO')
 
   function enviar(e: FormEvent) {
     e.preventDefault()
@@ -300,23 +307,25 @@ function Estoque(props: { produto: Produto; onFechar: () => void; onAjustado: ()
 
   return (
     <Modal titulo={`Estoque · ${produto.nome}`} onFechar={props.onFechar} largo>
-      <form onSubmit={enviar} className="form">
-        <Campo rotulo={`Saldo contado em ${produto.unidade} (atual: ${qtd(atual)})`}>
-          <input inputMode="decimal" required value={texto} onChange={(e) => setTexto(e.target.value)} />
-          {produto.unidades.length > 0 && valido && (
-            <small className="texto-suave">{produto.unidades.map((u) => `${qtd(novoSaldo * u.fator)} ${u.sigla}`).join(' · ')}</small>
-          )}
-        </Campo>
-        <Campo rotulo="Motivo do ajuste" largura={2}>
-          <input value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Ex.: contagem de inventário" />
-        </Campo>
-        <Erro mensagem={erro} />
-        <div className="form-pe">
-          <button className="botao botao-primario" disabled={ocupado || !valido || Math.abs(novoSaldo - atual) < 1e-9}>
-            Ajustar saldo
-          </button>
-        </div>
-      </form>
+      {ajusta && (
+        <form onSubmit={enviar} className="form">
+          <Campo rotulo={`Saldo contado em ${produto.unidade} (atual: ${qtd(atual)})`}>
+            <input inputMode="decimal" required value={texto} onChange={(e) => setTexto(e.target.value)} />
+            {produto.unidades.length > 0 && valido && (
+              <small className="texto-suave">{produto.unidades.map((u) => `${qtd(novoSaldo * u.fator)} ${u.sigla}`).join(' · ')}</small>
+            )}
+          </Campo>
+          <Campo rotulo="Motivo do ajuste" largura={2}>
+            <input value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Ex.: contagem de inventário" />
+          </Campo>
+          <Erro mensagem={erro} />
+          <div className="form-pe">
+            <button className="botao botao-primario" disabled={ocupado || !valido || Math.abs(novoSaldo - atual) < 1e-9}>
+              Ajustar saldo
+            </button>
+          </div>
+        </form>
+      )}
 
       <h3>Últimas movimentações</h3>
       <EstadoLista carregando={carregando} erro={erroLista} vazia={movimentos.length === 0} textoVazio="Sem movimentações." />

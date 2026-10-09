@@ -14,6 +14,7 @@ export function Pedidos() {
   const [faturando, setFaturando] = useState<Pedido | null>(null)
   const pedidos = dados ?? []
   const paginas = usePaginacao(pedidos)
+  const { pode } = useSessao()
 
   const fecharTudo = () => {
     setEditando(null)
@@ -25,9 +26,11 @@ export function Pedidos() {
   return (
     <>
       <Cabecalho titulo="Pedidos e vendas" descricao="Pedidos em aberto, faturados e cancelados.">
-        <button type="button" className="botao botao-primario" onClick={() => setEditando('novo')}>
-          Novo pedido
-        </button>
+        {pode('PEDIDOS_CADASTRAR') && (
+          <button type="button" className="botao botao-primario" onClick={() => setEditando('novo')}>
+            Novo pedido
+          </button>
+        )}
       </Cabecalho>
 
       <div className="filtros">
@@ -70,16 +73,18 @@ export function Pedidos() {
                   <td><Selo valor={p.status} /></td>
                   <td className="num">{brl(p.total)}</td>
                   <td className="num">
-                    {p.status === 'ABERTO' ? (
-                      <>
-                        <button type="button" className="botao botao-texto" onClick={() => setEditando(p)}>
-                          Editar
-                        </button>
-                        <button type="button" className="botao botao-texto" onClick={() => setFaturando(p)}>
-                          {p.natureza === 'VENDA' ? 'Faturar' : 'Confirmar'}
-                        </button>
-                      </>
-                    ) : (
+                    {p.status === 'ABERTO' && pode('PEDIDOS_CADASTRAR') && (
+                      <button type="button" className="botao botao-texto" onClick={() => setEditando(p)}>
+                        Editar
+                      </button>
+                    )}
+                    {p.status === 'ABERTO' && pode('PEDIDOS_FATURAR') && (
+                      <button type="button" className="botao botao-texto" onClick={() => setFaturando(p)}>
+                        {p.natureza === 'VENDA' ? 'Faturar' : 'Confirmar'}
+                      </button>
+                    )}
+                    {/* Em aberto, quem não pode editar vê os detalhes, como num pedido fechado. */}
+                    {(p.status !== 'ABERTO' || !pode('PEDIDOS_CADASTRAR')) && (
                       <button type="button" className="botao botao-texto" onClick={() => setVendo(p)}>
                         Detalhes
                       </button>
@@ -112,6 +117,7 @@ export function Pedidos() {
 
 function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalvo: () => void }) {
   const { pedido } = props
+  const { pode } = useSessao()
   const produtos = useDados<Produto[]>('/produtos').dados ?? []
   const pessoas = useDados<Pessoa[]>('/pessoas').dados ?? []
   const [clienteId, setClienteId] = useState(pedido?.clienteId ?? 0)
@@ -383,7 +389,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
         )}
         <Erro mensagem={erro} />
         <div className="form-pe">
-          {pedido && !faturado && (
+          {pedido && !faturado && pode('PEDIDOS_CANCELAR') && (
             <button type="button" className="botao botao-perigo empurra" onClick={cancelar} disabled={ocupado}>
               Cancelar pedido
             </button>
@@ -595,7 +601,7 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
           <Documentos origem="PEDIDO" origemId={pedido.id} />
           <Erro mensagem={erro} />
           <div className="form-pe">
-            {pedido.status === 'FATURADO' && (
+            {pedido.status === 'FATURADO' && pode('PEDIDOS_CANCELAR') && (
               <button type="button" className="botao botao-perigo empurra" onClick={cancelar} disabled={ocupado}>
                 Cancelar pedido
               </button>

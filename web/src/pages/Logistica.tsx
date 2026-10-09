@@ -1,6 +1,7 @@
 // Abas da logística além das entregas: rotas com sequência de paradas, motoristas e veículos.
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { dataBr, hojeIso, mascarar, qtd, telefoneBr } from '../format'
 import type { Entrega, HistoricoEntrega, Motorista, Rota, Veiculo } from '../types'
@@ -12,6 +13,7 @@ const comoTexto = (n: number | null | undefined) => (n === null || n === undefin
 
 export function Rotas() {
   const rotas = useDados<Rota[]>('/rotas')
+  const gerencia = useSessao().pode('LOGISTICA_GERENCIAR')
   const motoristas = (useDados<Motorista[]>('/motoristas').dados ?? []).filter((m) => m.ativo)
   const veiculos = (useDados<Veiculo[]>('/veiculos').dados ?? []).filter((v) => v.ativo)
   const pendentes = useDados<Entrega[]>('/entregas?status=PENDENTE')
@@ -52,9 +54,11 @@ export function Rotas() {
   return (
     <>
       <div className="filtros">
-        <button type="button" className="botao botao-primario" onClick={() => setEditando('nova')}>
-          Nova rota
-        </button>
+        {gerencia && (
+          <button type="button" className="botao botao-primario" onClick={() => setEditando('nova')}>
+            Nova rota
+          </button>
+        )}
         <span className="resumo-filtro">{semRota.length} entrega(s) pendente(s) sem rota</span>
       </div>
       <Erro mensagem={acao.erro} />
@@ -70,14 +74,16 @@ export function Rotas() {
                 {rota.veiculo.descricao && ` (${rota.veiculo.descricao})`} · carga {qtd(rota.cargaKg)} de {qtd(rota.veiculo.capacidadeKg)} kg · saída: {rota.pontoSaida}
               </small>
             </div>
-            <div className="acoes">
-              <button type="button" className="botao botao-texto" onClick={() => setEditando(rota)}>
-                Editar
-              </button>
-              <button type="button" className="botao botao-texto" disabled={acao.ocupado || rota.entregas.length < 2} onClick={() => executar(() => api(`/rotas/${rota.id}/organizar`, { method: 'POST' }))}>
-                Organizar paradas
-              </button>
-            </div>
+            {gerencia && (
+              <div className="acoes">
+                <button type="button" className="botao botao-texto" onClick={() => setEditando(rota)}>
+                  Editar
+                </button>
+                <button type="button" className="botao botao-texto" disabled={acao.ocupado || rota.entregas.length < 2} onClick={() => executar(() => api(`/rotas/${rota.id}/organizar`, { method: 'POST' }))}>
+                  Organizar paradas
+                </button>
+              </div>
+            )}
           </header>
 
           {rota.entregas.length === 0 ? (
@@ -111,16 +117,20 @@ export function Rotas() {
                     <td className="num">{e.pesoKg === null ? '—' : `${qtd(e.pesoKg)} kg`}</td>
                     <td><Selo valor={e.status} /></td>
                     <td className="num">
-                      <button type="button" className="botao-icone" aria-label="Subir parada" disabled={acao.ocupado || i === 0} onClick={() => mover(rota, i, -1)}>
-                        ↑
-                      </button>
-                      <button type="button" className="botao-icone" aria-label="Descer parada" disabled={acao.ocupado || i === rota.entregas.length - 1} onClick={() => mover(rota, i, 1)}>
-                        ↓
-                      </button>
-                      {e.status === 'PENDENTE' && (
-                        <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => executar(() => api(`/entregas/${e.id}/rota`, { method: 'PUT', body: { rotaId: null } }))}>
-                          Tirar
-                        </button>
+                      {gerencia && (
+                        <>
+                          <button type="button" className="botao-icone" aria-label="Subir parada" disabled={acao.ocupado || i === 0} onClick={() => mover(rota, i, -1)}>
+                            ↑
+                          </button>
+                          <button type="button" className="botao-icone" aria-label="Descer parada" disabled={acao.ocupado || i === rota.entregas.length - 1} onClick={() => mover(rota, i, 1)}>
+                            ↓
+                          </button>
+                          {e.status === 'PENDENTE' && (
+                            <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => executar(() => api(`/entregas/${e.id}/rota`, { method: 'PUT', body: { rotaId: null } }))}>
+                              Tirar
+                            </button>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>
@@ -154,15 +164,19 @@ export function Rotas() {
                 </small>
               )}
             </span>
-            <input type="number" min={1} max={168} className="curto" aria-label="Validade do link em horas" value={horas} onChange={(e) => setHoras(Math.min(168, Math.max(1, Number(e.target.value) || 1)))} />
-            <span className="texto-suave">h</span>
-            <button type="button" className="botao" disabled={acao.ocupado} onClick={() => gerarLink(rota)}>
-              {rota.linkAtivo ? 'Gerar novo link' : 'Gerar link'}
-            </button>
-            {rota.linkAtivo && (
-              <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => executar(() => api(`/rotas/${rota.id}/link`, { method: 'DELETE' }))}>
-                Revogar
-              </button>
+            {gerencia && (
+              <>
+                <input type="number" min={1} max={168} className="curto" aria-label="Validade do link em horas" value={horas} onChange={(e) => setHoras(Math.min(168, Math.max(1, Number(e.target.value) || 1)))} />
+                <span className="texto-suave">h</span>
+                <button type="button" className="botao" disabled={acao.ocupado} onClick={() => gerarLink(rota)}>
+                  {rota.linkAtivo ? 'Gerar novo link' : 'Gerar link'}
+                </button>
+                {rota.linkAtivo && (
+                  <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => executar(() => api(`/rotas/${rota.id}/link`, { method: 'DELETE' }))}>
+                    Revogar
+                  </button>
+                )}
+              </>
             )}
           </div>
           {link?.rotaId === rota.id && (
@@ -271,13 +285,16 @@ export function Motoristas() {
   const { dados, erro, carregando, recarregar } = useDados<Motorista[]>('/motoristas')
   const [editando, setEditando] = useState<Partial<Motorista> | null>(null)
   const lista = dados ?? []
+  const gerencia = useSessao().pode('LOGISTICA_GERENCIAR')
 
   return (
     <>
       <div className="filtros">
-        <button type="button" className="botao botao-primario" onClick={() => setEditando({ ativo: true })}>
-          Novo motorista
-        </button>
+        {gerencia && (
+          <button type="button" className="botao botao-primario" onClick={() => setEditando({ ativo: true })}>
+            Novo motorista
+          </button>
+        )}
       </div>
       <section className="painel">
         <EstadoLista carregando={carregando} erro={erro} vazia={lista.length === 0} textoVazio="Nenhum motorista cadastrado." />
@@ -302,9 +319,11 @@ export function Motoristas() {
                   <td>{m.validadeCnh ? dataBr(m.validadeCnh) : '—'}</td>
                   <td><Selo valor={m.ativo ? 'Ativo' : 'Inativo'} tom={m.ativo ? 'bom' : 'apagado'} /></td>
                   <td className="num">
-                    <button type="button" className="botao botao-texto" onClick={() => setEditando(m)}>
-                      Editar
-                    </button>
+                    {gerencia && (
+                      <button type="button" className="botao botao-texto" onClick={() => setEditando(m)}>
+                        Editar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -339,13 +358,16 @@ export function Veiculos() {
   const { dados, erro, carregando, recarregar } = useDados<Veiculo[]>('/veiculos')
   const [editando, setEditando] = useState<Partial<Veiculo> | null>(null)
   const lista = dados ?? []
+  const gerencia = useSessao().pode('LOGISTICA_GERENCIAR')
 
   return (
     <>
       <div className="filtros">
-        <button type="button" className="botao botao-primario" onClick={() => setEditando({ ativo: true })}>
-          Novo veículo
-        </button>
+        {gerencia && (
+          <button type="button" className="botao botao-primario" onClick={() => setEditando({ ativo: true })}>
+            Novo veículo
+          </button>
+        )}
       </div>
       <section className="painel">
         <EstadoLista carregando={carregando} erro={erro} vazia={lista.length === 0} textoVazio="Nenhum veículo cadastrado." />
@@ -368,9 +390,11 @@ export function Veiculos() {
                   <td className="num">{qtd(v.capacidadeKg)} kg</td>
                   <td><Selo valor={v.ativo ? 'Ativo' : 'Inativo'} tom={v.ativo ? 'bom' : 'apagado'} /></td>
                   <td className="num">
-                    <button type="button" className="botao botao-texto" onClick={() => setEditando(v)}>
-                      Editar
-                    </button>
+                    {gerencia && (
+                      <button type="button" className="botao botao-texto" onClick={() => setEditando(v)}>
+                        Editar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

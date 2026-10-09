@@ -37,7 +37,8 @@ const abas = { entregas: 'Entregas', rotas: 'Rotas', motoristas: 'Motoristas', v
 type Aba = keyof typeof abas
 
 export function Entregas() {
-  const { usuario } = useSessao()
+  const { usuario, pode } = useSessao()
+  const gerencia = pode('LOGISTICA_GERENCIAR')
   const [status, setStatus] = useState('ATIVAS')
   const [entregadorId, setEntregadorId] = useState('')
   const [data, setData] = useState('')
@@ -72,9 +73,11 @@ export function Entregas() {
   return (
     <>
       <Cabecalho titulo="Logística e entregas" descricao="Entregas dos pedidos faturados, da programação à confirmação.">
-        <button type="button" className="botao botao-primario" onClick={() => setEditando('nova')}>
-          Nova entrega
-        </button>
+        {gerencia && (
+          <button type="button" className="botao botao-primario" onClick={() => setEditando('nova')}>
+            Nova entrega
+          </button>
+        )}
       </Cabecalho>
 
       <div className="abas" role="tablist">
@@ -179,7 +182,7 @@ export function Entregas() {
                       {e.status === 'FALHOU' && <small className="bloco texto-ruim">{e.motivoFalha}</small>}
                     </td>
                     <td className="num">
-                      {e.status === 'PENDENTE' && (
+                      {gerencia && e.status === 'PENDENTE' && (
                         <>
                           <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => direto(e, 'sair')}>
                             Saiu para entrega
@@ -189,7 +192,7 @@ export function Entregas() {
                           </button>
                         </>
                       )}
-                      {e.status === 'EM_ROTA' && (
+                      {gerencia && e.status === 'EM_ROTA' && (
                         <>
                           <button type="button" className="botao botao-texto" onClick={() => setOperando({ entrega: e, operacao: 'concluir' })}>
                             Entregue
@@ -199,12 +202,12 @@ export function Entregas() {
                           </button>
                         </>
                       )}
-                      {e.status === 'FALHOU' && (
+                      {gerencia && e.status === 'FALHOU' && (
                         <button type="button" className="botao botao-texto" onClick={() => setOperando({ entrega: e, operacao: 'reprogramar' })}>
                           Reprogramar
                         </button>
                       )}
-                      {(e.status === 'PENDENTE' || e.status === 'FALHOU') && (
+                      {gerencia && (e.status === 'PENDENTE' || e.status === 'FALHOU') && (
                         <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => direto(e, 'cancelar')}>
                           Cancelar
                         </button>

@@ -82,6 +82,7 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
   const contas = dados ?? []
   const paginas = usePaginacao(contas)
   const config = abas[aba]
+  const baixa = useSessao().pode(receber ? 'CONTAS_RECEBER_BAIXAR' : 'CONTAS_PAGAR_BAIXAR')
   const total = contas.filter((c) => c.status === 'ABERTA').reduce((soma, c) => soma + saldoDe(c), 0)
   const vencido = contas.filter(estaVencida).reduce((soma, c) => soma + saldoDe(c), 0)
   const filtrando = [f.pessoaId, f.vendedorId, f.medicoId, f.pacienteId, f.inicio, f.fim].some(Boolean)
@@ -104,9 +105,11 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
             Relatório de cobrança
           </button>
         )}
-        <button type="button" className="botao botao-primario" onClick={() => setLancando(true)}>
-          Novo lançamento
-        </button>
+        {baixa && (
+          <button type="button" className="botao botao-primario" onClick={() => setLancando(true)}>
+            Novo lançamento
+          </button>
+        )}
       </Cabecalho>
       {seletor}
 
@@ -194,22 +197,22 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
                     <td className="num">{brl(c.valor)}</td>
                     <td className="num">{c.status === 'ABERTA' ? brl(saldoDe(c)) : '—'}</td>
                     <td className="num">
-                      {c.status === 'ABERTA' && (
+                      {baixa && c.status === 'ABERTA' && (
                         <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => setBaixando(c)}>
                           {config.baixar}
                         </button>
                       )}
-                      {c.status !== 'ABERTA' && c.valorPago > 0 && (
+                      {(!baixa || c.status !== 'ABERTA') && c.valorPago > 0 && (
                         <button type="button" className="botao botao-texto" onClick={() => setBaixando(c)}>
                           Histórico
                         </button>
                       )}
-                      {c.status !== 'CANCELADA' && c.valorPago > 0 && (
+                      {baixa && c.status !== 'CANCELADA' && c.valorPago > 0 && (
                         <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => operar(c, 'estornar')}>
                           Estornar
                         </button>
                       )}
-                      {c.status === 'ABERTA' && c.valorPago === 0 && (
+                      {baixa && c.status === 'ABERTA' && c.valorPago === 0 && (
                         <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => operar(c, 'cancelar')}>
                           Cancelar
                         </button>
@@ -358,7 +361,10 @@ function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
 function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
   const config = abas[props.aba]
   const [conta, setConta] = useState(props.conta)
-  const contasFinanceiras = (useDados<ContaFinanceira[]>('/contas-financeiras').dados ?? []).filter((c) => c.ativa)
+  // Quem só pode ver as contas abre aqui o histórico, sem o formulário de baixa.
+  const { pode } = useSessao()
+  const podeBaixar = conta.status === 'ABERTA' && pode(props.aba === 'contas-receber' ? 'CONTAS_RECEBER_BAIXAR' : 'CONTAS_PAGAR_BAIXAR')
+  const contasFinanceiras = (useDados<ContaFinanceira[]>(podeBaixar ? '/contas-financeiras' : null).dados ?? []).filter((c) => c.ativa)
   const historico = useDados<MovimentoFinanceiro[]>(`/${props.aba}/${conta.id}/baixas`)
   const [contaFinanceiraId, setContaFinanceiraId] = useState(0)
   const [valor, setValor] = useState(saldoDe(props.conta))
@@ -388,7 +394,7 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
         {conta.pessoa?.nome ?? `Sem ${config.pessoa.toLowerCase()}`} · vencimento {dataBr(conta.vencimento)} · valor {brl(conta.valor)} · saldo{' '}
         <strong>{brl(aberta ? saldoDe(conta) : 0)}</strong>
       </p>
-      {aberta && (
+      {podeBaixar && (
         <form onSubmit={enviar} className="form">
           <Campo rotulo="Conta financeira" largura={3}>
             <select required value={escolhida || ''} onChange={(e) => setContaFinanceiraId(Number(e.target.value))}>
@@ -456,7 +462,7 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
           </tbody>
         </table>
       )}
-      {!aberta && (
+      {!podeBaixar && (
         <div className="form-pe">
           <button type="button" className="botao" onClick={props.onFechar}>
             Fechar
