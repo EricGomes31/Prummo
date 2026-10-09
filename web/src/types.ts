@@ -127,6 +127,8 @@ export type Pedido = {
   frete: number
   total: number
   observacao: string | null
+  // Data da venda (escolhida no pedido); criadoEm é quando foi lançado.
+  data: string
   criadoEm: string
   faturadoEm: string | null
   // Condição de pagamento da venda: escolhida no pedido ou ao faturar.
@@ -409,6 +411,8 @@ export type RelatorioVendas = {
     id: number
     numero: number
     criadoEm: string
+    // Data da venda (a do filtro de período).
+    data: string
     pagoEm: string | null
     cliente: string
     natureza: NaturezaPedido

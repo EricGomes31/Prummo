@@ -76,11 +76,11 @@ function periodo(q: z.infer<typeof consulta>, primeiroAno: number): Periodo {
 // Ano do lançamento mais antigo, para o período "tudo".
 async function primeiroAno() {
   const [pedido, movimento, despesa] = await Promise.all([
-    prisma.pedido.findFirst({ where: { faturadoEm: { not: null } }, orderBy: { faturadoEm: 'asc' }, select: { faturadoEm: true } }),
+    prisma.pedido.findFirst({ where: { status: 'FATURADO' }, orderBy: { data: 'asc' }, select: { data: true } }),
     prisma.movimentoFinanceiro.findFirst({ orderBy: { data: 'asc' }, select: { data: true } }),
     prisma.despesa.findFirst({ orderBy: { dataCompetencia: 'asc' }, select: { dataCompetencia: true } }),
   ])
-  const datas = [pedido?.faturadoEm, movimento?.data, despesa?.dataCompetencia].filter((d): d is Date => !!d)
+  const datas = [pedido?.data, movimento?.data, despesa?.dataCompetencia].filter((d): d is Date => !!d)
   return Math.min(new Date().getFullYear(), ...datas.map((d) => d.getFullYear()))
 }
 
@@ -96,7 +96,7 @@ function ranking(entradas: { chave: string; nome: string; valor: number }[], lim
 }
 
 export async function rotasDashboards(app: FastifyInstance) {
-  // Vendas contam pelo dia do faturamento; pedidos cancelados, bonificações e perdas ficam de fora.
+  // Vendas contam pela data da venda; pedidos cancelados, bonificações e perdas ficam de fora.
   // Devoluções abatem o faturamento, o custo e os rankings no dia em que foram registradas.
   app.get('/dashboards/comercial', async (req) => {
     const q = consulta.parse(req.query)
@@ -104,7 +104,7 @@ export async function rotasDashboards(app: FastifyInstance) {
     const pessoa = { select: { id: true, nome: true } } as const
     const [pedidos, devolucoes] = await Promise.all([
       prisma.pedido.findMany({
-        where: { status: 'FATURADO', natureza: 'VENDA', faturadoEm: { gte: p.inicioHistorico, lt: p.fim } },
+        where: { status: 'FATURADO', natureza: 'VENDA', data: { gte: p.inicioHistorico, lt: p.fim } },
         select: {
           id: true,
           total: true,
@@ -112,7 +112,7 @@ export async function rotasDashboards(app: FastifyInstance) {
           descontoItens: true,
           descontoPromocao: true,
           frete: true,
-          faturadoEm: true,
+          data: true,
           cliente: pessoa,
           vendedor: pessoa,
           itens: {
@@ -133,7 +133,7 @@ export async function rotasDashboards(app: FastifyInstance) {
 
     const historico = new Map(p.historico.map((c) => [c, { chave: c, total: 0, vendas: 0, devolvido: 0 }]))
     for (const pedido of pedidos) {
-      const h = historico.get(p.chaveHistorico(pedido.faturadoEm!))
+      const h = historico.get(p.chaveHistorico(pedido.data))
       if (!h) continue
       h.total += pedido.total
       h.vendas += 1
@@ -145,7 +145,7 @@ export async function rotasDashboards(app: FastifyInstance) {
       h.devolvido += d.valorCredito
     }
 
-    const doPeriodo = pedidos.filter((pedido) => pedido.faturadoEm! >= p.inicio)
+    const doPeriodo = pedidos.filter((pedido) => pedido.data >= p.inicio)
     const devolvidas = devolucoes.filter((d) => d.criadoEm >= p.inicio)
     const vendasBrutas = doPeriodo.reduce((s, pedido) => s + pedido.total, 0)
     const devolvido = devolvidas.reduce((s, d) => s + d.valorCredito, 0)
@@ -161,7 +161,7 @@ export async function rotasDashboards(app: FastifyInstance) {
 
     const detalhe = new Map(p.detalhe.map((c) => [c, { chave: c, total: 0, vendas: 0 }]))
     for (const pedido of doPeriodo) {
-      const d = detalhe.get(p.chaveDetalhe(pedido.faturadoEm!))
+      const d = detalhe.get(p.chaveDetalhe(pedido.data))
       if (!d) continue
       d.total += pedido.total
       d.vendas += 1

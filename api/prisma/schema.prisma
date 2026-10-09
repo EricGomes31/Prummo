@@ -297,6 +297,9 @@ model Pedido {
   descontoPromocao   Int       @default(0) // calculado pelo servidor ao salvar o pedido
   total              Int // subtotal - descontoItens - desconto - descontoPromocao + frete
   observacao         String?
+  // Data da venda: escolhida no pedido (hoje, por padrão; pode ser anterior). É a data das listas, dos
+  // relatórios e dos dashboards. `criadoEm` é quando o pedido foi lançado no sistema.
+  data               DateTime  @default(now())
   criadoEm           DateTime  @default(now())
   faturadoEm         DateTime?
   // Condição de pagamento da venda. Pode ser escolhida já no pedido e é confirmada ao faturar.

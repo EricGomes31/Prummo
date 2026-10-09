@@ -94,6 +94,8 @@ await naEmpresa(async ([pasta], empresa) => {
           frete,
           total,
           observacao: limpo(o.observacao),
+          // A data da venda no SG Nexus é `dataPedido` (editável lá); sem ela, a de criação.
+          data: new Date(o.dataPedido ?? o.criadoEm),
           criadoEm: new Date(o.criadoEm),
           faturadoEm: new Date(o.alteradoEm ?? o.criadoEm),
           formaPagamento: FORMAS[o.condicaoPagamento] ?? null,

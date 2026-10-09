@@ -14,7 +14,7 @@ export async function rotasRelatorios(app: FastifyInstance) {
     const contem = { contains: q.busca, mode: 'insensitive' as const }
     const pedidos = await prisma.pedido.findMany({
       where: {
-        criadoEm: intervalo(q.inicio, q.fim),
+        data: intervalo(q.inicio, q.fim),
         ...(q.status ? { status: q.status } : {}),
         ...(q.natureza ? { natureza: q.natureza } : {}),
         ...(q.busca
@@ -52,6 +52,7 @@ export async function rotasRelatorios(app: FastifyInstance) {
         id: p.id,
         numero: p.numero,
         criadoEm: p.criadoEm,
+        data: p.data,
         pagoEm,
         cliente: p.cliente.nome,
         natureza: p.natureza,

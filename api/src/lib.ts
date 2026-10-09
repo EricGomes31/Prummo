@@ -42,6 +42,13 @@ export const dataIso = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
   .transform((s) => new Date(`${s}T12:00:00`))
 
+// Último instante de hoje, para recusar datas futuras.
+export function fimDeHoje() {
+  const d = new Date()
+  d.setHours(23, 59, 59, 999)
+  return d.getTime()
+}
+
 // Filtro de período: "AAAA-MM-DD" de início e de fim, os dois dias incluídos por inteiro.
 export const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
 export function intervalo(inicio?: string, fim?: string) {

@@ -9,7 +9,7 @@ import { CampoData } from '../calendario'
 type LinhaVenda = RelatorioVendas['linhas'][number]
 const colunasVendas: Coluna<LinhaVenda>[] = [
   { rotulo: 'Pedido', valor: (l) => l.numero, exibir: (l) => `#${l.numero}` },
-  { rotulo: 'Lançamento', valor: (l) => l.criadoEm, tipo: 'data' },
+  { rotulo: 'Data da venda', valor: (l) => l.data, tipo: 'data' },
   { rotulo: 'Pagamento', valor: (l) => l.pagoEm, tipo: 'data' },
   { rotulo: 'Natureza', valor: (l) => naturezasPedido[l.natureza] ?? l.natureza },
   { rotulo: 'Cliente', valor: (l) => l.cliente, largura: 170 },
@@ -70,7 +70,7 @@ const situacoes = {
 } as const
 type Aba = keyof typeof situacoes
 
-const rotuloInicio: Record<Aba, string> = { vendas: 'Lançado a partir de', financeiro: 'Vencimento a partir de', despesas: 'Competência a partir de' }
+const rotuloInicio: Record<Aba, string> = { vendas: 'Vendas a partir de', financeiro: 'Vencimento a partir de', despesas: 'Competência a partir de' }
 
 export function Relatorios() {
   const [aba, setAba] = useState<Aba>('vendas')

@@ -58,9 +58,9 @@ export function Pedidos() {
           <option value="FATURADO">Faturados</option>
           <option value="CANCELADO">Cancelados</option>
         </select>
-        <CampoData type="date" className="filtro-data" value={filtro.inicio} max={filtro.fim || undefined} aria-label="Lançados a partir de"
+        <CampoData type="date" className="filtro-data" value={filtro.inicio} max={filtro.fim || undefined} aria-label="Vendas a partir de"
           onChange={(e) => setFiltro({ ...filtro, inicio: e.target.value })} />
-        <CampoData type="date" className="filtro-data" value={filtro.fim} min={filtro.inicio || undefined} aria-label="Lançados até"
+        <CampoData type="date" className="filtro-data" value={filtro.fim} min={filtro.inicio || undefined} aria-label="Vendas até"
           onChange={(e) => setFiltro({ ...filtro, fim: e.target.value })} />
         {filtrando && (
           <button type="button" className="botao botao-texto" onClick={() => setFiltro({ ...filtro, busca: '', inicio: '', fim: '' })}>
@@ -97,7 +97,7 @@ export function Pedidos() {
                 <tr key={p.id}>
                   <td className="texto-suave">#{p.numero}</td>
                   <td>{naturezasPedido[p.natureza] ?? p.natureza}</td>
-                  <td>{dataBr(p.criadoEm)}</td>
+                  <td>{dataBr(p.data)}</td>
                   <td>{p.cliente.nome}</td>
                   <td>{p.vendedor?.nome ?? '—'}</td>
                   <td>{p.medico?.nome ?? '—'}</td>
@@ -174,6 +174,8 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   const [formaPagamento, setFormaPagamento] = useState(pedido?.formaPagamento ?? '')
   const [parcelas, setParcelas] = useState(pedido?.parcelas ?? 1)
   const [primeiroVencimento, setPrimeiroVencimento] = useState(pedido?.primeiroVencimento?.slice(0, 10) ?? '')
+  // Data da venda: hoje, por padrão; pode ser anterior (venda lançada depois), nunca futura.
+  const [dataVenda, setDataVenda] = useState(pedido ? new Date(pedido.data).toLocaleDateString('sv-SE') : hojeIso())
   // Parcelas com data e valor escolhidos à mão; null = mensais iguais.
   const [vencimentos, setVencimentos] = useState<Parcela[] | null>(pedido?.vencimentos ?? null)
   // Pedido faturado: alterar itens, valores ou pagamento refaz o faturamento.
@@ -270,6 +272,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
         desconto: perda ? 0 : desconto,
         frete: venda ? frete : 0,
         observacao,
+        data: dataVenda,
         formaPagamento: venda ? formaPagamento || null : null,
         parcelas: venda ? parcelas : 1,
         primeiroVencimento: venda ? primeiroVencimento || null : null,
@@ -307,6 +310,9 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
       <form onSubmit={enviar} className="form">
         <Campo rotulo="Cliente" largura={2}>
           <Escolha required opcoes={opcoesDePessoas(comClassificacao('cliente', clienteId))} valor={clienteId} onChange={setClienteId} placeholder="Digite o nome, documento ou telefone…" />
+        </Campo>
+        <Campo rotulo="Data da venda">
+          <CampoData type="date" required max={hojeIso()} value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} />
         </Campo>
         <Campo rotulo="Natureza da operação">
           <select value={natureza} disabled={faturado} onChange={(e) => escolherNatureza(e.target.value as NaturezaPedido)}>
@@ -615,7 +621,7 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
       {pedido && (
         <>
           <p>
-            {pedido.cliente.nome} · {naturezasPedido[pedido.natureza] ?? pedido.natureza} · <Selo valor={pedido.status} />
+            {pedido.cliente.nome} · {naturezasPedido[pedido.natureza] ?? pedido.natureza} · venda de {dataBr(pedido.data)} · <Selo valor={pedido.status} />
             {pedido.faturadoEm && <span className="texto-suave"> · faturado em {dataBr(pedido.faturadoEm)}</span>}
           </p>
           <p className="texto-suave">

@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { AppError, centavos, dataIso, dia, idParam, intervalo, prisma, quantidadeTexto, somarMeses, texto, type Transacao } from '../lib.js'
+import { AppError, centavos, dataIso, dia, fimDeHoje, idParam, intervalo, prisma, quantidadeTexto, somarMeses, texto, type Transacao } from '../lib.js'
 import { calcularDescontoPromocao } from '../promocao.js'
 import { aplicarCredito } from './devolucoes.js'
 import { resolverUnidade } from './produtos.js'
@@ -52,6 +52,8 @@ const corpo = z
     desconto: centavos.default(0),
     frete: centavos.default(0),
     observacao: texto.opcional,
+    // Data da venda; sem ela, vale hoje. Não pode ser futura.
+    data: dataIso.optional().refine((d) => !d || d.getTime() <= fimDeHoje(), 'A data da venda não pode ser futura.'),
     ...condicao,
     itens: z
       .array(
@@ -332,7 +334,7 @@ export async function rotasPedidos(app: FastifyInstance) {
     return prisma.pedido.findMany({
       where: {
         ...(q.status ? { status: q.status } : {}),
-        criadoEm: intervalo(q.inicio, q.fim),
+        data: intervalo(q.inicio, q.fim),
         ...(q.busca
           ? {
               OR: [
@@ -348,7 +350,7 @@ export async function rotasPedidos(app: FastifyInstance) {
           : {}),
       },
       include: comDetalhes,
-      orderBy: { id: 'desc' },
+      orderBy: [{ data: 'desc' }, { id: 'desc' }],
       take: LIMITE_LISTA,
     })
   })
@@ -369,6 +371,7 @@ export async function rotasPedidos(app: FastifyInstance) {
       clienteId: dados.clienteId,
       usuarioId: req.usuario.id,
       observacao: dados.observacao,
+      ...(dados.data ? { data: dados.data } : {}),
       ...(await pessoasDoPedido(dados)),
       ...(await valores(dados)),
       ...condicaoDoPedido(dados),
@@ -456,6 +459,7 @@ export async function rotasPedidos(app: FastifyInstance) {
           data: {
             clienteId: dados.clienteId,
             observacao: dados.observacao,
+            ...(dados.data ? { data: dados.data } : {}),
             ...pessoas,
             ...(await valores(dados)),
             ...gravarCondicao(novaCondicao),
@@ -463,7 +467,8 @@ export async function rotasPedidos(app: FastifyInstance) {
         })
         await faturarNaTransacao(tx, id, novaCondicao)
       } else {
-        await tx.pedido.update({ where: { id }, data: { clienteId: dados.clienteId, observacao: dados.observacao, ...pessoas } })
+        // A data da venda muda sem refazer o faturamento, como cliente e observação.
+        await tx.pedido.update({ where: { id }, data: { clienteId: dados.clienteId, observacao: dados.observacao, ...(dados.data ? { data: dados.data } : {}), ...pessoas } })
         // As parcelas acompanham o cliente do pedido.
         if (dados.clienteId !== atual.clienteId) {
           await tx.contaReceber.updateMany({ where: { pedidoId: id, status: 'ABERTA' }, data: { pessoaId: dados.clienteId } })
