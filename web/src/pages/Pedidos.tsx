@@ -3,7 +3,7 @@ import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { brl, dataBr, formasPagamento, hojeIso, inteiro, motivosPerda, naturezasPedido, unidadesDe } from '../format'
-import type { Classificacao, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
+import type { Classificacao, Credito, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, usePaginacao } from '../ui'
 
 export function Pedidos() {
@@ -408,11 +408,20 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
   const [primeiroVencimento, setPrimeiroVencimento] = useState(pedido.primeiroVencimento?.slice(0, 10) ?? hojeIso())
   const [formaPagamento, setFormaPagamento] = useState(pedido.formaPagamento ?? '')
   const { erro, ocupado, executar } = useAcao()
+  // Créditos que o cliente pode usar; o valor escolhido de cada um abate as parcelas geradas.
+  const { pode } = useSessao()
+  const usaCredito = venda && pode('CREDITOS_UTILIZAR')
+  const disponiveis = useDados<Credito[]>(usaCredito ? `/creditos?status=DISPONIVEL&pessoaId=${pedido.clienteId}` : null).dados ?? []
+  const [usoCreditos, setUsoCreditos] = useState<Record<number, number>>({})
+  const totalCreditos = Object.values(usoCreditos).reduce((s, v) => s + v, 0)
 
   function enviar(e: FormEvent) {
     e.preventDefault()
     executar(async () => {
-      await api(`/pedidos/${pedido.id}/faturar`, { body: venda ? { parcelas, primeiroVencimento, formaPagamento } : {} })
+      const creditos = Object.entries(usoCreditos)
+        .filter(([, valor]) => valor > 0)
+        .map(([creditoId, valor]) => ({ creditoId: Number(creditoId), valor }))
+      await api(`/pedidos/${pedido.id}/faturar`, { body: venda ? { parcelas, primeiroVencimento, formaPagamento, creditos } : {} })
       props.onSalvo()
     })
   }
@@ -443,9 +452,46 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
             </Campo>
           </>
         )}
+        {disponiveis.length > 0 && (
+          <div className="col-3">
+            <h3>Usar crédito do cliente</h3>
+            <table>
+              <tbody>
+                {disponiveis.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      Crédito nº {c.id}
+                      <small className="bloco texto-suave">
+                        {c.devolucao ? `Devolução nº ${c.devolucao.id}` : c.origem === 'DEPOSITO' ? 'Depósito a maior' : (c.descricao ?? 'Avulso')} · disponível {brl(c.saldo)}
+                      </small>
+                    </td>
+                    <td className="num">
+                      <Dinheiro
+                        className="curto"
+                        aria-label={`Valor do crédito nº ${c.id} a usar`}
+                        valor={usoCreditos[c.id] ?? 0}
+                        onChange={(valor) => setUsoCreditos({ ...usoCreditos, [c.id]: Math.min(valor, c.saldo) })}
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="botao botao-texto"
+                        onClick={() => setUsoCreditos({ ...usoCreditos, [c.id]: Math.min(c.saldo, Math.max(0, pedido.total - totalCreditos + (usoCreditos[c.id] ?? 0))) })}
+                      >
+                        Usar o máximo
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {totalCreditos > pedido.total && <p className="texto-ruim">Os créditos passam do total do pedido.</p>}
+          </div>
+        )}
         <p className="texto-suave col-3">
           {venda
-            ? `Faturar baixa o estoque dos itens e gera ${parcelas} parcela(s) mensal(is) em contas a receber.`
+            ? `Faturar baixa o estoque dos itens e gera ${parcelas} parcela(s) mensal(is) em contas a receber.${totalCreditos > 0 ? ` ${brl(totalCreditos)} de crédito abatem as parcelas, da primeira para a última.` : ''}`
             : 'Confirmar baixa o estoque dos itens. Não são geradas contas a receber.'}
         </p>
         <Erro mensagem={erro} />
@@ -453,7 +499,7 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
           <button type="button" className="botao" onClick={props.onFechar}>
             Voltar
           </button>
-          <button className="botao botao-primario" disabled={ocupado}>
+          <button className="botao botao-primario" disabled={ocupado || totalCreditos > pedido.total}>
             {venda ? 'Faturar' : 'Confirmar'}
           </button>
         </div>

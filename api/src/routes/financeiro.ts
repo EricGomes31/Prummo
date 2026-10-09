@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { AppError, dataIso, idParam, prisma, texto, type Transacao } from '../lib.js'
+import { AppError, dataHora, dataIso, documentoValido, idParam, prisma, texto, type Transacao } from '../lib.js'
 
 const corpo = z.object({
   pessoaId: z.number().int().positive().nullish(),
@@ -9,10 +10,19 @@ const corpo = z.object({
   vencimento: dataIso,
 })
 
-const filtro = z.object({ status: z.enum(['ABERTA', 'PAGA', 'CANCELADA']).optional() })
+// Filtros das contas: situação, pessoa da conta, pessoas da venda de origem e período do vencimento.
+const filtro = z.object({
+  status: z.enum(['ABERTA', 'PAGA', 'CANCELADA']).optional(),
+  pessoaId: z.coerce.number().int().positive().optional(),
+  vendedorId: z.coerce.number().int().positive().optional(),
+  medicoId: z.coerce.number().int().positive().optional(),
+  pacienteId: z.coerce.number().int().positive().optional(),
+  inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida').optional(),
+  fim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida').optional(),
+})
 // Sem valor, a baixa é do saldo inteiro. Sem conta financeira, vale a única conta ativa, se houver só uma.
 const baixa = z.object({
-  data: dataIso.optional(),
+  data: dataHora.optional(),
   valor: z.number().int().positive('Informe um valor maior que zero').optional(),
   contaFinanceiraId: z.number().int().positive().nullish(),
   observacao: texto.opcional,
@@ -21,18 +31,25 @@ const pessoa = { select: { id: true, nome: true } } as const
 
 export const TIPOS_CONTA_FINANCEIRA = ['CAIXA', 'CONTA_CORRENTE', 'CONTA_POUPANCA', 'CARTEIRA_DIGITAL'] as const
 
-const corpoContaFinanceira = z.object({
-  nome: z.string().trim().min(2, 'Informe o nome da conta').max(80),
-  tipo: z.enum(TIPOS_CONTA_FINANCEIRA).default('CONTA_CORRENTE'),
-  instituicao: texto.opcional,
-  codigoBanco: texto.opcional,
-  agencia: texto.opcional,
-  numeroConta: texto.opcional,
-  documentoTitular: texto.opcional,
-  // Pode ser negativo (conta que começa no cheque especial).
-  saldoInicial: z.number().int().default(0),
-  ativa: z.boolean().default(true),
-})
+const corpoContaFinanceira = z
+  .object({
+    nome: z.string().trim().min(2, 'Informe o nome da conta').max(80),
+    tipo: z.enum(TIPOS_CONTA_FINANCEIRA).default('CONTA_CORRENTE'),
+    instituicao: texto.opcional,
+    codigoBanco: texto.opcional,
+    agencia: texto.opcional,
+    numeroConta: texto.opcional,
+    documentoTitular: texto.opcional,
+    // Pode ser negativo (conta que começa no cheque especial).
+    saldoInicial: z.number().int().default(0),
+    ativa: z.boolean().default(true),
+  })
+  .superRefine((d, ctx) => {
+    // Conta em banco ou carteira digital precisa do titular; o caixa da empresa não.
+    if (d.tipo === 'CAIXA') return
+    if (!d.documentoTitular) ctx.addIssue({ code: 'custom', path: ['documentoTitular'], message: 'Informe o CPF ou CNPJ do titular da conta' })
+    else if (!documentoValido(d.documentoTitular)) ctx.addIssue({ code: 'custom', path: ['documentoTitular'], message: 'CPF ou CNPJ do titular inválido' })
+  })
 
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
 
@@ -50,7 +67,14 @@ export async function registrarBaixa(
   tx: Transacao,
   caminho: LadoFinanceiro,
   id: number,
-  dados: { valor?: number; data?: Date; contaFinanceiraId: number; observacao?: string | null; usuarioId: number; extratoId?: number },
+  dados: {
+    valor?: number
+    data?: Date | { data: Date; comHora: boolean }
+    contaFinanceiraId: number
+    observacao?: string | null
+    usuarioId: number
+    extratoId?: number
+  },
 ) {
   const lado = lados[caminho]
   const delegado = tx[caminho === 'contas-receber' ? 'contaReceber' : 'contaPagar'] as typeof tx.contaReceber
@@ -64,13 +88,14 @@ export async function registrarBaixa(
   const contaFinanceira = await tx.contaFinanceira.findUnique({ where: { id: dados.contaFinanceiraId } })
   if (!contaFinanceira?.ativa) throw new AppError(400, 'Selecione uma conta financeira ativa.')
 
-  const data = dados.data ?? new Date()
+  const quando = dados.data instanceof Date ? { data: dados.data, comHora: false } : (dados.data ?? { data: new Date(), comHora: false })
   await tx.movimentoFinanceiro.create({
     data: {
       contaFinanceiraId: dados.contaFinanceiraId,
       tipo: lado.tipo,
       valor,
-      data,
+      data: quando.data,
+      comHora: quando.comHora,
       origem: lado.origem,
       historico: `${lado.verbo}: ${conta.descricao}`,
       observacao: dados.observacao ?? null,
@@ -83,11 +108,74 @@ export async function registrarBaixa(
   // A condição no status evita duas baixas simultâneas passarem do saldo.
   const { count } = await delegado.updateMany({
     where: { id, status: 'ABERTA', valorPago: conta.valorPago },
-    data: { valorPago: conta.valorPago + valor, status: quitada ? 'PAGA' : 'ABERTA', pagoEm: quitada ? data : null },
+    data: { valorPago: conta.valorPago + valor, status: quitada ? 'PAGA' : 'ABERTA', pagoEm: quitada ? quando.data : null },
   })
   if (count === 0) throw new AppError(409, 'A conta mudou enquanto a baixa era registrada. Tente de novo.')
   return delegado.findUniqueOrThrow({ where: { id }, include: { pessoa } })
 }
+
+type Movimento = Awaited<ReturnType<Transacao['movimentoFinanceiro']['findUniqueOrThrow']>>
+
+// Estorna um movimento: marca o original e lança o contrário na mesma conta. Se o movimento baixou uma
+// conta a receber ou a pagar, a conta volta a ter o saldo. Não apaga nada.
+export async function estornarMovimento(tx: Transacao, movimento: Movimento, usuarioId: number) {
+  const { count } = await tx.movimentoFinanceiro.updateMany({ where: { id: movimento.id, estornado: false }, data: { estornado: true } })
+  if (count === 0) throw new AppError(409, 'Este movimento já foi estornado.')
+  await tx.movimentoFinanceiro.create({
+    data: {
+      contaFinanceiraId: movimento.contaFinanceiraId,
+      tipo: movimento.tipo === 'ENTRADA' ? 'SAIDA' : 'ENTRADA',
+      valor: movimento.valor,
+      data: new Date(),
+      origem: 'ESTORNO',
+      historico: `Estorno: ${movimento.historico}`.slice(0, 200),
+      contaReceberId: movimento.contaReceberId,
+      contaPagarId: movimento.contaPagarId,
+      transferencia: movimento.transferencia,
+      usuarioId,
+    },
+  })
+  for (const [chave, delegado] of [
+    [movimento.contaReceberId, tx.contaReceber],
+    [movimento.contaPagarId, tx.contaPagar as unknown as typeof tx.contaReceber],
+  ] as const) {
+    if (!chave) continue
+    const conta = await delegado.findUniqueOrThrow({ where: { id: chave } })
+    await delegado.update({
+      where: { id: chave },
+      data: { valorPago: conta.valorPago - movimento.valor, status: conta.status === 'CANCELADA' ? 'CANCELADA' : 'ABERTA', pagoEm: null },
+    })
+  }
+}
+
+// Transferência entre duas contas próprias: sai de uma e entra na outra, com o mesmo código nas duas pontas.
+export async function transferir(
+  tx: Transacao,
+  dados: { origemId: number; destinoId: number; valor: number; data: Date; comHora?: boolean; historico?: string | null; usuarioId: number },
+) {
+  if (dados.origemId === dados.destinoId) throw new AppError(400, 'Escolha duas contas diferentes.')
+  const contas = await tx.contaFinanceira.findMany({ where: { id: { in: [dados.origemId, dados.destinoId] } } })
+  const origem = contas.find((c) => c.id === dados.origemId)
+  const destino = contas.find((c) => c.id === dados.destinoId)
+  if (!origem?.ativa || !destino?.ativa) throw new AppError(400, 'Selecione duas contas financeiras ativas.')
+  const codigo = randomUUID()
+  const comum = { valor: dados.valor, data: dados.data, comHora: dados.comHora ?? false, origem: 'TRANSFERENCIA', observacao: dados.historico ?? null, transferencia: codigo, usuarioId: dados.usuarioId }
+  const saida = await tx.movimentoFinanceiro.create({
+    data: { ...comum, contaFinanceiraId: origem.id, tipo: 'SAIDA', historico: `Transferência para ${destino.nome}` },
+  })
+  const entrada = await tx.movimentoFinanceiro.create({
+    data: { ...comum, contaFinanceiraId: destino.id, tipo: 'ENTRADA', historico: `Transferência de ${origem.nome}` },
+  })
+  return { saida, entrada }
+}
+
+// As duas pontas de uma transferência, ou só o movimento, se não for transferência.
+export async function comPar(tx: Transacao, movimento: Movimento) {
+  if (!movimento.transferencia) return [movimento]
+  return tx.movimentoFinanceiro.findMany({ where: { transferencia: movimento.transferencia, origem: 'TRANSFERENCIA' } })
+}
+
+const comConta = { contaFinanceira: { select: { id: true, nome: true } }, usuario: { select: { id: true, nome: true } } } as const
 
 export async function rotasFinanceiro(app: FastifyInstance) {
   const modelos = {
@@ -100,12 +188,31 @@ export async function rotasFinanceiro(app: FastifyInstance) {
     // Os dois delegates têm a mesma forma para os campos usados aqui.
     const contas = modelo as typeof prisma.contaReceber
     const lado = lados[caminho as keyof typeof lados]
+    const receber = caminho === 'contas-receber'
 
     app.get(`/${caminho}`, async (req) => {
       const q = filtro.parse(req.query)
+      const fim = q.fim ? new Date(`${q.fim}T00:00:00`) : undefined
+      fim?.setDate(fim.getDate() + 1)
+      // Vendedor, médico e paciente são da venda que gerou a conta a receber.
+      const daVenda = receber
+        ? {
+            ...(q.vendedorId ? { vendedorId: q.vendedorId } : {}),
+            ...(q.medicoId ? { medicoId: q.medicoId } : {}),
+            ...(q.pacienteId ? { pacienteId: q.pacienteId } : {}),
+          }
+        : {}
       return contas.findMany({
-        where: q.status ? { status: q.status } : { status: { not: 'CANCELADA' } },
-        include: { pessoa },
+        where: {
+          ...(q.status ? { status: q.status } : { status: { not: 'CANCELADA' } }),
+          ...(q.pessoaId ? { pessoaId: q.pessoaId } : {}),
+          ...(q.inicio || fim ? { vencimento: { ...(q.inicio ? { gte: new Date(`${q.inicio}T00:00:00`) } : {}), ...(fim ? { lt: fim } : {}) } } : {}),
+          ...(Object.keys(daVenda).length ? { pedido: daVenda } : {}),
+        },
+        include: {
+          pessoa,
+          ...(receber ? { pedido: { select: { id: true, vendedor: pessoa, medico: pessoa, paciente: pessoa } } } : {}),
+        },
         orderBy: [{ vencimento: 'asc' }, { id: 'asc' }],
         take: 500,
       })
@@ -125,22 +232,23 @@ export async function rotasFinanceiro(app: FastifyInstance) {
       const { id } = idParam.parse(req.params)
       const movimentos = await prisma.movimentoFinanceiro.findMany({
         where: { [lado.chave]: id },
-        include: { contaFinanceira: { select: { id: true, nome: true } }, usuario: { select: { id: true, nome: true } } },
+        include: comConta,
         orderBy: { id: 'desc' },
       })
-      if (caminho !== 'contas-receber') return movimentos
-      // A baixa por crédito de devolução não passa por conta financeira, mas faz parte do histórico.
-      const usos = await prisma.creditoUso.findMany({ where: { contaReceberId: id }, include: { usuario: { select: { id: true, nome: true } } } })
+      if (!receber) return movimentos
+      // A baixa por crédito não passa por conta financeira, mas faz parte do histórico.
+      const usos = await prisma.creditoUso.findMany({ where: { contaReceberId: id }, include: { usuario: pessoa } })
       const porCredito = usos.map((u) => ({
         id: -u.id,
         tipo: 'ENTRADA',
         valor: u.valor,
         data: u.criadoEm,
+        comHora: true,
         origem: 'CREDITO',
         historico: `Baixa pelo crédito nº ${u.creditoId}`,
         observacao: null,
-        estornado: false,
-        contaFinanceira: { id: 0, nome: 'Crédito de devolução' },
+        estornado: u.estornado,
+        contaFinanceira: { id: 0, nome: 'Crédito do cliente' },
         usuario: u.usuario,
         criadoEm: u.criadoEm,
       }))
@@ -159,10 +267,11 @@ export async function rotasFinanceiro(app: FastifyInstance) {
     })
 
     // Estorna a baixa mais recente: a conta volta a ter saldo e o extrato ganha o movimento contrário.
+    // A baixa conciliada com o extrato do banco se desfaz pela conciliação, para a linha voltar a ficar pendente.
     app.post(`/${caminho}/:id/estornar`, async (req) => {
       const { id } = idParam.parse(req.params)
       return prisma.$transaction(async (tx) => {
-        const delegado = tx[caminho === 'contas-receber' ? 'contaReceber' : 'contaPagar'] as typeof tx.contaReceber
+        const delegado = tx[receber ? 'contaReceber' : 'contaPagar'] as typeof tx.contaReceber
         const conta = await delegado.findUnique({ where: { id } })
         if (!conta) throw new AppError(404, 'Conta não encontrada.')
         const ultima = await tx.movimentoFinanceiro.findFirst({
@@ -170,27 +279,12 @@ export async function rotasFinanceiro(app: FastifyInstance) {
           orderBy: { id: 'desc' },
         })
         if (conta.status !== 'CANCELADA' && !ultima && conta.valorPago > 0) {
-          throw new AppError(409, 'O que resta baixado nesta conta veio de crédito de devolução e não pode ser estornado por aqui.')
+          throw new AppError(409, 'O que resta baixado nesta conta veio de crédito do cliente. Estorne o uso do crédito em Devoluções e créditos.')
         }
         if (conta.status === 'CANCELADA' || !ultima) throw new AppError(409, 'A conta não está na situação esperada para esta operação.')
-        await tx.movimentoFinanceiro.update({ where: { id: ultima.id }, data: { estornado: true } })
-        await tx.movimentoFinanceiro.create({
-          data: {
-            contaFinanceiraId: ultima.contaFinanceiraId,
-            tipo: lado.contrario,
-            valor: ultima.valor,
-            data: new Date(),
-            origem: 'ESTORNO',
-            historico: `Estorno de ${lado.verbo.toLowerCase()}: ${conta.descricao}`,
-            [lado.chave]: id,
-            usuarioId: req.usuario.id,
-          },
-        })
-        return delegado.update({
-          where: { id },
-          data: { valorPago: conta.valorPago - ultima.valor, status: 'ABERTA', pagoEm: null },
-          include: { pessoa },
-        })
+        if (ultima.extratoId) throw new AppError(409, 'Esta baixa foi conciliada com o extrato do banco. Desfaça a conciliação da linha para estorná-la.')
+        await estornarMovimento(tx, ultima, req.usuario.id)
+        return delegado.findUniqueOrThrow({ where: { id }, include: { pessoa } })
       })
     })
 
@@ -254,7 +348,7 @@ export async function rotasFinanceiro(app: FastifyInstance) {
           ...(q.tipo ? { tipo: q.tipo } : {}),
           ...(inicio || fim ? { data: { ...(inicio ? { gte: inicio } : {}), ...(fim ? { lt: fim } : {}) } } : {}),
         },
-        include: { contaFinanceira: { select: { id: true, nome: true } }, usuario: { select: { id: true, nome: true } } },
+        include: comConta,
         orderBy: [{ data: 'desc' }, { id: 'desc' }],
         take: 1000,
       }),
@@ -264,5 +358,61 @@ export async function rotasFinanceiro(app: FastifyInstance) {
     const entradas = linhas.filter((l) => l.tipo === 'ENTRADA').reduce((s, l) => s + l.valor, 0)
     const saidas = linhas.filter((l) => l.tipo === 'SAIDA').reduce((s, l) => s + l.valor, 0)
     return { linhas, resumo: { saldoInicial, entradas, saidas, saldoFinal: saldoInicial + entradas - saidas } }
+  })
+
+  // Lançamento avulso direto no extrato da conta, sem título: tarifa, rendimento, aporte, retirada...
+  app.post('/movimentos-financeiros', async (req, reply) => {
+    const dados = z
+      .object({
+        contaFinanceiraId: z.number().int().positive('Selecione a conta financeira'),
+        tipo: z.enum(['ENTRADA', 'SAIDA'], 'Informe se é entrada ou saída'),
+        valor: z.number().int().positive('Informe um valor maior que zero'),
+        data: dataHora,
+        historico: z.string().trim().min(2, 'Descreva o lançamento').max(200),
+        observacao: texto.opcional,
+      })
+      .parse(req.body)
+    const conta = await prisma.contaFinanceira.findUnique({ where: { id: dados.contaFinanceiraId } })
+    if (!conta?.ativa) throw new AppError(400, 'Selecione uma conta financeira ativa.')
+    const movimento = await prisma.movimentoFinanceiro.create({
+      data: { ...dados, data: dados.data.data, comHora: dados.data.comHora, origem: 'AVULSO', usuarioId: req.usuario.id },
+      include: comConta,
+    })
+    return reply.status(201).send(movimento)
+  })
+
+  // Transferência entre contas próprias.
+  app.post('/transferencias', async (req, reply) => {
+    const dados = z
+      .object({
+        origemId: z.number().int().positive('Selecione a conta de origem'),
+        destinoId: z.number().int().positive('Selecione a conta de destino'),
+        valor: z.number().int().positive('Informe um valor maior que zero'),
+        data: dataHora,
+        historico: texto.opcional,
+      })
+      .parse(req.body)
+    const feita = await prisma.$transaction((tx) =>
+      transferir(tx, { ...dados, data: dados.data.data, comHora: dados.data.comHora, usuarioId: req.usuario.id }),
+    )
+    return reply.status(201).send(feita)
+  })
+
+  // Estorna um lançamento avulso ou uma transferência (as duas pontas). O que já foi conciliado com o
+  // extrato do banco se desfaz pela conciliação.
+  app.post('/movimentos-financeiros/:id/estornar', async (req) => {
+    const { id } = idParam.parse(req.params)
+    return prisma.$transaction(async (tx) => {
+      const movimento = await tx.movimentoFinanceiro.findUnique({ where: { id } })
+      if (!movimento) throw new AppError(404, 'Movimento não encontrado.')
+      if (!['AVULSO', 'TRANSFERENCIA'].includes(movimento.origem)) {
+        throw new AppError(409, 'Por aqui só se estornam lançamentos avulsos e transferências. Recebimentos e pagamentos se estornam pela conta.')
+      }
+      if (movimento.estornado) throw new AppError(409, 'Este movimento já foi estornado.')
+      const pontas = await comPar(tx, movimento)
+      if (pontas.some((m) => m.extratoId)) throw new AppError(409, 'O movimento está conciliado com o extrato do banco. Desfaça a conciliação primeiro.')
+      for (const m of pontas) await estornarMovimento(tx, m, req.usuario.id)
+      return { estornados: pontas.length }
+    })
   })
 }

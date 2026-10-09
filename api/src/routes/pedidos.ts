@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { AppError, centavos, dataIso, idParam, prisma, quantidadeTexto, somarMeses, texto, type Transacao } from '../lib.js'
 import { calcularDescontoPromocao } from '../promocao.js'
+import { aplicarCredito } from './devolucoes.js'
 import { resolverUnidade } from './produtos.js'
 import { carregarVigente } from './promocoes.js'
 
@@ -332,7 +333,7 @@ export async function rotasPedidos(app: FastifyInstance) {
     return prisma.$transaction(async (tx) => {
       const atual = await tx.pedido.findUnique({
         where: { id },
-        include: { itens: true, contasReceber: true, entregas: true, _count: { select: { devolucoes: true } } },
+        include: { itens: true, contasReceber: true, entregas: true, _count: { select: { devolucoes: { where: { estornada: false } } } } },
       })
       if (!atual) throw new AppError(404, 'Pedido não encontrado.')
       if (atual.status !== 'FATURADO') throw new AppError(409, 'Só pedidos faturados são alterados por aqui.')
@@ -390,17 +391,42 @@ export async function rotasPedidos(app: FastifyInstance) {
   })
 
   // Faturar baixa o estoque e, na venda, gera as parcelas a receber. Bonificação e perda só baixam o estoque.
-  // Forma, parcelas e vencimento escolhidos no pedido valem quando não vierem aqui.
+  // Forma, parcelas e vencimento escolhidos no pedido valem quando não vierem aqui. Créditos do cliente
+  // informados em `creditos` abatem as parcelas, da primeira para a última.
   app.post('/pedidos/:id/faturar', async (req) => {
     const { id } = idParam.parse(req.params)
-    const dados = z.object(condicao).parse(req.body ?? {})
+    const dados = z
+      .object({
+        ...condicao,
+        creditos: z
+          .array(z.object({ creditoId: z.number().int().positive(), valor: z.number().int().positive('Informe o valor do crédito') }))
+          .max(20)
+          .default([]),
+      })
+      .parse(req.body ?? {})
+    if (dados.creditos.length && !req.usuario.permissoes.includes('CREDITOS_UTILIZAR')) {
+      throw new AppError(403, 'Seu perfil de acesso não permite usar créditos.')
+    }
 
     return prisma.$transaction(async (tx) => {
       const pedido = await tx.pedido.findUnique({ where: { id } })
       if (!pedido) throw new AppError(404, 'Pedido não encontrado.')
       if (pedido.status !== 'ABERTO') throw new AppError(409, 'Este pedido não está em aberto.')
       const condicaoVenda = pedido.natureza === 'VENDA' ? condicaoFinal(pedido, dados) : null
+      if (dados.creditos.length && !condicaoVenda) throw new AppError(400, 'Só vendas usam crédito no faturamento.')
+      if (dados.creditos.reduce((s, c) => s + c.valor, 0) > pedido.total) throw new AppError(400, 'Os créditos passam do total do pedido.')
       await faturarNaTransacao(tx, id, condicaoVenda)
+      for (const uso of dados.creditos) {
+        let resta = uso.valor
+        const parcelas = await tx.contaReceber.findMany({ where: { pedidoId: id, status: 'ABERTA' }, orderBy: [{ vencimento: 'asc' }, { id: 'asc' }] })
+        for (const parcela of parcelas) {
+          const valor = Math.min(resta, parcela.valor - parcela.valorPago)
+          if (valor <= 0) continue
+          await aplicarCredito(tx, { creditoId: uso.creditoId, contaReceberId: parcela.id, pessoaId: pedido.clienteId, valor, usuarioId: req.usuario.id })
+          resta -= valor
+          if (resta === 0) break
+        }
+      }
       return tx.pedido.update({
         where: { id },
         data: {
@@ -421,7 +447,7 @@ export async function rotasPedidos(app: FastifyInstance) {
     return prisma.$transaction(async (tx) => {
       const pedido = await tx.pedido.findUnique({
         where: { id },
-        include: { contasReceber: true, entregas: true, _count: { select: { devolucoes: true } } },
+        include: { contasReceber: true, entregas: true, _count: { select: { devolucoes: { where: { estornada: false } } } } },
       })
       if (!pedido) throw new AppError(404, 'Pedido não encontrado.')
       if (pedido.status === 'CANCELADO') throw new AppError(409, 'Pedido já cancelado.')

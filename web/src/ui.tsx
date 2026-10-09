@@ -151,26 +151,29 @@ export function usePaginacao<T>(itens: T[], porPagina = 25) {
   return { visiveis, controle }
 }
 
-type PropsDinheiro =Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
+type PropsDinheiro = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
   valor: number
   onChange: (centavos: number) => void
+  // Aceita valor negativo (saldo inicial de conta no cheque especial).
+  negativo?: boolean
 }
 
-export function Dinheiro({ valor, onChange, ...resto }: PropsDinheiro) {
+export function Dinheiro({ valor, onChange, negativo, ...resto }: PropsDinheiro) {
   const [texto, setTexto] = useState(centavosParaTexto(valor))
   useEffect(() => {
-    setTexto((atual) => (paraCentavos(atual) === valor ? atual : centavosParaTexto(valor)))
-  }, [valor])
+    setTexto((atual) => (paraCentavos(atual, negativo) === valor ? atual : centavosParaTexto(valor)))
+  }, [valor, negativo])
 
   return (
     <input
       {...resto}
-      inputMode="decimal"
+      // O teclado numérico do celular não tem o sinal de menos.
+      inputMode={negativo ? 'text' : 'decimal'}
       placeholder="0,00"
       value={texto}
       onChange={(e) => {
         setTexto(e.target.value)
-        onChange(paraCentavos(e.target.value))
+        onChange(paraCentavos(e.target.value, negativo))
       }}
       onBlur={() => setTexto(centavosParaTexto(valor))}
     />

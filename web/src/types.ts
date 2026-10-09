@@ -143,6 +143,9 @@ export type Conta = {
   vencimento: string
   status: StatusConta
   pagoEm: string | null
+  pedidoId?: number | null
+  // Só nas contas a receber: a venda de origem, com as pessoas dela.
+  pedido?: { id: number; vendedor: PessoaRef | null; medico: PessoaRef | null; paciente: PessoaRef | null } | null
 }
 
 // Item de uma venda com o que ainda pode ser devolvido e o valor líquido de cada unidade.
@@ -163,21 +166,25 @@ export type Devolucao = {
   valorCredito: number
   criadoEm: string
   usuario: PessoaRef | null
-  credito: { id: number; saldo: number; status: string } | null
+  estornada: boolean
+  estornadaEm: string | null
+  credito: { id: number; saldo: number; valorOriginal: number; status: string } | null
   itens: { id: number; quantidade: number; valorUnitario: number; pedidoItem: { unidade: string | null; produto: { sku: string; nome: string; unidade: string } } }[]
 }
 
 export type Credito = {
   id: number
   pessoa: PessoaRef
+  origem: 'DEVOLUCAO' | 'DEPOSITO' | 'AVULSO'
+  descricao: string | null
   devolucao: { id: number; pedido: { id: number } } | null
   valorOriginal: number
   saldo: number
-  status: 'DISPONIVEL' | 'ESGOTADO'
+  status: 'DISPONIVEL' | 'ESGOTADO' | 'CANCELADO'
   criadoEm: string
   // Quem pode usar o crédito: cliente, médico, vendedor e paciente da venda de origem.
   elegiveis: PessoaRef[]
-  usos: { id: number; valor: number; criadoEm: string; pessoa: PessoaRef; contaReceber: { id: number; descricao: string } }[]
+  usos: { id: number; valor: number; criadoEm: string; estornado: boolean; pessoa: PessoaRef; contaReceber: { id: number; descricao: string } }[]
 }
 
 export type TransacaoOfx = { fitId: string; data: string; tipo: 'ENTRADA' | 'SAIDA'; valor: number; descricao: string; duplicada: boolean }
@@ -207,7 +214,7 @@ export type LinhaExtrato = {
   descricao: string
   arquivo: string | null
   status: 'PENDENTE' | 'CONCILIADA' | 'IGNORADA'
-  resolucao: 'BAIXA' | 'VINCULO' | 'AVULSO' | 'CREDITO' | null
+  resolucao: 'BAIXA' | 'VINCULO' | 'AVULSO' | 'CREDITO' | 'TRANSFERENCIA' | null
   observacao: string | null
   conciliadoEm: string | null
   usuario?: PessoaRef | null
@@ -258,8 +265,10 @@ export type MovimentoFinanceiro = {
   tipo: 'ENTRADA' | 'SAIDA'
   valor: number
   data: string
-  // CREDITO só aparece no histórico da conta a receber; AVULSO e DEPOSITO nascem na conciliação.
-  origem: 'RECEBIMENTO' | 'PAGAMENTO' | 'ESTORNO' | 'CREDITO' | 'AVULSO' | 'DEPOSITO'
+  // CREDITO só aparece no histórico da conta a receber; DEPOSITO nasce na conciliação.
+  origem: 'RECEBIMENTO' | 'PAGAMENTO' | 'ESTORNO' | 'CREDITO' | 'AVULSO' | 'DEPOSITO' | 'TRANSFERENCIA'
+  comHora: boolean // a data tem a hora informada
+  transferencia?: string | null // código comum às duas pontas de uma transferência
   extratoId?: number | null // linha do extrato do banco com que foi conciliado
   historico: string
   observacao: string | null
@@ -401,7 +410,30 @@ export type RelatorioVendas = {
   resumo: { quantidade: number; cancelados: number; total: number; ticketMedio: number; devolvido: number }
 }
 
-type GrupoDespesas = { nome: string; quantidade: number; total: number; pago: number }
+// Contas a receber em aberto para cobrar, com o contato do cliente e os dias de atraso.
+export type RelatorioCobranca = {
+  linhas: {
+    id: number
+    pessoaId: number | null
+    cliente: string
+    telefone: string | null
+    email: string | null
+    descricao: string
+    pedidoId: number | null
+    vendedor: string | null
+    medico: string | null
+    paciente: string | null
+    vencimento: string
+    diasAtraso: number
+    valor: number
+    valorPago: number
+    saldo: number
+  }[]
+  porCliente: { cliente: string; telefone: string | null; quantidade: number; saldo: number; vencido: number; maiorAtraso: number }[]
+  resumo: { quantidade: number; clientes: number; saldo: number; vencido: number; aVencer: number }
+}
+
+type GrupoDespesas ={ nome: string; quantidade: number; total: number; pago: number }
 
 export type RelatorioDespesas = {
   linhas: {
@@ -458,10 +490,15 @@ export type Promocao = {
 
 export type ItemRanking ={ nome: string; total: number }
 
+// Período dos dashboards: um mês ("2026-10"), um ano ("2026") ou todo o período ("tudo").
+export type PeriodoDashboard = { tipo: 'mes' | 'ano' | 'tudo'; chave: string }
+
 export type DashboardComercial = {
-  mes: string
+  periodo: PeriodoDashboard
   kpis: {
-    faturamento: number
+    faturamento: number // vendas menos devoluções
+    vendasBrutas: number
+    devolucoes: number
     vendas: number
     ticketMedio: number
     descontos: number
@@ -470,15 +507,17 @@ export type DashboardComercial = {
     margem: number
     margemPercentual: number
   }
-  dias: { dia: number; total: number; vendas: number }[]
-  meses: { mes: string; total: number; vendas: number }[]
+  // Detalhe dentro do período (dias do mês, meses do ano, anos) e evolução dos períodos anteriores.
+  // `chave`: dia ("1"), mês ("2026-10") ou ano ("2026").
+  detalhe: { chave: string; total: number; vendas: number }[]
+  historico: { chave: string; total: number; vendas: number; devolvido: number }[]
   topVendedores: ItemRanking[]
   topClientes: ItemRanking[]
   topProdutos: ItemRanking[]
 }
 
 export type DashboardFinanceiro = {
-  mes: string
+  periodo: PeriodoDashboard
   kpis: {
     recebido: number
     pago: number
@@ -489,7 +528,7 @@ export type DashboardFinanceiro = {
     vencidoPagar: number
     despesas: number // pela competência
   }
-  meses: { mes: string; recebido: number; pago: number; despesas: number }[]
+  historico: { chave: string; recebido: number; pago: number; despesas: number }[]
   formas: ItemRanking[]
   despesasPorElemento: ItemRanking[]
 }

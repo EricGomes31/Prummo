@@ -26,10 +26,23 @@ export const brl = (centavos: number) => moeda.format(centavos / 100)
 
 export const centavosParaTexto = (centavos: number) => (centavos / 100).toFixed(2).replace('.', ',')
 
-// Aceita "1.234,56", "1234,56" ou "1234"; ponto é separador de milhar.
-export function paraCentavos(texto: string) {
+// Aceita "1.234,56", "1234,56" ou "1234"; ponto é separador de milhar. Negativo só com `negativo`.
+export function paraCentavos(texto: string, negativo = false) {
   const numero = Number(texto.replace(/[^\d,-]/g, '').replace(',', '.'))
-  return Number.isFinite(numero) ? Math.max(0, Math.round(numero * 100)) : 0
+  if (!Number.isFinite(numero)) return 0
+  const centavos = Math.round(numero * 100)
+  return negativo ? centavos : Math.max(0, centavos)
+}
+
+// Data e hora para mostrar; a hora só quando foi informada.
+export const dataHoraBr = (iso: string, comHora: boolean) =>
+  comHora ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : new Date(iso).toLocaleDateString('pt-BR')
+
+// Agora, no formato do campo de data e hora do navegador ("2026-10-08T14:30").
+export function agoraLocal() {
+  const d = new Date()
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 16)
 }
 
 export const inteiro = (texto: string) => {
@@ -77,6 +90,7 @@ export const origensMovimento: Record<string, string> = {
   CREDITO: 'Crédito de devolução',
   AVULSO: 'Lançamento avulso',
   DEPOSITO: 'Depósito a maior',
+  TRANSFERENCIA: 'Transferência entre contas',
 }
 
 export const naturezasPedido: Record<string, string> = { VENDA: 'Venda', BONIFICACAO: 'Bonificação', PERDA: 'Perda' }

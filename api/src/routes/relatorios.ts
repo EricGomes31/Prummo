@@ -141,6 +141,82 @@ export async function rotasRelatorios(app: FastifyInstance) {
     }
   })
 
+  // Cobrança: contas a receber em aberto, com o contato do cliente e os dias de atraso, para cobrar.
+  // `ate` limita o vencimento; `vencidas` deixa só as já vencidas.
+  app.get('/relatorios/cobranca', async (req) => {
+    const id = z.coerce.number().int().positive().optional()
+    const q = z
+      .object({
+        ate: dia.optional(),
+        vencidas: z.enum(['1', 'true']).optional(),
+        pessoaId: id,
+        vendedorId: id,
+        medicoId: id,
+        pacienteId: id,
+      })
+      .parse(req.query)
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+    const limite = q.vencidas ? hoje : q.ate ? intervalo(undefined, q.ate)!.lt : undefined
+    const daVenda = {
+      ...(q.vendedorId ? { vendedorId: q.vendedorId } : {}),
+      ...(q.medicoId ? { medicoId: q.medicoId } : {}),
+      ...(q.pacienteId ? { pacienteId: q.pacienteId } : {}),
+    }
+    const pessoa = { select: { id: true, nome: true } } as const
+    const contas = await prisma.contaReceber.findMany({
+      where: {
+        status: 'ABERTA',
+        ...(limite ? { vencimento: { lt: limite } } : {}),
+        ...(q.pessoaId ? { pessoaId: q.pessoaId } : {}),
+        ...(Object.keys(daVenda).length ? { pedido: daVenda } : {}),
+      },
+      include: {
+        pessoa: { select: { id: true, nome: true, telefone: true, celular: true, email: true } },
+        pedido: { select: { id: true, vendedor: pessoa, medico: pessoa, paciente: pessoa } },
+      },
+      orderBy: [{ vencimento: 'asc' }, { id: 'asc' }],
+      take: 5000,
+    })
+    const DIA = 24 * 60 * 60 * 1000
+    const linhas = contas.map((c) => {
+      const vencimento = new Date(c.vencimento)
+      vencimento.setHours(0, 0, 0, 0)
+      return {
+        id: c.id,
+        pessoaId: c.pessoa?.id ?? null,
+        cliente: c.pessoa?.nome ?? 'Sem cliente',
+        telefone: c.pessoa?.celular || c.pessoa?.telefone || null,
+        email: c.pessoa?.email ?? null,
+        descricao: c.descricao,
+        pedidoId: c.pedido?.id ?? null,
+        vendedor: c.pedido?.vendedor?.nome ?? null,
+        medico: c.pedido?.medico?.nome ?? null,
+        paciente: c.pedido?.paciente?.nome ?? null,
+        vencimento: c.vencimento,
+        diasAtraso: Math.max(0, Math.round((hoje.getTime() - vencimento.getTime()) / DIA)),
+        valor: c.valor,
+        valorPago: c.valorPago,
+        saldo: c.valor - c.valorPago,
+      }
+    })
+    // Um resumo por cliente, do maior saldo vencido para o menor.
+    const mapa = new Map<string, { cliente: string; telefone: string | null; quantidade: number; saldo: number; vencido: number; maiorAtraso: number }>()
+    for (const l of linhas) {
+      const chave = String(l.pessoaId ?? 0)
+      const g = mapa.get(chave) ?? { cliente: l.cliente, telefone: l.telefone, quantidade: 0, saldo: 0, vencido: 0, maiorAtraso: 0 }
+      g.quantidade++
+      g.saldo += l.saldo
+      if (l.diasAtraso > 0) g.vencido += l.saldo
+      g.maiorAtraso = Math.max(g.maiorAtraso, l.diasAtraso)
+      mapa.set(chave, g)
+    }
+    const porCliente = [...mapa.values()].sort((a, b) => b.vencido - a.vencido || b.saldo - a.saldo)
+    const saldo = linhas.reduce((s, l) => s + l.saldo, 0)
+    const vencido = linhas.filter((l) => l.diasAtraso > 0).reduce((s, l) => s + l.saldo, 0)
+    return { linhas, porCliente, resumo: { quantidade: linhas.length, clientes: porCliente.length, saldo, vencido, aVencer: saldo - vencido } }
+  })
+
   app.get('/relatorios/financeiro', async (req) => {
     const q = z
       .object({

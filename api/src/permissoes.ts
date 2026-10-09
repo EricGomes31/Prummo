@@ -37,7 +37,8 @@ export const GRUPOS_PERMISSOES = [
     permissoes: [
       ['DEVOLUCOES_VISUALIZAR', 'Ver devoluções e créditos de clientes'],
       ['DEVOLUCOES_REGISTRAR', 'Registrar devoluções de vendas'],
-      ['CREDITOS_UTILIZAR', 'Usar créditos para baixar contas a receber'],
+      ['CREDITOS_UTILIZAR', 'Usar créditos para baixar contas a receber e estornar usos'],
+      ['CREDITOS_LANCAR', 'Lançar e cancelar créditos avulsos'],
     ],
   },
   {
@@ -65,6 +66,7 @@ export const GRUPOS_PERMISSOES = [
       ['DESPESAS_LANCAR', 'Lançar, corrigir e cancelar despesas'],
       ['CAIXA_VISUALIZAR', 'Ver caixa, bancos e extrato'],
       ['CAIXA_MOVIMENTAR', 'Cadastrar e alterar contas financeiras'],
+      ['CAIXA_LANCAR', 'Lançar movimentos avulsos e transferências entre contas'],
       ['OFX_IMPORTAR', 'Importar extrato bancário (OFX)'],
       ['CONCILIACAO_VISUALIZAR', 'Ver a conciliação bancária'],
       ['CONCILIACAO_CONFIRMAR', 'Conciliar, ignorar e reabrir linhas do extrato'],
@@ -120,7 +122,8 @@ export function acessosDe(usuario: {
 // campanhas e contas financeiras também servem de consulta para quem lança pedidos, entradas e baixas.
 const LANCA_COM_PESSOA: Permissao[] = ['PEDIDOS_CADASTRAR', 'ESTOQUE_ENTRADA', 'CONTAS_RECEBER_BAIXAR', 'CONTAS_PAGAR_BAIXAR', 'LOGISTICA_GERENCIAR', 'DESPESAS_LANCAR', 'CONCILIACAO_CONFIRMAR']
 const REGRAS: Record<string, Permissao[]> = {
-  'GET /pessoas': ['PESSOAS_VISUALIZAR', ...LANCA_COM_PESSOA],
+  // Quem vê contas a receber ou relatórios filtra por cliente, vendedor, médico e paciente.
+  'GET /pessoas': ['PESSOAS_VISUALIZAR', ...LANCA_COM_PESSOA, 'CONTAS_RECEBER_VISUALIZAR', 'RELATORIOS_VISUALIZAR', 'CREDITOS_LANCAR'],
   'POST /pessoas': ['PESSOAS_CADASTRAR'],
   'PUT /pessoas/:id': ['PESSOAS_ALTERAR'],
   'DELETE /pessoas/:id': ['PESSOAS_ALTERAR'],
@@ -177,8 +180,12 @@ const REGRAS: Record<string, Permissao[]> = {
   'GET /devolucoes': ['DEVOLUCOES_VISUALIZAR', 'DEVOLUCOES_REGISTRAR'],
   'GET /devolucoes/pedido/:id/saldos': ['DEVOLUCOES_REGISTRAR'],
   'POST /devolucoes': ['DEVOLUCOES_REGISTRAR'],
-  'GET /creditos': ['DEVOLUCOES_VISUALIZAR', 'DEVOLUCOES_REGISTRAR', 'CREDITOS_UTILIZAR'],
+  'POST /devolucoes/:id/estornar': ['DEVOLUCOES_REGISTRAR'],
+  'GET /creditos': ['DEVOLUCOES_VISUALIZAR', 'DEVOLUCOES_REGISTRAR', 'CREDITOS_UTILIZAR', 'CREDITOS_LANCAR', 'PEDIDOS_FATURAR'],
+  'POST /creditos': ['CREDITOS_LANCAR'],
+  'POST /creditos/:id/cancelar': ['CREDITOS_LANCAR'],
   'POST /creditos/:id/utilizar': ['CREDITOS_UTILIZAR'],
+  'POST /creditos/usos/:id/estornar': ['CREDITOS_UTILIZAR'],
 
   'GET /contas-receber': ['CONTAS_RECEBER_VISUALIZAR', 'CONTAS_RECEBER_BAIXAR', 'CREDITOS_UTILIZAR', 'CONCILIACAO_CONFIRMAR'],
   'GET /contas-receber/:id/baixas': ['CONTAS_RECEBER_VISUALIZAR', 'CONTAS_RECEBER_BAIXAR'],
@@ -197,7 +204,7 @@ const REGRAS: Record<string, Permissao[]> = {
   'POST /despesas': ['DESPESAS_LANCAR'],
   'PUT /despesas/:id': ['DESPESAS_LANCAR'],
   'POST /despesas/:id/cancelar': ['DESPESAS_LANCAR'],
-  'GET /contas-financeiras': ['CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR', 'CONTAS_RECEBER_BAIXAR', 'CONTAS_PAGAR_BAIXAR', 'OFX_IMPORTAR', 'CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR', 'DESPESAS_LANCAR'],
+  'GET /contas-financeiras': ['CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR', 'CONTAS_RECEBER_BAIXAR', 'CONTAS_PAGAR_BAIXAR', 'OFX_IMPORTAR', 'CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR', 'DESPESAS_LANCAR', 'CAIXA_LANCAR'],
   'POST /ofx/ler': ['OFX_IMPORTAR'],
   'POST /ofx/importar': ['OFX_IMPORTAR'],
   'GET /conciliacao/pendentes': ['CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR'],
@@ -208,14 +215,20 @@ const REGRAS: Record<string, Permissao[]> = {
   'POST /conciliacao/:id/credito': ['CONCILIACAO_CONFIRMAR'],
   'POST /conciliacao/:id/ignorar': ['CONCILIACAO_CONFIRMAR'],
   'POST /conciliacao/:id/reabrir': ['CONCILIACAO_CONFIRMAR'],
+  'POST /conciliacao/:id/transferencia': ['CONCILIACAO_CONFIRMAR'],
+  'POST /conciliacao/:id/desfazer': ['CONCILIACAO_CONFIRMAR'],
   'POST /conciliacao/automatica': ['CONCILIACAO_CONFIRMAR'],
   'POST /contas-financeiras': ['CAIXA_MOVIMENTAR'],
   'PUT /contas-financeiras/:id': ['CAIXA_MOVIMENTAR'],
-  'GET /movimentos-financeiros': ['CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR'],
+  'GET /movimentos-financeiros': ['CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR', 'CAIXA_LANCAR'],
+  'POST /movimentos-financeiros': ['CAIXA_LANCAR'],
+  'POST /movimentos-financeiros/:id/estornar': ['CAIXA_LANCAR'],
+  'POST /transferencias': ['CAIXA_LANCAR'],
 
   'GET /relatorios/vendas': ['RELATORIOS_VISUALIZAR'],
   'GET /relatorios/financeiro': ['RELATORIOS_VISUALIZAR'],
   'GET /relatorios/despesas': ['RELATORIOS_VISUALIZAR'],
+  'GET /relatorios/cobranca': ['RELATORIOS_VISUALIZAR', 'CONTAS_RECEBER_VISUALIZAR', 'CONTAS_RECEBER_BAIXAR'],
 
   'GET /usuarios': ['USUARIOS_GERENCIAR'],
   'POST /usuarios': ['USUARIOS_GERENCIAR'],

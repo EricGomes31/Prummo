@@ -4,9 +4,11 @@ import { inicioDeHoje, prisma } from '../lib.js'
 export async function rotasDashboard(app: FastifyInstance) {
   app.get('/dashboard/resumo', async () => {
     const hoje = inicioDeHoje()
-    const [faturados, abertos, receber, receberVencidas, pagar, pagarVencidas, cadastros, ultimosPedidos, entregas] =
+    const [faturados, devolvido, abertos, receber, receberVencidas, pagar, pagarVencidas, cadastros, ultimosPedidos, entregas] =
       await Promise.all([
         prisma.pedido.aggregate({ where: { status: 'FATURADO', natureza: 'VENDA' }, _count: true, _sum: { total: true } }),
+        // As devoluções abatem o total vendido.
+        prisma.devolucao.aggregate({ where: { estornada: false }, _sum: { valorCredito: true } }),
         prisma.pedido.count({ where: { status: 'ABERTO' } }),
         prisma.contaReceber.aggregate({ where: { status: 'ABERTA' }, _sum: { valor: true, valorPago: true } }),
         prisma.contaReceber.count({ where: { status: 'ABERTA', vencimento: { lt: hoje } } }),
@@ -35,7 +37,7 @@ export async function rotasDashboard(app: FastifyInstance) {
     const aReceber = (receber._sum.valor ?? 0) - (receber._sum.valorPago ?? 0)
     const aPagar = (pagar._sum.valor ?? 0) - (pagar._sum.valorPago ?? 0)
     return {
-      vendas: { quantidade: faturados._count, total: faturados._sum.total ?? 0, pedidosAbertos: abertos },
+      vendas: { quantidade: faturados._count, total: (faturados._sum.total ?? 0) - (devolvido._sum.valorCredito ?? 0), pedidosAbertos: abertos },
       receber: { total: aReceber, vencidas: receberVencidas },
       pagar: { total: aPagar, vencidas: pagarVencidas },
       saldoProjetado: aReceber - aPagar,

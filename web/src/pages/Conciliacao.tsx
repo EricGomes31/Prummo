@@ -4,9 +4,15 @@ import { api, lerEmBase64, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { brl, dataBr } from '../format'
 import type { ArquivoOfx, Conta, ContaFinanceira, LinhaExtrato, Pessoa, SugestaoConciliacao } from '../types'
-import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo } from '../ui'
 
-const resolucoes: Record<string, string> = { BAIXA: 'Baixa de título', VINCULO: 'Vínculo com movimento já lançado', AVULSO: 'Lançamento avulso', CREDITO: 'Depósito a maior' }
+const resolucoes: Record<string, string> = {
+  BAIXA: 'Baixa de título',
+  VINCULO: 'Vínculo com movimento já lançado',
+  AVULSO: 'Lançamento avulso',
+  CREDITO: 'Depósito a maior',
+  TRANSFERENCIA: 'Transferência entre contas',
+}
 const acoesDaSugestao: Record<SugestaoConciliacao['acao'], string> = { BAIXA: 'Baixar', VINCULO: 'Vincular', CREDITO: 'Quitar e gerar crédito' }
 
 const textoDaSugestao = (s: SugestaoConciliacao) =>
@@ -46,6 +52,15 @@ export function Conciliacao({ seletor }: { seletor: ReactNode }) {
           : 'Nenhuma linha tinha uma única correspondência segura. Todas ficaram para conferência.',
       )
     })
+  }
+
+  function desfazer(linha: LinhaExtrato) {
+    const efeito =
+      linha.resolucao === 'VINCULO'
+        ? 'O movimento continua lançado; só deixa de estar ligado a esta linha.'
+        : 'O que foi lançado pela conciliação é estornado (baixas, lançamento avulso, depósito, transferência) e o crédito gerado, se houver, é cancelado.'
+    if (!window.confirm(`Desfazer a conciliação de ${brl(linha.valor)} (${linha.descricao})? ${efeito} A linha volta a ficar pendente.`)) return
+    executar(() => api(`/conciliacao/${linha.id}/desfazer`, { method: 'POST' }))
   }
 
   // A sugestão principal é aplicada com um clique; o depósito a maior pede a confirmação do cliente.
@@ -193,6 +208,11 @@ export function Conciliacao({ seletor }: { seletor: ReactNode }) {
                           Reabrir
                         </button>
                       )}
+                      {confirma && l.status === 'CONCILIADA' && (
+                        <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => desfazer(l)}>
+                          Desfazer
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -335,6 +355,10 @@ function Resolver(props: { linha: LinhaExtrato; onFechar: () => void; onResolvid
   const [clienteId, setClienteId] = useState(0)
   const [contaDoClienteId, setContaDoClienteId] = useState(0)
   const [observacao, setObservacao] = useState('')
+  const [varios, setVarios] = useState<{ contaId: number; valor: number }[]>([])
+  const somaVarios = varios.reduce((s, v) => s + v.valor, 0)
+  const outrasContas = (useDados<ContaFinanceira[]>('/contas-financeiras').dados ?? []).filter((c) => c.ativa && c.id !== linha.contaFinanceira.id)
+  const [outraContaId, setOutraContaId] = useState(0)
   const { erro, ocupado, executar } = useAcao()
   const cabem = titulos.filter((t) => t.valor - t.valorPago >= linha.valor)
   const doCliente = titulos.filter((t) => t.pessoa?.id === clienteId && t.valor - t.valorPago < linha.valor)
@@ -400,6 +424,103 @@ function Resolver(props: { linha: LinhaExtrato; onFechar: () => void; onResolvid
           </button>
         </div>
       </div>
+
+      <h3>Baixar vários títulos</h3>
+      <p className="texto-suave">Um depósito que paga duas vendas, um pagamento que quita várias contas. Os valores precisam somar {brl(linha.valor)}.</p>
+      <div className="form">
+        <Campo rotulo="Incluir título" largura={3}>
+          <select
+            value=""
+            onChange={(e) => {
+              const titulo = titulos.find((t) => t.id === Number(e.target.value))
+              if (!titulo) return
+              const falta = Math.max(0, linha.valor - somaVarios)
+              setVarios([...varios, { contaId: titulo.id, valor: Math.min(titulo.valor - titulo.valorPago, falta) }])
+            }}
+          >
+            <option value="">Selecione…</option>
+            {titulos
+              .filter((t) => !varios.some((v) => v.contaId === t.id))
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.descricao}
+                  {t.pessoa && ` · ${t.pessoa.nome}`} · saldo {brl(t.valor - t.valorPago)}
+                </option>
+              ))}
+          </select>
+        </Campo>
+        {varios.length > 0 && (
+          <div className="col-3">
+            <table>
+              <tbody>
+                {varios.map((v, i) => {
+                  const titulo = titulos.find((t) => t.id === v.contaId)
+                  return (
+                    <tr key={v.contaId}>
+                      <td>
+                        {titulo?.descricao}
+                        {titulo?.pessoa && <small className="texto-suave"> · {titulo.pessoa.nome}</small>}
+                      </td>
+                      <td className="num">
+                        <Dinheiro
+                          className="curto"
+                          aria-label="Valor a baixar"
+                          valor={v.valor}
+                          onChange={(valor) => setVarios(varios.map((x, n) => (n === i ? { ...x, valor } : x)))}
+                        />
+                      </td>
+                      <td>
+                        <button type="button" className="botao-icone" aria-label="Tirar título" onClick={() => setVarios(varios.filter((_, n) => n !== i))}>
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            <p className={somaVarios === linha.valor ? 'texto-suave' : 'texto-ruim'}>
+              Soma {brl(somaVarios)} de {brl(linha.valor)}
+            </p>
+          </div>
+        )}
+        <div className="form-pe">
+          <button
+            type="button"
+            className="botao"
+            disabled={ocupado || varios.length < 2 || somaVarios !== linha.valor || varios.some((v) => v.valor <= 0)}
+            onClick={() => resolver('baixar', { titulos: varios.map((v) => ({ ...v, tipo: entrada ? 'CONTA_RECEBER' : 'CONTA_PAGAR' })) })}
+          >
+            Baixar {varios.length || ''} títulos
+          </button>
+        </div>
+      </div>
+
+      {outrasContas.length > 0 && (
+        <>
+          <h3>Transferência entre contas próprias</h3>
+          <div className="form">
+            <Campo rotulo={entrada ? 'Veio da conta' : 'Foi para a conta'} largura={2}>
+              <select value={outraContaId || ''} onChange={(e) => setOutraContaId(Number(e.target.value))}>
+                <option value="">Selecione…</option>
+                {outrasContas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+              </select>
+            </Campo>
+            <div className="form-pe">
+              <button type="button" className="botao" disabled={ocupado || !outraContaId} onClick={() => resolver('transferencia', { contaFinanceiraId: outraContaId })}>
+                Lançar a transferência
+              </button>
+            </div>
+            <p className="texto-suave col-3">
+              A outra ponta é lançada na conta escolhida. Quando o extrato dela for importado, a linha correspondente é sugerida para vínculo.
+            </p>
+          </div>
+        </>
+      )}
 
       {entrada && (
         <>

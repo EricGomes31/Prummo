@@ -1,9 +1,11 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
-import { brl, dataBr, estaVencida, hojeIso, origensMovimento, tiposContaFinanceira } from '../format'
-import type { Conta, ContaFinanceira, Extrato, MovimentoFinanceiro, Pessoa } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { BANCOS } from '../bancos'
+import { agoraLocal, brl, dataBr, dataHoraBr, estaVencida, hojeIso, origensMovimento, tiposContaFinanceira } from '../format'
+import { exportarCsv, imprimir, Resumo, Tabela, type Coluna } from '../relatorio'
+import type { Conta, ContaFinanceira, Extrato, MovimentoFinanceiro, Pessoa, RelatorioCobranca } from '../types'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { Conciliacao } from './Conciliacao'
 import { Despesas } from './Despesas'
 
@@ -16,6 +18,8 @@ type Aba = AbaContas | 'despesas' | 'caixa' | 'conciliacao'
 const rotulosDasAbas: Record<Aba, string> = { 'contas-receber': 'A receber', 'contas-pagar': 'A pagar', despesas: 'Despesas', caixa: 'Caixa e bancos', conciliacao: 'Conciliação' }
 
 const saldoDe = (c: Conta) => c.valor - c.valorPago
+// O campo de data e hora do navegador vem sem fuso; a API recebe o instante exato.
+const instante = (local: string) => new Date(local).toISOString()
 
 export function Financeiro() {
   const { pode } = useSessao()
@@ -24,7 +28,7 @@ export function Financeiro() {
     ...(pode('CONTAS_RECEBER_VISUALIZAR', 'CONTAS_RECEBER_BAIXAR') ? (['contas-receber'] as const) : []),
     ...(pode('CONTAS_PAGAR_VISUALIZAR', 'CONTAS_PAGAR_BAIXAR') ? (['contas-pagar'] as const) : []),
     ...(pode('DESPESAS_VISUALIZAR', 'DESPESAS_LANCAR') ? (['despesas'] as const) : []),
-    ...(pode('CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR') ? (['caixa'] as const) : []),
+    ...(pode('CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR', 'CAIXA_LANCAR') ? (['caixa'] as const) : []),
     ...(pode('OFX_IMPORTAR', 'CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR') ? (['conciliacao'] as const) : []),
   ]
   const [escolhida, setAba] = useState<Aba>('contas-receber')
@@ -46,16 +50,41 @@ export function Financeiro() {
   return aba === 'caixa' ? <CaixaBancos seletor={seletor} /> : <Contas key={aba} aba={aba} seletor={seletor} />
 }
 
+// Seletor de pessoa com uma classificação, para os filtros.
+function FiltroPessoa(props: { rotulo: string; pessoas: Pessoa[]; classificacao: keyof Pessoa; valor: string; onChange: (v: string) => void }) {
+  return (
+    <Campo rotulo={props.rotulo}>
+      <select value={props.valor} onChange={(e) => props.onChange(e.target.value)}>
+        <option value="">Todos</option>
+        {props.pessoas
+          .filter((p) => p[props.classificacao] || String(p.id) === props.valor)
+          .map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nome}
+            </option>
+          ))}
+      </select>
+    </Campo>
+  )
+}
+
 function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
-  const [status, setStatus] = useState('ABERTA')
-  const { dados, erro, carregando, recarregar } = useDados<Conta[]>(`/${aba}${status ? `?status=${status}` : ''}`)
+  const receber = aba === 'contas-receber'
+  const [f, setF] = useState({ status: 'ABERTA', pessoaId: '', vendedorId: '', medicoId: '', pacienteId: '', inicio: '', fim: '' })
+  const consulta = new URLSearchParams(Object.entries(f).filter(([, valor]) => valor))
+  const { dados, erro, carregando, recarregar } = useDados<Conta[]>(`/${aba}?${consulta}`)
+  const pessoas = useDados<Pessoa[]>('/pessoas').dados ?? []
   const [lancando, setLancando] = useState(false)
   const [baixando, setBaixando] = useState<Conta | null>(null)
+  const [cobranca, setCobranca] = useState(false)
+  const [maisFiltros, setMaisFiltros] = useState(false)
   const acao = useAcao()
   const contas = dados ?? []
+  const paginas = usePaginacao(contas)
   const config = abas[aba]
   const total = contas.filter((c) => c.status === 'ABERTA').reduce((soma, c) => soma + saldoDe(c), 0)
   const vencido = contas.filter(estaVencida).reduce((soma, c) => soma + saldoDe(c), 0)
+  const filtrando = [f.pessoaId, f.vendedorId, f.medicoId, f.pacienteId, f.inicio, f.fim].some(Boolean)
 
   function operar(conta: Conta, operacao: 'estornar' | 'cancelar') {
     const pergunta =
@@ -70,6 +99,11 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
   return (
     <>
       <Cabecalho titulo="Financeiro" descricao="Contas a receber e a pagar, com baixas totais ou parciais.">
+        {receber && (
+          <button type="button" className="botao" onClick={() => setCobranca(true)}>
+            Relatório de cobrança
+          </button>
+        )}
         <button type="button" className="botao botao-primario" onClick={() => setLancando(true)}>
           Novo lançamento
         </button>
@@ -77,21 +111,47 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
       {seletor}
 
       <div className="filtros">
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Situação">
+        <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} aria-label="Situação">
           <option value="ABERTA">Em aberto</option>
           <option value="PAGA">Liquidadas</option>
           <option value="CANCELADA">Canceladas</option>
           <option value="">Abertas e liquidadas</option>
         </select>
+        <button type="button" className="botao" aria-expanded={maisFiltros} onClick={() => setMaisFiltros(!maisFiltros)}>
+          {maisFiltros ? 'Menos filtros' : filtrando ? 'Filtros (ativos)' : 'Mais filtros'}
+        </button>
         <span className="resumo-filtro">
           Em aberto: <strong>{brl(total)}</strong>
           {vencido > 0 && <span className="texto-ruim"> · vencido: {brl(vencido)}</span>}
         </span>
       </div>
+      {maisFiltros && (
+        <section className="painel filtros-relatorio">
+          <FiltroPessoa rotulo={config.pessoa} pessoas={pessoas} classificacao={receber ? 'cliente' : 'fornecedor'} valor={f.pessoaId} onChange={(pessoaId) => setF({ ...f, pessoaId })} />
+          {receber && (
+            <>
+              <FiltroPessoa rotulo="Vendedor" pessoas={pessoas} classificacao="vendedor" valor={f.vendedorId} onChange={(vendedorId) => setF({ ...f, vendedorId })} />
+              <FiltroPessoa rotulo="Médico" pessoas={pessoas} classificacao="medico" valor={f.medicoId} onChange={(medicoId) => setF({ ...f, medicoId })} />
+              <FiltroPessoa rotulo="Paciente" pessoas={pessoas} classificacao="paciente" valor={f.pacienteId} onChange={(pacienteId) => setF({ ...f, pacienteId })} />
+            </>
+          )}
+          <Campo rotulo="Vencimento de">
+            <input type="date" value={f.inicio} max={f.fim || undefined} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
+          </Campo>
+          <Campo rotulo="Até">
+            <input type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
+          </Campo>
+          {filtrando && (
+            <button type="button" className="botao botao-texto" onClick={() => setF({ ...f, pessoaId: '', vendedorId: '', medicoId: '', pacienteId: '', inicio: '', fim: '' })}>
+              Limpar filtros
+            </button>
+          )}
+        </section>
+      )}
 
       <Erro mensagem={acao.erro} />
       <section className="painel">
-        <EstadoLista carregando={carregando} erro={erro} vazia={contas.length === 0} textoVazio="Nenhum lançamento nesta situação." />
+        <EstadoLista carregando={carregando} erro={erro} vazia={contas.length === 0} textoVazio="Nenhum lançamento para estes filtros." />
         {contas.length > 0 && (
           <table>
             <thead>
@@ -99,6 +159,7 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
                 <th>Vencimento</th>
                 <th>Descrição</th>
                 <th>{config.pessoa}</th>
+                {receber && <th>Venda</th>}
                 <th>Situação</th>
                 <th className="num">Valor</th>
                 <th className="num">Saldo</th>
@@ -106,13 +167,25 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
               </tr>
             </thead>
             <tbody>
-              {contas.map((c) => {
+              {paginas.visiveis.map((c) => {
                 const parcial = c.status === 'ABERTA' && c.valorPago > 0
                 return (
                   <tr key={c.id}>
                     <td>{dataBr(c.vencimento)}</td>
                     <td>{c.descricao}</td>
                     <td>{c.pessoa?.nome ?? '—'}</td>
+                    {receber && (
+                      <td>
+                        {c.pedido ? `#${c.pedido.id}` : '—'}
+                        {c.pedido && (c.pedido.vendedor || c.pedido.medico || c.pedido.paciente) && (
+                          <small className="bloco texto-suave">
+                            {[c.pedido.vendedor && `Vend.: ${c.pedido.vendedor.nome}`, c.pedido.medico && `Méd.: ${c.pedido.medico.nome}`, c.pedido.paciente && `Pac.: ${c.pedido.paciente.nome}`]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </small>
+                        )}
+                      </td>
+                    )}
                     <td>
                       {estaVencida(c) ? <Selo valor="VENCIDA" /> : <Selo valor={c.status} />}
                       {parcial && <> <Selo valor="PARCIAL" /></>}
@@ -148,6 +221,7 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
 
       {lancando && (
@@ -170,7 +244,113 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
           }}
         />
       )}
+      {cobranca && <Cobranca pessoas={pessoas} onFechar={() => setCobranca(false)} />}
     </>
+  )
+}
+
+type LinhaCobranca = RelatorioCobranca['linhas'][number]
+const colunasCobranca: Coluna<LinhaCobranca>[] = [
+  { rotulo: 'Cliente', valor: (l) => l.cliente, largura: 160 },
+  { rotulo: 'Contato', valor: (l) => [l.telefone, l.email].filter(Boolean).join(' · ') || null },
+  { rotulo: 'Descrição', valor: (l) => l.descricao, largura: 180 },
+  { rotulo: 'Venda', valor: (l) => (l.pedidoId ? `#${l.pedidoId}` : null) },
+  { rotulo: 'Vendedor', valor: (l) => l.vendedor },
+  { rotulo: 'Vencimento', valor: (l) => l.vencimento, tipo: 'data' },
+  { rotulo: 'Dias de atraso', valor: (l) => l.diasAtraso, exibir: (l) => (l.diasAtraso > 0 ? <span className="texto-ruim">{l.diasAtraso}</span> : '—') },
+  { rotulo: 'Valor', valor: (l) => l.valor, tipo: 'dinheiro' },
+  { rotulo: 'Recebido', valor: (l) => l.valorPago, tipo: 'dinheiro' },
+  { rotulo: 'Saldo', valor: (l) => l.saldo, tipo: 'dinheiro' },
+]
+type ClienteCobranca = RelatorioCobranca['porCliente'][number]
+const colunasPorCliente: Coluna<ClienteCobranca>[] = [
+  { rotulo: 'Cliente', valor: (g) => g.cliente, largura: 160 },
+  { rotulo: 'Contato', valor: (g) => g.telefone },
+  { rotulo: 'Contas', valor: (g) => g.quantidade },
+  { rotulo: 'Maior atraso (dias)', valor: (g) => g.maiorAtraso },
+  { rotulo: 'Vencido', valor: (g) => g.vencido, tipo: 'dinheiro' },
+  { rotulo: 'Saldo total', valor: (g) => g.saldo, tipo: 'dinheiro' },
+]
+
+// Relatório de cobrança: o que há para receber, com o contato do cliente e os dias de atraso.
+function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
+  const [f, setF] = useState({ vencidas: '1', ate: '', pessoaId: '', vendedorId: '', medicoId: '', pacienteId: '' })
+  const consulta = new URLSearchParams(Object.entries(f).filter(([chave, valor]) => valor && !(chave === 'ate' && f.vencidas)))
+  const { dados, erro, carregando } = useDados<RelatorioCobranca>(`/relatorios/cobranca?${consulta}`)
+  const [visao, setVisao] = useState<'clientes' | 'contas'>('clientes')
+  const acao = useAcao()
+  const subtitulo = `${f.vencidas ? 'Só contas vencidas' : f.ate ? `Vencimento até ${dataBr(`${f.ate}T12:00:00`)}` : 'Todas as contas em aberto'} · emitido em ${new Date().toLocaleString('pt-BR')}`
+  const totais = (r: RelatorioCobranca): [string, string][] => [
+    ['Vencido', brl(r.resumo.vencido)],
+    ['A vencer', brl(r.resumo.aVencer)],
+    ['Saldo total', brl(r.resumo.saldo)],
+  ]
+
+  return (
+    <Modal titulo="Relatório de cobrança" onFechar={props.onFechar} largo>
+      <div className="form">
+        <Campo rotulo="Contas">
+          <select value={f.vencidas ? 'VENCIDAS' : 'TODAS'} onChange={(e) => setF({ ...f, vencidas: e.target.value === 'VENCIDAS' ? '1' : '' })}>
+            <option value="VENCIDAS">Só as vencidas</option>
+            <option value="TODAS">Vencidas e a vencer</option>
+          </select>
+        </Campo>
+        {!f.vencidas && (
+          <Campo rotulo="Vencimento até">
+            <input type="date" value={f.ate} onChange={(e) => setF({ ...f, ate: e.target.value })} />
+          </Campo>
+        )}
+        <FiltroPessoa rotulo="Cliente" pessoas={props.pessoas} classificacao="cliente" valor={f.pessoaId} onChange={(pessoaId) => setF({ ...f, pessoaId })} />
+        <FiltroPessoa rotulo="Vendedor" pessoas={props.pessoas} classificacao="vendedor" valor={f.vendedorId} onChange={(vendedorId) => setF({ ...f, vendedorId })} />
+        <FiltroPessoa rotulo="Médico" pessoas={props.pessoas} classificacao="medico" valor={f.medicoId} onChange={(medicoId) => setF({ ...f, medicoId })} />
+        <FiltroPessoa rotulo="Paciente" pessoas={props.pessoas} classificacao="paciente" valor={f.pacienteId} onChange={(pacienteId) => setF({ ...f, pacienteId })} />
+      </div>
+
+      {dados && (
+        <section className="indicadores">
+          <Resumo rotulo="Clientes" valor={String(dados.resumo.clientes)} nota={`${dados.resumo.quantidade} conta(s)`} />
+          <Resumo rotulo="Vencido" valor={brl(dados.resumo.vencido)} />
+          <Resumo rotulo="A vencer" valor={brl(dados.resumo.aVencer)} />
+          <Resumo rotulo="Saldo total" valor={brl(dados.resumo.saldo)} />
+        </section>
+      )}
+
+      <div className="abas" role="tablist">
+        <button type="button" role="tab" aria-selected={visao === 'clientes'} onClick={() => setVisao('clientes')}>
+          Por cliente
+        </button>
+        <button type="button" role="tab" aria-selected={visao === 'contas'} onClick={() => setVisao('contas')}>
+          Contas
+        </button>
+      </div>
+      <EstadoLista carregando={carregando} erro={erro} vazia={!dados?.linhas.length} textoVazio="Nada a cobrar com estes filtros." />
+      {dados && dados.linhas.length > 0 && visao === 'clientes' && <Tabela colunas={colunasPorCliente} linhas={dados.porCliente} chave={(g) => g.cliente} />}
+      {dados && dados.linhas.length > 0 && visao === 'contas' && <Tabela colunas={colunasCobranca} linhas={dados.linhas} chave={(l) => l.id} />}
+
+      <Erro mensagem={acao.erro} />
+      <div className="form-pe">
+        <button type="button" className="botao" onClick={props.onFechar}>
+          Fechar
+        </button>
+        <button type="button" className="botao" disabled={!dados?.linhas.length} onClick={() => dados && exportarCsv('cobranca', colunasCobranca, dados.linhas)}>
+          Exportar para Excel
+        </button>
+        <button
+          type="button"
+          className="botao botao-primario"
+          disabled={!dados?.linhas.length}
+          onClick={() =>
+            acao.executar(async () => {
+              if (!dados) return
+              if (visao === 'clientes') imprimir('Cobrança por cliente', subtitulo, colunasPorCliente, dados.porCliente, totais(dados))
+              else imprimir('Cobrança', subtitulo, colunasCobranca, dados.linhas, totais(dados))
+            })
+          }
+        >
+          Imprimir ou salvar PDF
+        </button>
+      </div>
+    </Modal>
   )
 }
 
@@ -182,7 +362,7 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
   const historico = useDados<MovimentoFinanceiro[]>(`/${props.aba}/${conta.id}/baixas`)
   const [contaFinanceiraId, setContaFinanceiraId] = useState(0)
   const [valor, setValor] = useState(saldoDe(props.conta))
-  const [data, setData] = useState(hojeIso())
+  const [quando, setQuando] = useState(agoraLocal())
   const [observacao, setObservacao] = useState('')
   const { erro, ocupado, executar } = useAcao()
   const aberta = conta.status === 'ABERTA'
@@ -193,7 +373,7 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
     e.preventDefault()
     executar(async () => {
       const atualizada = await api<Conta>(`/${props.aba}/${conta.id}/baixar`, {
-        body: { valor, data, contaFinanceiraId: escolhida || null, observacao },
+        body: { valor, data: instante(quando), contaFinanceiraId: escolhida || null, observacao },
       })
       setConta(atualizada)
       setValor(saldoDe(atualizada))
@@ -223,8 +403,8 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
           <Campo rotulo="Valor (R$)">
             <Dinheiro required autoFocus valor={valor} onChange={setValor} />
           </Campo>
-          <Campo rotulo="Data">
-            <input type="date" required value={data} onChange={(e) => setData(e.target.value)} />
+          <Campo rotulo="Data e hora">
+            <input type="datetime-local" required value={quando} onChange={(e) => setQuando(e.target.value)} />
           </Campo>
           <Campo rotulo="Observação">
             <input value={observacao} onChange={(e) => setObservacao(e.target.value)} />
@@ -261,10 +441,11 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
           <tbody>
             {historico.dados!.map((m) => (
               <tr key={m.id}>
-                <td>{dataBr(m.data)}</td>
+                <td>{dataHoraBr(m.data, m.comHora)}</td>
                 <td>
                   {origensMovimento[m.origem] ?? m.origem}
                   {m.estornado && <small className="texto-suave"> (estornado)</small>}
+                  {m.extratoId && <small className="bloco texto-suave">conciliado com o banco</small>}
                 </td>
                 <td>{m.contaFinanceira.nome}</td>
                 <td>{m.observacao ?? '—'}</td>
@@ -341,18 +522,35 @@ function FormConta(props: { aba: AbaContas; onFechar: () => void; onSalvo: () =>
 
 // Contas financeiras com o saldo atual e o extrato dos movimentos.
 function CaixaBancos({ seletor }: { seletor: ReactNode }) {
+  const { pode } = useSessao()
+  const lanca = pode('CAIXA_LANCAR')
   const contas = useDados<ContaFinanceira[]>('/contas-financeiras')
   const [f, setF] = useState({ contaFinanceiraId: '', tipo: '', inicio: '', fim: '' })
   const consulta = new URLSearchParams(Object.entries(f).filter(([, valor]) => valor))
   const extrato = useDados<Extrato>(`/movimentos-financeiros?${consulta}`)
   const [editando, setEditando] = useState<ContaFinanceira | 'nova' | null>(null)
+  const [lancando, setLancando] = useState<'avulso' | 'transferencia' | null>(null)
+  const acao = useAcao()
   const lista = contas.dados ?? []
   const linhas = extrato.dados?.linhas ?? []
+  const paginas = usePaginacao(linhas, 50)
   const resumo = extrato.dados?.resumo
 
   function atualizar() {
     contas.recarregar()
     extrato.recarregar()
+  }
+
+  function estornar(m: MovimentoFinanceiro) {
+    const pergunta =
+      m.origem === 'TRANSFERENCIA'
+        ? `Estornar a transferência de ${brl(m.valor)}? As duas pontas são estornadas.`
+        : `Estornar "${m.historico}" (${brl(m.valor)})? O movimento contrário é lançado na conta.`
+    if (!window.confirm(pergunta)) return
+    acao.executar(async () => {
+      await api(`/movimentos-financeiros/${m.id}/estornar`, { method: 'POST' })
+      atualizar()
+    })
   }
 
   return (
@@ -361,16 +559,28 @@ function CaixaBancos({ seletor }: { seletor: ReactNode }) {
         <button type="button" className="botao" onClick={atualizar}>
           Atualizar
         </button>
-        <button type="button" className="botao botao-primario" onClick={() => setEditando('nova')}>
-          Nova conta financeira
-        </button>
+        {lanca && (
+          <>
+            <button type="button" className="botao" onClick={() => setLancando('transferencia')}>
+              Transferir entre contas
+            </button>
+            <button type="button" className="botao" onClick={() => setLancando('avulso')}>
+              Lançamento avulso
+            </button>
+          </>
+        )}
+        {pode('CAIXA_MOVIMENTAR') && (
+          <button type="button" className="botao botao-primario" onClick={() => setEditando('nova')}>
+            Nova conta financeira
+          </button>
+        )}
       </Cabecalho>
       {seletor}
 
       <EstadoLista carregando={contas.carregando} erro={contas.erro} vazia={lista.length === 0} textoVazio="Nenhuma conta financeira cadastrada." />
       <section className="indicadores">
         {lista.map((c) => (
-          <button key={c.id} type="button" className="indicador" onClick={() => setEditando(c)} title="Editar conta financeira">
+          <button key={c.id} type="button" className="indicador" onClick={() => pode('CAIXA_MOVIMENTAR') && setEditando(c)} title="Editar conta financeira">
             <span>
               {c.nome}
               {!c.ativa && ' (inativa)'}
@@ -430,6 +640,7 @@ function CaixaBancos({ seletor }: { seletor: ReactNode }) {
         </section>
       )}
 
+      <Erro mensagem={acao.erro} />
       <section className="painel">
         <EstadoLista carregando={extrato.carregando} erro={extrato.erro} vazia={linhas.length === 0} textoVazio="Nenhuma movimentação para estes filtros." />
         {linhas.length > 0 && (
@@ -443,12 +654,13 @@ function CaixaBancos({ seletor }: { seletor: ReactNode }) {
                 <th className="num">Entrada</th>
                 <th className="num">Saída</th>
                 <th>Usuário</th>
+                <th />
               </tr>
             </thead>
             <tbody>
-              {linhas.map((m) => (
+              {paginas.visiveis.map((m) => (
                 <tr key={m.id}>
-                  <td>{dataBr(m.data)}</td>
+                  <td>{dataHoraBr(m.data, m.comHora)}</td>
                   <td>{m.contaFinanceira.nome}</td>
                   <td>
                     {m.historico}
@@ -462,11 +674,19 @@ function CaixaBancos({ seletor }: { seletor: ReactNode }) {
                   <td className="num">{m.tipo === 'ENTRADA' ? brl(m.valor) : '—'}</td>
                   <td className="num">{m.tipo === 'SAIDA' ? brl(m.valor) : '—'}</td>
                   <td>{m.usuario?.nome ?? '—'}</td>
+                  <td className="num">
+                    {lanca && (m.origem === 'AVULSO' || m.origem === 'TRANSFERENCIA') && !m.estornado && !m.extratoId && (
+                      <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => estornar(m)}>
+                        Estornar
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
 
       {editando && (
@@ -479,7 +699,108 @@ function CaixaBancos({ seletor }: { seletor: ReactNode }) {
           }}
         />
       )}
+      {lancando && (
+        <LancarNoCaixa
+          modo={lancando}
+          contas={lista.filter((c) => c.ativa)}
+          onFechar={() => setLancando(null)}
+          onSalvo={() => {
+            setLancando(null)
+            atualizar()
+          }}
+        />
+      )}
     </>
+  )
+}
+
+// Lançamento avulso numa conta (tarifa, rendimento, aporte...) ou transferência entre duas contas próprias.
+function LancarNoCaixa(props: { modo: 'avulso' | 'transferencia'; contas: ContaFinanceira[]; onFechar: () => void; onSalvo: () => void }) {
+  const transferencia = props.modo === 'transferencia'
+  const unica = props.contas.length === 1 ? props.contas[0].id : 0
+  const [f, setF] = useState({ contaFinanceiraId: unica, destinoId: 0, tipo: 'SAIDA', historico: '', observacao: '' })
+  const [valor, setValor] = useState(0)
+  const [quando, setQuando] = useState(agoraLocal())
+  const { erro, ocupado, executar } = useAcao()
+
+  function enviar(e: FormEvent) {
+    e.preventDefault()
+    executar(async () => {
+      if (transferencia) {
+        await api('/transferencias', { body: { origemId: f.contaFinanceiraId, destinoId: f.destinoId, valor, data: instante(quando), historico: f.historico || null } })
+      } else {
+        await api('/movimentos-financeiros', {
+          body: { contaFinanceiraId: f.contaFinanceiraId, tipo: f.tipo, valor, data: instante(quando), historico: f.historico, observacao: f.observacao || null },
+        })
+      }
+      props.onSalvo()
+    })
+  }
+
+  const seletorConta = (rotulo: string, valorAtual: number, onChange: (id: number) => void, excluir = 0) => (
+    <Campo rotulo={rotulo}>
+      <select required value={valorAtual || ''} onChange={(e) => onChange(Number(e.target.value))}>
+        <option value="">Selecione…</option>
+        {props.contas
+          .filter((c) => c.id !== excluir)
+          .map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome}
+            </option>
+          ))}
+      </select>
+    </Campo>
+  )
+
+  return (
+    <Modal titulo={transferencia ? 'Transferir entre contas' : 'Lançamento avulso'} onFechar={props.onFechar}>
+      <form onSubmit={enviar} className="form">
+        {transferencia ? (
+          <>
+            {seletorConta('Sai da conta', f.contaFinanceiraId, (contaFinanceiraId) => setF({ ...f, contaFinanceiraId }))}
+            {seletorConta('Entra na conta', f.destinoId, (destinoId) => setF({ ...f, destinoId }), f.contaFinanceiraId)}
+          </>
+        ) : (
+          <>
+            {seletorConta('Conta', f.contaFinanceiraId, (contaFinanceiraId) => setF({ ...f, contaFinanceiraId }))}
+            <Campo rotulo="Tipo">
+              <select value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value })}>
+                <option value="SAIDA">Saída</option>
+                <option value="ENTRADA">Entrada</option>
+              </select>
+            </Campo>
+          </>
+        )}
+        <Campo rotulo="Valor (R$)">
+          <Dinheiro required valor={valor} onChange={setValor} />
+        </Campo>
+        <Campo rotulo="Data e hora">
+          <input type="datetime-local" required value={quando} onChange={(e) => setQuando(e.target.value)} />
+        </Campo>
+        <Campo rotulo={transferencia ? 'Descrição (opcional)' : 'Histórico'} largura={transferencia ? 2 : 3}>
+          <input
+            required={!transferencia}
+            value={f.historico}
+            onChange={(e) => setF({ ...f, historico: e.target.value })}
+            placeholder={transferencia ? 'Ex.: reserva para impostos' : 'Ex.: tarifa bancária, rendimento, aporte dos sócios'}
+          />
+        </Campo>
+        {!transferencia && (
+          <Campo rotulo="Observação (opcional)" largura={3}>
+            <input value={f.observacao} onChange={(e) => setF({ ...f, observacao: e.target.value })} />
+          </Campo>
+        )}
+        <Erro mensagem={erro} />
+        <div className="form-pe">
+          <button type="button" className="botao" onClick={props.onFechar}>
+            Cancelar
+          </button>
+          <button className="botao botao-primario" disabled={ocupado || valor <= 0}>
+            {transferencia ? 'Transferir' : 'Lançar'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 
@@ -498,6 +819,16 @@ function FormContaFinanceira(props: { conta: ContaFinanceira | null; onFechar: (
   })
   const { erro, ocupado, executar } = useAcao()
   const banco = f.tipo !== 'CAIXA'
+  // O banco escolhido na lista; "outro" libera a digitação da instituição e do código.
+  const daLista = BANCOS.find((b) => b.codigo === f.codigoBanco && b.nome === f.instituicao)
+  const [outroBanco, setOutroBanco] = useState(!!conta?.instituicao && !daLista)
+
+  function escolherBanco(valor: string) {
+    if (valor === 'OUTRO') return setOutroBanco(true)
+    setOutroBanco(false)
+    const escolhido = BANCOS.find((b) => b.codigo === valor)
+    setF({ ...f, codigoBanco: escolhido?.codigo ?? '', instituicao: escolhido?.nome ?? '' })
+  }
 
   function enviar(e: FormEvent) {
     e.preventDefault()
@@ -524,12 +855,27 @@ function FormContaFinanceira(props: { conta: ContaFinanceira | null; onFechar: (
         </Campo>
         {banco && (
           <>
-            <Campo rotulo="Instituição financeira" largura={2}>
-              <input value={f.instituicao} onChange={(e) => setF({ ...f, instituicao: e.target.value })} />
+            <Campo rotulo="Banco" largura={outroBanco ? 1 : 3}>
+              <select value={outroBanco ? 'OUTRO' : (daLista?.codigo ?? '')} onChange={(e) => escolherBanco(e.target.value)}>
+                <option value="">Selecione…</option>
+                {BANCOS.map((b) => (
+                  <option key={b.codigo} value={b.codigo}>
+                    {b.codigo} · {b.nome}
+                  </option>
+                ))}
+                <option value="OUTRO">Outro banco…</option>
+              </select>
             </Campo>
-            <Campo rotulo="Código do banco">
-              <input value={f.codigoBanco} onChange={(e) => setF({ ...f, codigoBanco: e.target.value })} />
-            </Campo>
+            {outroBanco && (
+              <>
+                <Campo rotulo="Instituição financeira">
+                  <input required value={f.instituicao} onChange={(e) => setF({ ...f, instituicao: e.target.value })} />
+                </Campo>
+                <Campo rotulo="Código do banco">
+                  <input value={f.codigoBanco} inputMode="numeric" onChange={(e) => setF({ ...f, codigoBanco: e.target.value })} />
+                </Campo>
+              </>
+            )}
             <Campo rotulo="Agência">
               <input value={f.agencia} onChange={(e) => setF({ ...f, agencia: e.target.value })} />
             </Campo>
@@ -537,14 +883,15 @@ function FormContaFinanceira(props: { conta: ContaFinanceira | null; onFechar: (
               <input value={f.numeroConta} onChange={(e) => setF({ ...f, numeroConta: e.target.value })} />
             </Campo>
             <Campo rotulo="CPF ou CNPJ do titular">
-              <input value={f.documentoTitular} onChange={(e) => setF({ ...f, documentoTitular: e.target.value })} />
+              <input required value={f.documentoTitular} onChange={(e) => setF({ ...f, documentoTitular: e.target.value })} />
             </Campo>
           </>
         )}
         <Campo rotulo="Saldo inicial (R$)">
-          <Dinheiro valor={f.saldoInicial} onChange={(saldoInicial) => setF({ ...f, saldoInicial })} />
+          <Dinheiro negativo valor={f.saldoInicial} onChange={(saldoInicial) => setF({ ...f, saldoInicial })} />
         </Campo>
-        <label className="marcar col-2">
+        <p className="texto-suave col-2">Use o sinal de menos para uma conta que começa negativa (cheque especial).</p>
+        <label className="marcar col-3">
           <input type="checkbox" checked={f.ativa} onChange={(e) => setF({ ...f, ativa: e.target.checked })} />
           Ativa (aparece para receber e pagar)
         </label>

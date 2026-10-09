@@ -40,14 +40,14 @@ conferir('sem baixa para estornar -> 409', (await chamar('POST', `/contas-recebe
 conferir('sem baixas a conta pode ser cancelada', (await chamar('POST', `/contas-receber/${receber.id}/cancelar`)).json.status === 'CANCELADA')
 
 // Contas financeiras
-const banco = await chamar('POST', '/contas-financeiras', { nome: 'Banco Azul', tipo: 'CONTA_CORRENTE', instituicao: 'Azul S.A.', agencia: '0001', numeroConta: '12345-6', saldoInicial: 50000 })
+const banco = await chamar('POST', '/contas-financeiras', { nome: 'Banco Azul', tipo: 'CONTA_CORRENTE', instituicao: 'Azul S.A.', agencia: '0001', numeroConta: '12345-6', documentoTitular: '11.222.333/0001-81', saldoInicial: 50000 })
 conferir('conta financeira nasce com o saldo inicial', banco.status === 201 && banco.json.saldo === 50000)
-conferir('nome repetido -> 409', (await chamar('POST', '/contas-financeiras', { nome: 'Banco Azul' })).status === 409)
+conferir('nome repetido -> 409', (await chamar('POST', '/contas-financeiras', { nome: 'Banco Azul', documentoTitular: '11222333000181' })).status === 409)
 conferir('tipo inválido -> 400', (await chamar('POST', '/contas-financeiras', { nome: 'Outra', tipo: 'COFRE' })).status === 400)
 const outra = (await chamar('POST', '/contas-receber', { descricao: 'Serviço', valor: 8000, vencimento: hoje })).json
 conferir('com duas contas financeiras é preciso escolher -> 400', (await baixar(outra.id, { valor: 1000 })).status === 400)
 conferir('recebe na conta escolhida', (await baixar(outra.id, { valor: 3000, contaFinanceiraId: banco.json.id })).json.valorPago === 3000 && (await saldoDe(banco.json.id)) === 53000)
-const inativa = (await chamar('POST', '/contas-financeiras', { nome: 'Antiga', ativa: false })).json
+const inativa = (await chamar('POST', '/contas-financeiras', { nome: 'Antiga', tipo: 'CAIXA', ativa: false })).json
 conferir('conta financeira inativa não recebe -> 400', (await baixar(outra.id, { valor: 1000, contaFinanceiraId: inativa.id })).status === 400)
 
 // Contas a pagar seguem o mesmo ciclo, no sentido contrário

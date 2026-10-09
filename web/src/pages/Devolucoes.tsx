@@ -4,11 +4,25 @@ import { useSessao } from '../auth'
 import { avisar } from '../avisos'
 import { brl, dataBr, inteiro } from '../format'
 import { Icone, type NomeIcone } from '../icones'
-import type { Conta, Credito, Devolucao, Pedido, SaldoDevolucao } from '../types'
+import type { Conta, Credito, Devolucao, Pedido, Pessoa, SaldoDevolucao } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
 const SeloCredito = ({ status }: { status: Credito['status'] }) =>
-  status === 'DISPONIVEL' ? <Selo valor="Disponível" tom="bom" /> : <Selo valor="Esgotado" tom="apagado" />
+  status === 'DISPONIVEL' ? (
+    <Selo valor="Disponível" tom="bom" />
+  ) : status === 'CANCELADO' ? (
+    <Selo valor="Cancelado" tom="apagado" />
+  ) : (
+    <Selo valor="Esgotado" tom="apagado" />
+  )
+
+// De onde veio o crédito.
+const origemDoCredito = (c: Credito) =>
+  c.origem === 'DEVOLUCAO' && c.devolucao
+    ? `Devolução nº ${c.devolucao.id} · pedido nº ${c.devolucao.pedido.id}`
+    : c.origem === 'DEPOSITO'
+      ? 'Depósito a maior'
+      : `Avulso${c.descricao ? `: ${c.descricao}` : ''}`
 
 export function Devolucoes() {
   const { pode } = useSessao()
@@ -18,9 +32,12 @@ export function Devolucoes() {
   const devolucoes = useDados<Devolucao[]>(pode('DEVOLUCOES_VISUALIZAR', 'DEVOLUCOES_REGISTRAR') ? '/devolucoes' : null)
   const [usando, setUsando] = useState<Credito | null>(null)
   const [registrando, setRegistrando] = useState(false)
+  const [lancandoCredito, setLancandoCredito] = useState(false)
+  const acao = useAcao()
   const todosCreditos = creditos.dados ?? []
   const listaCreditos = status ? todosCreditos.filter((c) => c.status === status) : todosCreditos
   const listaDevolucoes = devolucoes.dados ?? []
+  const validas = listaDevolucoes.filter((d) => !d.estornada)
   const paginaCreditos = usePaginacao(listaCreditos)
   const paginaDevolucoes = usePaginacao(listaDevolucoes)
   const disponiveis = todosCreditos.filter((c) => c.status === 'DISPONIVEL')
@@ -30,15 +47,28 @@ export function Devolucoes() {
     devolucoes.recarregar()
   }
 
+  function estornar(d: Devolucao) {
+    if (!window.confirm(`Estornar a devolução nº ${d.id}? Os itens voltam a sair do estoque e o crédito de ${brl(d.valorCredito)} é cancelado.`)) return
+    acao.executar(async () => {
+      await api(`/devolucoes/${d.id}/estornar`, { method: 'POST' })
+      atualizar()
+    })
+  }
+
   return (
     <>
       <Cabecalho
         titulo="Devoluções e créditos"
-        descricao="A devolução devolve o estoque e gera um crédito pelo valor líquido do item na venda. O crédito baixa contas a receber do cliente, do médico, do vendedor ou do paciente daquela venda."
+        descricao="A devolução devolve o estoque e gera um crédito pelo valor líquido do item na venda. O crédito baixa contas a receber do cliente, do médico, do vendedor ou do paciente daquela venda, aqui ou ao faturar uma nova venda."
       >
         <button type="button" className="botao" onClick={atualizar}>
           Atualizar
         </button>
+        {pode('CREDITOS_LANCAR') && (
+          <button type="button" className="botao" onClick={() => setLancandoCredito(true)}>
+            Crédito avulso
+          </button>
+        )}
         {pode('DEVOLUCOES_REGISTRAR') && (
           <button type="button" className="botao botao-primario" onClick={() => setRegistrando(true)}>
             Nova devolução
@@ -50,12 +80,14 @@ export function Devolucoes() {
         <section className="indicadores em-3">
           <Indicador icone="saldo" rotulo="Crédito disponível" valor={brl(disponiveis.reduce((s, c) => s + c.saldo, 0))}
             nota={`${disponiveis.length} crédito(s) com saldo`} />
-          <Indicador icone="receber" rotulo="Crédito já usado" valor={brl(todosCreditos.reduce((s, c) => s + c.valorOriginal - c.saldo, 0))}
+          <Indicador icone="receber" rotulo="Crédito já usado"
+            valor={brl(todosCreditos.filter((c) => c.status !== 'CANCELADO').reduce((s, c) => s + c.valorOriginal - c.saldo, 0))}
             nota="Baixado em contas a receber" />
-          <Indicador icone="devolucoes" rotulo="Devoluções" valor={devolucoes.dados ? String(listaDevolucoes.length) : '—'}
-            nota={devolucoes.dados ? `${brl(listaDevolucoes.reduce((s, d) => s + d.valorCredito, 0))} em crédito gerado` : 'Sem acesso à lista'} />
+          <Indicador icone="devolucoes" rotulo="Devoluções" valor={devolucoes.dados ? String(validas.length) : '—'}
+            nota={devolucoes.dados ? `${brl(validas.reduce((s, d) => s + d.valorCredito, 0))} em crédito gerado` : 'Sem acesso à lista'} />
         </section>
       )}
+      <Erro mensagem={acao.erro} />
 
       <section className="painel">
         <div className="painel-topo">
@@ -63,6 +95,7 @@ export function Devolucoes() {
           <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Situação do crédito" className="seletor-compacto">
             <option value="DISPONIVEL">Disponíveis</option>
             <option value="ESGOTADO">Esgotados</option>
+            <option value="CANCELADO">Cancelados</option>
             <option value="">Todos</option>
           </select>
         </div>
@@ -86,7 +119,7 @@ export function Devolucoes() {
                 <tr key={c.id}>
                   <td className="texto-suave">#{c.id}</td>
                   <td>{c.pessoa.nome}</td>
-                  <td>{c.devolucao ? `Devolução nº ${c.devolucao.id} · pedido nº ${c.devolucao.pedido.id}` : '—'}</td>
+                  <td>{origemDoCredito(c)}</td>
                   <td>{dataBr(c.criadoEm)}</td>
                   <td className="num">{brl(c.valorOriginal)}</td>
                   <td className="num">{brl(c.saldo)}</td>
@@ -123,11 +156,12 @@ export function Devolucoes() {
                     <th>Observação</th>
                     <th>Usuário</th>
                     <th className="num">Crédito gerado</th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
                   {paginaDevolucoes.visiveis.map((d) => (
-                    <tr key={d.id}>
+                    <tr key={d.id} className={d.estornada ? 'linha-inativa' : ''}>
                       <td className="texto-suave">#{d.id}</td>
                       <td>{dataBr(d.criadoEm)}</td>
                       <td>Pedido nº {d.pedido.id}</td>
@@ -142,6 +176,17 @@ export function Devolucoes() {
                       <td>{d.observacao ?? '—'}</td>
                       <td>{d.usuario?.nome ?? '—'}</td>
                       <td className="num">{brl(d.valorCredito)}</td>
+                      <td className="num">
+                        {d.estornada ? (
+                          <Selo valor="Estornada" tom="apagado" />
+                        ) : (
+                          pode('DEVOLUCOES_REGISTRAR') && (
+                            <button type="button" className="botao botao-texto" disabled={acao.ocupado} onClick={() => estornar(d)}>
+                              Estornar
+                            </button>
+                          )
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -157,6 +202,17 @@ export function Devolucoes() {
           onFechar={() => setRegistrando(false)}
           onRegistrada={() => {
             setRegistrando(false)
+            setStatus('DISPONIVEL')
+            atualizar()
+          }}
+        />
+      )}
+
+      {lancandoCredito && (
+        <CreditoAvulso
+          onFechar={() => setLancandoCredito(false)}
+          onSalvo={() => {
+            setLancandoCredito(false)
             setStatus('DISPONIVEL')
             atualizar()
           }}
@@ -284,6 +340,56 @@ function RegistrarDevolucao({ onFechar, onRegistrada }: { onFechar: () => void; 
   )
 }
 
+// Crédito lançado à mão para uma pessoa: acordo comercial, compensação, valor pago antecipado...
+function CreditoAvulso(props: { onFechar: () => void; onSalvo: () => void }) {
+  const pessoas = (useDados<Pessoa[]>('/pessoas').dados ?? []).filter((p) => p.ativo)
+  const [pessoaId, setPessoaId] = useState(0)
+  const [valor, setValor] = useState(0)
+  const [descricao, setDescricao] = useState('')
+  const { erro, ocupado, executar } = useAcao()
+
+  function enviar(e: FormEvent) {
+    e.preventDefault()
+    executar(async () => {
+      await api('/creditos', { body: { pessoaId, valor, descricao } })
+      props.onSalvo()
+    })
+  }
+
+  return (
+    <Modal titulo="Crédito avulso" onFechar={props.onFechar}>
+      <form onSubmit={enviar} className="form">
+        <Campo rotulo="Pessoa" largura={2}>
+          <select required autoFocus value={pessoaId || ''} onChange={(e) => setPessoaId(Number(e.target.value))}>
+            <option value="">Selecione…</option>
+            {pessoas.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nome}
+              </option>
+            ))}
+          </select>
+        </Campo>
+        <Campo rotulo="Valor (R$)">
+          <Dinheiro required valor={valor} onChange={setValor} />
+        </Campo>
+        <Campo rotulo="Motivo" largura={3}>
+          <input required value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: acordo comercial, pagamento antecipado" />
+        </Campo>
+        <p className="texto-suave col-3">O crédito fica com a pessoa e pode baixar contas a receber dela, aqui ou no faturamento de uma venda.</p>
+        <Erro mensagem={erro} />
+        <div className="form-pe">
+          <button type="button" className="botao" onClick={props.onFechar}>
+            Cancelar
+          </button>
+          <button className="botao botao-primario" disabled={ocupado || valor <= 0}>
+            Lançar crédito
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 function Indicador(props: { icone: NomeIcone; rotulo: string; valor: string; nota: string }) {
   return (
     <div className="indicador">
@@ -326,12 +432,35 @@ function UsarCredito(props: { credito: Credito; onFechar: () => void }) {
     })
   }
 
+  function estornarUso(uso: Credito['usos'][number]) {
+    if (!window.confirm(`Estornar o uso de ${brl(uso.valor)} em "${uso.contaReceber.descricao}"? O valor volta ao crédito e a conta volta a ter saldo.`)) return
+    executar(async () => {
+      setCredito(await api<Credito>(`/creditos/usos/${uso.id}/estornar`, { method: 'POST' }))
+      abertas.recarregar()
+    })
+  }
+
+  function cancelar() {
+    if (!window.confirm(`Cancelar o crédito avulso nº ${credito.id} de ${brl(credito.valorOriginal)}?`)) return
+    executar(async () => setCredito(await api<Credito>(`/creditos/${credito.id}/cancelar`, { method: 'POST' })))
+  }
+
+  const usado = credito.saldo !== credito.valorOriginal
+
   return (
     <Modal titulo={`Crédito nº ${credito.id} · ${credito.pessoa.nome}`} onFechar={props.onFechar} largo>
       <p>
-        {credito.devolucao && `Devolução nº ${credito.devolucao.id} · pedido nº ${credito.devolucao.pedido.id} · `}
-        original {brl(credito.valorOriginal)} · disponível <strong>{brl(credito.saldo)}</strong> · <SeloCredito status={credito.status} />
+        {origemDoCredito(credito)} · original {brl(credito.valorOriginal)} · disponível <strong>{brl(credito.saldo)}</strong> ·{' '}
+        <SeloCredito status={credito.status} />
       </p>
+      {credito.origem === 'AVULSO' && credito.status === 'DISPONIVEL' && !usado && pode('CREDITOS_LANCAR') && (
+        <p>
+          <button type="button" className="botao botao-perigo" disabled={ocupado} onClick={cancelar}>
+            Cancelar este crédito avulso
+          </button>
+        </p>
+      )}
+      {!podeUsar && <Erro mensagem={erro} />}
       {podeUsar && (
         <form onSubmit={enviar} className="form">
           <Campo rotulo="Pessoa elegível">
@@ -388,15 +517,28 @@ function UsarCredito(props: { credito: Credito; onFechar: () => void }) {
               <th>Pessoa</th>
               <th>Conta a receber</th>
               <th className="num">Valor</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {credito.usos.map((u) => (
-              <tr key={u.id}>
+              <tr key={u.id} className={u.estornado ? 'linha-inativa' : ''}>
                 <td>{dataBr(u.criadoEm)}</td>
                 <td>{u.pessoa.nome}</td>
                 <td>{u.contaReceber.descricao}</td>
                 <td className="num">{brl(u.valor)}</td>
+                <td className="num">
+                  {u.estornado ? (
+                    <Selo valor="Estornado" tom="apagado" />
+                  ) : (
+                    credito.status !== 'CANCELADO' &&
+                    pode('CREDITOS_UTILIZAR') && (
+                      <button type="button" className="botao botao-texto" disabled={ocupado} onClick={() => estornarUso(u)}>
+                        Estornar
+                      </button>
+                    )
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { AppError, idParam, prisma, texto, type Transacao } from '../lib.js'
 import { lerOfx } from '../ofx.js'
-import { registrarBaixa } from './financeiro.js'
+import { comPar, estornarMovimento, registrarBaixa, transferir } from './financeiro.js'
 
 const TAMANHO_MAXIMO = 10 * 1024 * 1024
 const arquivo = z.object({
@@ -103,21 +103,32 @@ async function linhaPendente(tx: Transacao, id: number) {
   return linha
 }
 
-// Baixa o título pelo valor da linha, na conta e na data do extrato.
-async function conciliarComTitulo(tx: Transacao, linha: Awaited<ReturnType<typeof linhaPendente>>, tipo: 'CONTA_RECEBER' | 'CONTA_PAGAR', contaId: number, usuarioId: number) {
-  if ((tipo === 'CONTA_RECEBER') !== (linha.tipo === 'ENTRADA')) {
+type BaixaDeTitulo = { tipo: 'CONTA_RECEBER' | 'CONTA_PAGAR'; contaId: number; valor: number }
+
+// Baixa um ou mais títulos com o valor da linha, na conta e na data do extrato. Com vários títulos
+// (um depósito que paga duas vendas, por exemplo), os valores precisam somar o valor da linha.
+async function conciliarComTitulos(tx: Transacao, linha: Awaited<ReturnType<typeof linhaPendente>>, titulos: BaixaDeTitulo[], usuarioId: number) {
+  if (titulos.some((t) => (t.tipo === 'CONTA_RECEBER') !== (linha.tipo === 'ENTRADA'))) {
     throw new AppError(400, 'Entradas do extrato baixam contas a receber; saídas baixam contas a pagar.')
   }
+  if (new Set(titulos.map((t) => t.contaId)).size !== titulos.length) throw new AppError(400, 'O mesmo título aparece mais de uma vez.')
+  const soma = titulos.reduce((s, t) => s + t.valor, 0)
+  if (soma !== linha.valor) throw new AppError(400, `Os valores dos títulos somam ${(soma / 100).toFixed(2)}; a linha do extrato é de ${(linha.valor / 100).toFixed(2)}.`)
   await concluir(tx, linha.id, usuarioId, 'BAIXA')
-  await registrarBaixa(tx, tipo === 'CONTA_RECEBER' ? 'contas-receber' : 'contas-pagar', contaId, {
-    valor: linha.valor,
-    data: linha.data,
-    contaFinanceiraId: linha.contaFinanceiraId,
-    observacao: `Conciliado com o extrato: ${linha.descricao}`.slice(0, 200),
-    usuarioId,
-    extratoId: linha.id,
-  })
+  for (const t of titulos) {
+    await registrarBaixa(tx, t.tipo === 'CONTA_RECEBER' ? 'contas-receber' : 'contas-pagar', t.contaId, {
+      valor: t.valor,
+      data: linha.data,
+      contaFinanceiraId: linha.contaFinanceiraId,
+      observacao: `Conciliado com o extrato: ${linha.descricao}`.slice(0, 200),
+      usuarioId,
+      extratoId: linha.id,
+    })
+  }
 }
+
+const conciliarComTitulo = (tx: Transacao, linha: Awaited<ReturnType<typeof linhaPendente>>, tipo: BaixaDeTitulo['tipo'], contaId: number, usuarioId: number) =>
+  conciliarComTitulos(tx, linha, [{ tipo, contaId, valor: linha.valor }], usuarioId)
 
 // Liga a linha a um movimento que já estava lançado, sem baixar nada de novo.
 async function vincular(tx: Transacao, linha: Awaited<ReturnType<typeof linhaPendente>>, movimentoId: number, usuarioId: number) {
@@ -190,11 +201,88 @@ export async function rotasConciliacao(app: FastifyInstance) {
     prisma.extratoBancario.findMany({ where: { status: { not: 'PENDENTE' } }, include: comMovimentos, orderBy: [{ conciliadoEm: 'desc' }, { id: 'desc' }], take: 300 }),
   )
 
+  // Um título pelo valor inteiro da linha ({ tipo, contaId }) ou vários, cada um com o seu valor ({ titulos }).
   app.post('/conciliacao/:id/baixar', async (req) => {
     const { id } = idParam.parse(req.params)
-    const dados = z.object({ tipo: z.enum(['CONTA_RECEBER', 'CONTA_PAGAR']), contaId: z.number().int().positive() }).parse(req.body)
+    const tipo = z.enum(['CONTA_RECEBER', 'CONTA_PAGAR'])
+    const dados = z
+      .union([
+        z.object({ tipo, contaId: z.number().int().positive() }),
+        z.object({
+          titulos: z
+            .array(z.object({ tipo, contaId: z.number().int().positive(), valor: z.number().int().positive('Informe o valor de cada título') }))
+            .min(1, 'Escolha ao menos um título')
+            .max(50),
+        }),
+      ])
+      .parse(req.body)
     return prisma.$transaction(async (tx) => {
-      await conciliarComTitulo(tx, await linhaPendente(tx, id), dados.tipo, dados.contaId, req.usuario.id)
+      const linha = await linhaPendente(tx, id)
+      if ('titulos' in dados) await conciliarComTitulos(tx, linha, dados.titulos, req.usuario.id)
+      else await conciliarComTitulo(tx, linha, dados.tipo, dados.contaId, req.usuario.id)
+      return tx.extratoBancario.findUniqueOrThrow({ where: { id }, include: comMovimentos })
+    })
+  })
+
+  // Transferência entre contas próprias: a linha é uma das pontas; a outra é lançada na conta escolhida.
+  // Quando o extrato da outra conta for importado, a linha dela é sugerida para vínculo com essa ponta.
+  app.post('/conciliacao/:id/transferencia', async (req) => {
+    const { id } = idParam.parse(req.params)
+    const { contaFinanceiraId } = z.object({ contaFinanceiraId: z.number().int().positive('Selecione a outra conta') }).parse(req.body)
+    return prisma.$transaction(async (tx) => {
+      const linha = await linhaPendente(tx, id)
+      await concluir(tx, id, req.usuario.id, 'TRANSFERENCIA')
+      const saida = linha.tipo === 'SAIDA'
+      const feita = await transferir(tx, {
+        origemId: saida ? linha.contaFinanceiraId : contaFinanceiraId,
+        destinoId: saida ? contaFinanceiraId : linha.contaFinanceiraId,
+        valor: linha.valor,
+        data: linha.data,
+        historico: linha.descricao.slice(0, 200),
+        usuarioId: req.usuario.id,
+      })
+      await tx.movimentoFinanceiro.update({ where: { id: (saida ? feita.saida : feita.entrada).id }, data: { extratoId: id } })
+      return tx.extratoBancario.findUniqueOrThrow({ where: { id }, include: comMovimentos })
+    })
+  })
+
+  // Desfaz uma linha conciliada e a deixa pendente de novo. O vínculo só é desligado; baixas, lançamentos
+  // avulsos, depósitos e transferências feitos pela conciliação são estornados, e o crédito do depósito a
+  // maior é cancelado (só se ainda não foi usado).
+  app.post('/conciliacao/:id/desfazer', async (req) => {
+    const { id } = idParam.parse(req.params)
+    return prisma.$transaction(async (tx) => {
+      const linha = await tx.extratoBancario.findUnique({ where: { id } })
+      if (!linha) throw new AppError(404, 'Linha do extrato não encontrada.')
+      if (linha.status !== 'CONCILIADA') throw new AppError(409, 'Só linhas conciliadas podem ser desfeitas. Linhas ignoradas são reabertas.')
+      const movimentos = await tx.movimentoFinanceiro.findMany({ where: { extratoId: id, estornado: false, origem: { not: 'ESTORNO' } } })
+
+      if (linha.resolucao === 'VINCULO') {
+        await tx.movimentoFinanceiro.updateMany({ where: { extratoId: id }, data: { extratoId: null } })
+      } else {
+        if (linha.resolucao === 'CREDITO') {
+          const credito = await tx.credito.findFirst({ where: { extratoId: id, status: { not: 'CANCELADO' } } })
+          // Conciliações antigas não guardavam o crédito gerado; sem ele, desfazer deixaria o crédito valendo.
+          if (!credito) throw new AppError(409, 'Não foi possível localizar o crédito gerado por este depósito. Cancele o crédito e estorne os movimentos à mão.')
+          if (credito.saldo !== credito.valorOriginal) {
+            throw new AppError(409, `O crédito nº ${credito.id}, gerado por este depósito, já foi usado. Estorne os usos antes de desfazer.`)
+          }
+          await tx.credito.update({ where: { id: credito.id }, data: { status: 'CANCELADO', saldo: 0 } })
+        }
+        for (const m of movimentos) {
+          // Na transferência, a outra ponta também é estornada, se não estiver conciliada em outra linha.
+          const pontas = await comPar(tx, m)
+          if (pontas.some((p) => p.extratoId && p.extratoId !== id)) {
+            throw new AppError(409, 'A outra ponta desta transferência já foi conciliada no extrato da outra conta. Desfaça aquela linha primeiro.')
+          }
+          for (const p of pontas.filter((x) => !x.estornado)) await estornarMovimento(tx, p, req.usuario.id)
+        }
+        await tx.movimentoFinanceiro.updateMany({ where: { extratoId: id }, data: { extratoId: null } })
+      }
+      await tx.extratoBancario.update({
+        where: { id },
+        data: { status: 'PENDENTE', resolucao: null, observacao: null, conciliadoEm: null, usuarioId: null },
+      })
       return tx.extratoBancario.findUniqueOrThrow({ where: { id }, include: comMovimentos })
     })
   })
@@ -252,7 +340,17 @@ export async function rotasConciliacao(app: FastifyInstance) {
       await tx.movimentoFinanceiro.create({
         data: { contaFinanceiraId: linha.contaFinanceiraId, tipo: 'ENTRADA', valor: excedente, data: linha.data, origem: 'DEPOSITO', historico: `Depósito a maior de ${cliente.nome}`, observacao: linha.descricao, usuarioId: req.usuario.id, extratoId: id },
       })
-      await tx.credito.create({ data: { pessoaId: cliente.id, valorOriginal: excedente, saldo: excedente } })
+      await tx.credito.create({
+        data: {
+          pessoaId: cliente.id,
+          origem: 'DEPOSITO',
+          descricao: `Depósito a maior: ${linha.descricao}`.slice(0, 200),
+          extratoId: id,
+          valorOriginal: excedente,
+          saldo: excedente,
+          usuarioId: req.usuario.id,
+        },
+      })
       return tx.extratoBancario.findUniqueOrThrow({ where: { id }, include: comMovimentos })
     })
   })
@@ -273,7 +371,7 @@ export async function rotasConciliacao(app: FastifyInstance) {
       where: { id, status: 'IGNORADA' },
       data: { status: 'PENDENTE', resolucao: null, observacao: null, conciliadoEm: null, usuarioId: null },
     })
-    if (count === 0) throw new AppError(409, 'Só linhas ignoradas podem ser reabertas. Uma baixa conciliada se desfaz pelo estorno da conta.')
+    if (count === 0) throw new AppError(409, 'Só linhas ignoradas podem ser reabertas. Uma linha conciliada se desfaz pela opção "Desfazer".')
     return prisma.extratoBancario.findUniqueOrThrow({ where: { id }, include: comMovimentos })
   })
 

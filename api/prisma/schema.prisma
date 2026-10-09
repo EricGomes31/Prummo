@@ -482,11 +482,17 @@ model Credito {
   empresaId     Int        @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   pessoaId      Int
   pessoa        Pessoa     @relation(fields: [pessoaId], references: [id])
+  // DEVOLUCAO | DEPOSITO (depósito a maior, na conciliação) | AVULSO (lançado à mão)
+  origem        String     @default("DEVOLUCAO")
+  descricao     String?
   devolucaoId   Int?       @unique
   devolucao     Devolucao? @relation(fields: [devolucaoId], references: [id])
+  // Linha do extrato que gerou o crédito, no depósito a maior.
+  extratoId     Int?
   valorOriginal Int
   saldo         Int
-  status        String     @default("DISPONIVEL") // DISPONIVEL | ESGOTADO
+  status        String     @default("DISPONIVEL") // DISPONIVEL | ESGOTADO | CANCELADO
+  usuarioId     Int?
   criadoEm      DateTime   @default(now())
 
   usos CreditoUso[]
@@ -508,6 +514,9 @@ model CreditoUso {
   usuarioId      Int?
   usuario        Usuario?     @relation(fields: [usuarioId], references: [id])
   criadoEm       DateTime     @default(now())
+  // Estornado: o valor volta ao saldo do crédito e a conta a receber volta a ter saldo.
+  estornado      Boolean      @default(false)
+  estornadoEm    DateTime?
 
   @@index([contaReceberId])
   @@index([empresaId])
@@ -567,7 +576,8 @@ model MovimentoFinanceiro {
   tipo              String // ENTRADA | SAIDA
   valor             Int // sempre positivo
   data              DateTime
-  origem            String // RECEBIMENTO | PAGAMENTO | ESTORNO
+  // RECEBIMENTO | PAGAMENTO | ESTORNO | AVULSO | DEPOSITO (a maior, na conciliação) | TRANSFERENCIA
+  origem            String
   historico         String
   observacao        String?
   contaReceberId    Int?
@@ -578,6 +588,10 @@ model MovimentoFinanceiro {
   usuarioId         Int?
   usuario           Usuario?         @relation(fields: [usuarioId], references: [id])
   criadoEm          DateTime         @default(now())
+  // A data tem a hora informada pelo usuário; sem ela, a data vale pelo dia e a hora não é mostrada.
+  comHora           Boolean          @default(false)
+  // Transferência entre contas próprias: as duas pontas (saída e entrada) têm o mesmo código.
+  transferencia     String?
   // Linha do extrato do banco com que este movimento foi conciliado.
   extratoId         Int?
   extrato           ExtratoBancario? @relation(fields: [extratoId], references: [id])
@@ -586,6 +600,7 @@ model MovimentoFinanceiro {
   @@index([contaReceberId])
   @@index([contaPagarId])
   @@index([extratoId])
+  @@index([transferencia])
   @@index([empresaId])
 }
 
@@ -603,7 +618,7 @@ model ExtratoBancario {
   descricao         String
   arquivo           String?
   status            String          @default("PENDENTE") // PENDENTE | CONCILIADA | IGNORADA
-  // Como foi conciliada: BAIXA | VINCULO | AVULSO | CREDITO
+  // Como foi conciliada: BAIXA (um ou mais títulos) | VINCULO | AVULSO | CREDITO | TRANSFERENCIA
   resolucao         String?
   observacao        String?
   conciliadoEm      DateTime?

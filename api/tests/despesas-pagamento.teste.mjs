@@ -9,8 +9,8 @@ const mesPassado = new Date(agora.getFullYear(), agora.getMonth() - 1, 15).toLoc
 await entrarComoAdmin()
 const admin = sessao.token
 const fornecedor = (await chamar('POST', '/pessoas', { fornecedor: true, nome: 'Papelaria Central' })).json
-const banco = (await chamar('POST', '/contas-financeiras', { nome: 'Banco Azul', tipo: 'CONTA_CORRENTE' })).json
-const inativa = (await chamar('POST', '/contas-financeiras', { nome: 'Conta Antiga', tipo: 'CONTA_CORRENTE', ativa: false })).json
+const banco = (await chamar('POST', '/contas-financeiras', { nome: 'Banco Azul', tipo: 'CONTA_CORRENTE', documentoTitular: '11222333000181' })).json
+const inativa = (await chamar('POST', '/contas-financeiras', { nome: 'Conta Antiga', tipo: 'CONTA_CORRENTE', documentoTitular: '11222333000181', ativa: false })).json
 const base = { fornecedorId: fornecedor.id, elemento: 'Material de escritório', descricao: 'Papel e toner', dataEmissao: hoje, dataCompetencia: hoje, valor: 25000, formaPagamento: 'PIX' }
 const lancar = (dados) => chamar('POST', '/despesas', { ...base, ...dados })
 const saldoBanco = async () => (await chamar('GET', '/contas-financeiras')).json.find((c) => c.id === banco.id).saldo
@@ -36,7 +36,7 @@ await chamar('POST', `/despesas/${cancelar.id}/cancelar`)
 // Dashboard financeiro
 const f = (await chamar('GET', `/dashboards/financeiro?mes=${mes}`)).json
 conferir('despesas do mês pela competência', f.kpis.despesas === 25000 + 5000 + 30000, JSON.stringify(f.kpis))
-conferir('despesas por mês no histórico', f.meses[5].despesas === 60000 && f.meses[4].despesas === 200000)
+conferir('despesas por mês no histórico', f.historico[5].despesas === 60000 && f.historico[4].despesas === 200000)
 conferir('despesas por elemento, juntando maiúsculas', f.despesasPorElemento.length === 2 && f.despesasPorElemento[0].nome === 'Material de escritório' && f.despesasPorElemento[0].total === 30000 && f.despesasPorElemento[1].total === 30000, JSON.stringify(f.despesasPorElemento))
 
 // Relatório de despesas

@@ -8,8 +8,8 @@ const admin = (await chamar('POST', '/auth/login', { email: 'admin@prumo.local',
 sessao.token = admin
 
 // Cenário: um banco, três títulos em aberto e um recebimento já lançado à mão
-const banco = (await chamar('POST', '/contas-financeiras', { nome: 'Banco Verde', tipo: 'CONTA_CORRENTE', numeroConta: '12345-6' })).json
-const outroBanco = (await chamar('POST', '/contas-financeiras', { nome: 'Banco Roxo', tipo: 'CONTA_CORRENTE', numeroConta: '999-0' })).json
+const banco = (await chamar('POST', '/contas-financeiras', { nome: 'Banco Verde', tipo: 'CONTA_CORRENTE', numeroConta: '12345-6', documentoTitular: '11222333000181' })).json
+const outroBanco = (await chamar('POST', '/contas-financeiras', { nome: 'Banco Roxo', tipo: 'CONTA_CORRENTE', numeroConta: '999-0', documentoTitular: '529.982.247-25' })).json
 const pessoa = async (dados) => (await chamar('POST', '/pessoas', dados)).json
 const maria = await pessoa({ cliente: true, nome: 'Maria Souza' })
 const pedro = await pessoa({ cliente: true, nome: 'Pedro Lima' })
