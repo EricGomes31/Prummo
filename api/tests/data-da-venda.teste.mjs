@@ -36,7 +36,7 @@ conferir('lista em ordem de data da venda, mais recente primeiro', lista[0].id =
 // Faturado: mudar só a data não refaz o faturamento.
 await chamar('POST', `/pedidos/${antigo.id}/faturar`, { formaPagamento: 'PIX', primeiroVencimento: hoje })
 const contasAntes = (await chamar('GET', `/pedidos/${antigo.id}`)).json.contasReceber.map((c) => c.id).join()
-const alterado = await chamar('PUT', `/pedidos/${antigo.id}/faturado`, { ...corpo({ data: ontem }), natureza: 'VENDA', formaPagamento: 'PIX', primeiroVencimento: hoje })
+const alterado = await chamar('PUT', `/pedidos/${antigo.id}/faturado`, { motivo: 'Correção de teste', ...corpo({ data: ontem }), natureza: 'VENDA', formaPagamento: 'PIX', primeiroVencimento: hoje })
 const depois = (await chamar('GET', `/pedidos/${antigo.id}`)).json
 conferir('alterar a data do faturado', alterado.status === 200 && diaLocal(new Date(depois.data)) === ontem, JSON.stringify(alterado.json))
 conferir('sem refazer as parcelas', depois.contasReceber.map((c) => c.id).join() === contasAntes)
@@ -56,7 +56,7 @@ conferir('endereço sem rua -> 400', (await chamar('POST', '/pedidos', corpo({ e
 await chamar('POST', `/pedidos/${comEndereco.id}/faturar`, { formaPagamento: 'PIX', primeiroVencimento: hoje })
 const disponiveis = (await chamar('GET', '/entregas/pedidos-disponiveis')).json
 conferir('pedido disponível para entrega leva o endereço', disponiveis.find((p) => p.id === comEndereco.id)?.enderecoEntrega?.logradouro === 'Rua das Acácias')
-const semEndereco = await chamar('PUT', `/pedidos/${comEndereco.id}/faturado`, { ...corpo({ enderecoEntrega: null }), natureza: 'VENDA', formaPagamento: 'PIX', primeiroVencimento: hoje })
+const semEndereco = await chamar('PUT', `/pedidos/${comEndereco.id}/faturado`, { motivo: 'Correção de teste', ...corpo({ enderecoEntrega: null }), natureza: 'VENDA', formaPagamento: 'PIX', primeiroVencimento: hoje })
 conferir('tirar o endereço do faturado volta ao do cliente', semEndereco.status === 200 && semEndereco.json.enderecoEntrega === null, JSON.stringify(semEndereco.json.enderecoEntrega))
 
 await encerrar()

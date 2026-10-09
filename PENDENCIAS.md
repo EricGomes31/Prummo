@@ -63,7 +63,8 @@ Prioridade 1 (uso diário):
 - [ ] Cartões e operadoras (já listado em "Funções do SG Nexus que ainda faltam"): o SG Nexus mostra R$ 3.094,94 pendentes nas operadoras, então está em uso.
 
 Prioridade 2:
-- [ ] Alterar pedido faturado com motivo obrigatório, uma conferência do impacto antes de salvar (total anterior, novo total, diferença) e o histórico de alterações visível no pedido.
+- [x] Alterar pedido faturado com motivo e conferência, e histórico do pedido. Feito em 09/10/2026: a alteração de pedido faturado pede o motivo e mostra a "Conferência final" (total anterior, novo total, diferença, o que muda e se estoque e parcelas serão refeitos), calculada pelo servidor simulando a alteração e desfazendo; os detalhes do pedido mostram o histórico (lançado, alterado, faturado, alterado depois de faturado, cancelado), com o que mudou, o motivo e quem fez; o cancelamento pede o motivo (opcional). Tabela nova `PedidoHistorico`; teste `api/tests/historico-pedido.teste.mjs`. Também: os testes passam a usar banco UTF-8 com o idioma do banco real, e o fundo das janelas perdeu o desfoque, que deslocava calendários, listas de busca e janelas dentro de janelas em formulários longos.
+- [ ] **Aplicar no banco real** a tabela nova `PedidoHistorico` (`npx prisma db push` e `npm run db:rls` em `api`, com cópia de segurança antes) e então publicar.
 - [ ] Janela de baixa (receber/pagar) com os dados da venda (pedido, parcela, vendedor, médico, observações) e os anexos da conta. A API dos anexos já existe.
 - [ ] Detalhes da entrada de estoque (itens, custo, parcelas, documentos).
 - [ ] Relatório de movimentações do caixa e da conciliação (extrato por conta, conciliadas/pendentes) com Excel; exportar o extrato.

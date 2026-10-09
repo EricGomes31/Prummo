@@ -4,7 +4,7 @@ import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { consultarCep } from '../cep'
 import { brl, cepBr, dataBr, formasPagamento, hojeIso, inteiro, mascaraCep, motivosPerda, naturezasPedido, unidadesDe } from '../format'
-import type { Classificacao, Credito, EnderecoEntrega, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
+import type { Classificacao, Credito, EnderecoEntrega, ItemEdicao, NaturezaPedido, Pedido, Pessoa, PreviaAlteracao, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, useAtrasado, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
@@ -197,6 +197,9 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   // Pedido faturado: alterar itens, valores ou pagamento refaz o faturamento.
   const faturado = pedido?.status === 'FATURADO'
   const podeFaturar = !faturado && pode('PEDIDOS_FATURAR')
+  // Pedido faturado: a alteração pede o motivo e passa por uma conferência antes de gravar.
+  const [motivo, setMotivo] = useState('')
+  const [conferencia, setConferencia] = useState<{ previa: PreviaAlteracao; corpo: object } | null>(null)
   const [itens, setItens] = useState<ItemEdicao[]>(
     pedido
       ? pedido.itens.map((i) => ({
@@ -304,16 +307,33 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
           desconto: perda ? 0 : (i.desconto ?? 0),
         })),
       }
-      const caminho = !pedido ? '/pedidos' : faturado ? `/pedidos/${pedido.id}/faturado` : `/pedidos/${pedido.id}`
+      if (pedido && faturado) {
+        // Primeiro a conferência: o servidor simula a alteração e devolve o que vai mudar.
+        const previa = await api<PreviaAlteracao>(`/pedidos/${pedido.id}/faturado/conferir`, { body: corpo })
+        setConferencia({ previa, corpo })
+        return
+      }
+      const caminho = !pedido ? '/pedidos' : `/pedidos/${pedido.id}`
       const salvo = await api<Pedido>(caminho, { method: pedido ? 'PUT' : 'POST', body: corpo })
       props.onSalvo(salvo, faturarDepois)
     })
   }
 
-  function cancelar() {
-    if (!pedido || !window.confirm(`Cancelar o pedido nº ${pedido.numero}?`)) return
+  function confirmarAlteracao() {
+    if (!pedido || !conferencia) return
     executar(async () => {
-      await api(`/pedidos/${pedido.id}/cancelar`, { method: 'POST' })
+      const salvo = await api<Pedido>(`/pedidos/${pedido.id}/faturado`, { method: 'PUT', body: { ...conferencia.corpo, motivo } })
+      setConferencia(null)
+      props.onSalvo(salvo)
+    })
+  }
+
+  function cancelar() {
+    if (!pedido) return
+    const motivoCancelamento = window.prompt(`Cancelar o pedido nº ${pedido.numero}? Se quiser, informe o motivo:`)
+    if (motivoCancelamento === null) return
+    executar(async () => {
+      await api(`/pedidos/${pedido.id}/cancelar`, { body: { motivo: motivoCancelamento || null } })
       props.onSalvo()
     })
   }
@@ -514,7 +534,19 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
             <Documentos origem="PEDIDO" origemId={pedido.id} />
           </div>
         )}
-        <Erro mensagem={erro} />
+        {faturado && (
+          <Campo rotulo="Motivo da alteração" largura={3}>
+            <textarea
+              required
+              minLength={3}
+              rows={2}
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ex.: correção de quantidade, troca de produto, ajuste de preço…"
+            />
+          </Campo>
+        )}
+        <Erro mensagem={conferencia ? '' : erro} />
         <div className="form-pe">
           {pedido && !faturado && pode('PEDIDOS_CANCELAR') && (
             <button type="button" className="botao botao-perigo empurra" onClick={cancelar} disabled={ocupado}>
@@ -526,7 +558,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
           </button>
           {/* Com permissão de faturar, o caminho mais comum (salvar e já faturar) é o botão principal. */}
           <button className={`botao ${podeFaturar ? '' : 'botao-primario'}`} disabled={ocupado || parcelasNaoFecham}>
-            {podeFaturar ? 'Só salvar' : 'Salvar pedido'}
+            {faturado ? 'Revisar alterações' : podeFaturar ? 'Só salvar' : 'Salvar pedido'}
           </button>
           {podeFaturar && (
             <button className="botao botao-primario" data-faturar="sim" disabled={ocupado || parcelasNaoFecham}>
@@ -535,8 +567,58 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
           )}
         </div>
       </form>
+      {conferencia && pedido && (
+        <Modal titulo={`Conferência final · pedido nº ${pedido.numero}`} onFechar={() => setConferencia(null)}>
+          <div className="indicadores em-3">
+            <div className="indicador">
+              <span>Total anterior</span>
+              <strong>{brl(conferencia.previa.totalAnterior)}</strong>
+            </div>
+            <div className="indicador">
+              <span>Novo total</span>
+              <strong>{brl(conferencia.previa.totalNovo)}</strong>
+            </div>
+            <div className="indicador">
+              <span>Diferença</span>
+              <strong className={conferencia.previa.totalNovo < conferencia.previa.totalAnterior ? 'texto-ruim' : undefined}>
+                {conferencia.previa.totalNovo >= conferencia.previa.totalAnterior ? '+' : '−'}
+                {brl(Math.abs(conferencia.previa.totalNovo - conferencia.previa.totalAnterior))}
+              </strong>
+            </div>
+          </div>
+          <h3>O que muda</h3>
+          <ul className="lista-mudancas">
+            {conferencia.previa.mudancas.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+          {conferencia.previa.refaz && (
+            <p className="aviso-alerta">
+              Ao confirmar, o estoque dos itens volta e é baixado de novo, e as parcelas em aberto dão lugar às novas. Valores já recebidos impedem a alteração.
+            </p>
+          )}
+          <p className="texto-suave">Motivo: {motivo}</p>
+          <Erro mensagem={erro} />
+          <div className="form-pe">
+            <button type="button" className="botao" onClick={() => setConferencia(null)}>
+              Voltar e editar
+            </button>
+            <button type="button" className="botao botao-primario" onClick={confirmarAlteracao} disabled={ocupado}>
+              Confirmar e salvar
+            </button>
+          </div>
+        </Modal>
+      )}
     </Modal>
   )
+}
+
+const tiposHistorico: Record<string, string> = {
+  CRIADO: 'Lançado',
+  ALTERADO: 'Alterado',
+  FATURADO: 'Faturado',
+  ALTERADO_FATURADO: 'Alterado depois de faturado',
+  CANCELADO: 'Cancelado',
 }
 
 function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => void }) {
@@ -673,9 +755,10 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
   const { erro, ocupado, executar } = useAcao()
 
   function cancelar() {
-    if (!window.confirm('Cancelar este pedido? O estoque volta e as parcelas em aberto são canceladas.')) return
+    const motivo = window.prompt('Cancelar este pedido? O estoque volta e as parcelas em aberto são canceladas. Se quiser, informe o motivo:')
+    if (motivo === null) return
     executar(async () => {
-      await api(`/pedidos/${props.pedidoId}/cancelar`, { method: 'POST' })
+      await api(`/pedidos/${props.pedidoId}/cancelar`, { body: { motivo: motivo || null } })
       props.onAlterado()
     })
   }
@@ -753,6 +836,37 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
           )}
           <h3>Anexos</h3>
           <Documentos origem="PEDIDO" origemId={pedido.id} />
+          {pedido.historico && pedido.historico.length > 0 && (
+            <>
+              <h3>Histórico</h3>
+              <table className="historico">
+                <thead>
+                  <tr>
+                    <th>Quando</th>
+                    <th>O que aconteceu</th>
+                    <th>Quem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pedido.historico.map((h) => (
+                    <tr key={h.id}>
+                      <td className="sem-quebra">{new Date(h.criadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                      <td>
+                        <strong>{tiposHistorico[h.tipo] ?? h.tipo}</strong>
+                        {h.motivo && <span className="bloco">Motivo: {h.motivo}</span>}
+                        {h.descricao.split('\n').map((linha) => (
+                          <small key={linha} className="bloco texto-suave">
+                            {linha}
+                          </small>
+                        ))}
+                      </td>
+                      <td>{h.usuario?.nome ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
           <Erro mensagem={erro} />
           <div className="form-pe">
             {pedido.status === 'FATURADO' && pode('PEDIDOS_CANCELAR') && (

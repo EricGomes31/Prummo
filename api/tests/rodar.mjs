@@ -61,6 +61,9 @@ const postgres = new EmbeddedPostgres({
   password: 'prumo',
   port: portaBanco,
   persistent: false,
+  // UTF-8 e idioma inglês, como o banco de produção (Supabase, en_US.UTF-8); no Windows o padrão seria WIN1252,
+  // que recusa símbolos como "→". O idioma importa para a busca igualar maiúsculas e minúsculas acentuadas.
+  initdbFlags: ['--encoding=UTF8', '--locale=en-US'],
   onLog: () => {},
   onError: () => {},
 })
@@ -93,8 +96,8 @@ try {
       env: ambiente(banco, { PORT: String(portaApi) }),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
-    api.stdout.on('data', (d) => (registro = (registro + d).slice(-4000)))
-    api.stderr.on('data', (d) => (registro = (registro + d).slice(-4000)))
+    api.stdout.on('data', (d) => (registro = (registro + d).slice(-40000)))
+    api.stderr.on('data', (d) => (registro = (registro + d).slice(-40000)))
     const endereco = `http://127.0.0.1:${portaApi}`
     let noAr = false
     for (let n = 0; n < 80 && !noAr && api.exitCode === null; n++) {
@@ -120,6 +123,8 @@ try {
     // Com falha mostra só o que deu errado; sem RESULTADO a suíte quebrou e a saída inteira interessa.
     const mostrar = detalhe || !resultado ? saida : saida.filter((l) => l.startsWith('FALHA'))
     for (const linha of mostrar.filter((l) => !l.startsWith('RESULTADO '))) console.log(`       ${linha}`)
+    // Com --detalhe, a falha mostra também o fim do registro da API (erros internos aparecem só lá).
+    if (detalhe && !passou) console.log(registro.split('\n').map((l) => `       | ${l}`).join('\n'))
   }
   await cliente.end()
 } catch (erro) {

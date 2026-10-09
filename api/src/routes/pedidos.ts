@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { AppError, centavos, dataIso, dia, fimDeHoje, idParam, intervalo, prisma, quantidadeTexto, somarMeses, texto, type Transacao } from '../lib.js'
+import { mudancas, registrar, retratar } from '../historicoPedido.js'
 import { calcularDescontoPromocao } from '../promocao.js'
 import { aplicarCredito } from './devolucoes.js'
 import { resolverUnidade } from './produtos.js'
@@ -56,6 +57,9 @@ function lerVencimentos(valor: unknown): Vencimento[] | null {
   if (!Array.isArray(valor) || valor.length === 0) return null
   return (valor as Vencimento[]).filter((v) => /^\d{4}-\d{2}-\d{2}$/.test(v?.vencimento) && Number.isInteger(v?.valor)).sort((a, b) => a.vencimento.localeCompare(b.vencimento))
 }
+
+// Erro que só serve para desfazer a transação da conferência.
+class Desfazer extends Error {}
 
 const reais = (centavos: number) => (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -379,7 +383,11 @@ export async function rotasPedidos(app: FastifyInstance) {
     const { id } = idParam.parse(req.params)
     const pedido = await prisma.pedido.findUnique({
       where: { id },
-      include: { ...comDetalhes, contasReceber: { orderBy: { vencimento: 'asc' } } },
+      include: {
+        ...comDetalhes,
+        contasReceber: { orderBy: { vencimento: 'asc' } },
+        historico: { orderBy: { id: 'desc' }, include: { usuario: { select: { id: true, nome: true } } } },
+      },
     })
     if (!pedido) throw new AppError(404, 'Pedido não encontrado.')
     return pedido
@@ -404,7 +412,16 @@ export async function rotasPedidos(app: FastifyInstance) {
         data: { ultimoPedido: { increment: 1 } },
         select: { ultimoPedido: true },
       })
-      return tx.pedido.create({ data: { ...campos, numero }, include: comDetalhes })
+      const criado = await tx.pedido.create({ data: { ...campos, numero }, include: comDetalhes })
+      const quantos = criado.itens.length
+      await registrar(tx, {
+        pedidoId: criado.id,
+        tipo: 'CRIADO',
+        descricao: `Pedido lançado com ${quantos} ${quantos === 1 ? 'item' : 'itens'}, total ${reais(criado.total)}.`,
+        totalNovo: criado.total,
+        usuarioId: req.usuario.id,
+      })
+      return criado
     })
     return reply.status(201).send(pedido)
   })
@@ -416,8 +433,9 @@ export async function rotasPedidos(app: FastifyInstance) {
       const atual = await tx.pedido.findUnique({ where: { id } })
       if (!atual) throw new AppError(404, 'Pedido não encontrado.')
       if (atual.status !== 'ABERTO') throw new AppError(409, 'Só pedidos em aberto podem ser alterados.')
+      const antes = await retratar(tx, id)
       await tx.pedidoItem.deleteMany({ where: { pedidoId: id } })
-      return tx.pedido.update({
+      const alterado = await tx.pedido.update({
         where: { id },
         data: {
           clienteId: dados.clienteId,
@@ -430,6 +448,11 @@ export async function rotasPedidos(app: FastifyInstance) {
         },
         include: comDetalhes,
       })
+      const lista = mudancas(antes, await retratar(tx, id))
+      if (lista.length) {
+        await registrar(tx, { pedidoId: id, tipo: 'ALTERADO', descricao: lista.join('\n'), totalAnterior: antes.total, totalNovo: alterado.total, usuarioId: req.usuario.id })
+      }
+      return alterado
     })
   })
 
@@ -437,10 +460,7 @@ export async function rotasPedidos(app: FastifyInstance) {
   // Mudar itens, valores ou a condição de pagamento refaz o faturamento: o estoque volta, as parcelas em
   // aberto são canceladas e o pedido é faturado de novo. Para isso nada pode ter sido recebido, devolvido
   // ou estar em rota. A natureza não muda depois do faturamento.
-  app.put('/pedidos/:id/faturado', async (req) => {
-    const { id } = idParam.parse(req.params)
-    const dados = corpo.parse(req.body)
-    return prisma.$transaction(async (tx) => {
+  async function alterarFaturado(tx: Transacao, id: number, dados: Corpo, usuarioId: number, motivo: string | null) {
       const atual = await tx.pedido.findUnique({
         where: { id },
         include: { itens: true, contasReceber: true, entregas: true, _count: { select: { devolucoes: { where: { estornada: false } } } } },
@@ -450,6 +470,7 @@ export async function rotasPedidos(app: FastifyInstance) {
       if (dados.natureza !== atual.natureza) throw new AppError(400, 'A natureza da operação não muda depois do faturamento.')
       const pessoas = await pessoasDoPedido(dados)
       const venda = atual.natureza === 'VENDA'
+      const antes = await retratar(tx, id)
 
       const novaCondicao = venda ? condicaoFinal(atual, dados) : null
       const mudouCondicao =
@@ -498,9 +519,45 @@ export async function rotasPedidos(app: FastifyInstance) {
           await tx.contaReceber.updateMany({ where: { pedidoId: id, status: 'ABERTA' }, data: { pessoaId: dados.clienteId } })
         }
       }
-      return tx.pedido.findUniqueOrThrow({ where: { id }, include: { ...comDetalhes, contasReceber: { orderBy: { vencimento: 'asc' } } } })
-    })
+      const refaz = mudouValores || mudouCondicao
+      const depois = await retratar(tx, id)
+      const lista = mudancas(antes, depois)
+      if (lista.length === 0) throw new AppError(400, 'Nada foi alterado no pedido.')
+      if (refaz) lista.push('Estoque e parcelas em aberto refeitos.')
+      if (motivo !== null) {
+        await registrar(tx, { pedidoId: id, tipo: 'ALTERADO_FATURADO', descricao: lista.join('\n'), motivo, totalAnterior: antes.total, totalNovo: depois.total, usuarioId })
+      }
+      const pedido = await tx.pedido.findUniqueOrThrow({ where: { id }, include: { ...comDetalhes, contasReceber: { orderBy: { vencimento: 'asc' } } } })
+      return { pedido, previa: { totalAnterior: antes.total, totalNovo: depois.total, mudancas: lista, refaz } }
+  }
+
+  const motivoAlteracao = z.string().trim().min(3, 'Informe o motivo da alteração.').max(500)
+
+  app.put('/pedidos/:id/faturado', async (req) => {
+    const { id } = idParam.parse(req.params)
+    const dados = corpo.parse(req.body)
+    const { motivo } = z.object({ motivo: motivoAlteracao }).parse(req.body)
+    return prisma.$transaction(async (tx) => (await alterarFaturado(tx, id, dados, req.usuario.id, motivo)).pedido)
   })
+
+  // Conferência antes de alterar um pedido faturado: faz a alteração de verdade, para o resumo ser exatamente
+  // o que vai acontecer (total anterior, novo total, o que muda, se estoque e parcelas serão refeitos), e
+  // desfaz tudo no fim. Os mesmos erros da gravação aparecem aqui.
+  app.post('/pedidos/:id/faturado/conferir', async (req) => {
+    const { id } = idParam.parse(req.params)
+    const dados = corpo.parse(req.body)
+    let previa: Awaited<ReturnType<typeof alterarFaturado>>['previa'] | null = null
+    await prisma
+      .$transaction(async (tx) => {
+        previa = (await alterarFaturado(tx, id, dados, req.usuario.id, null)).previa
+        throw new Desfazer()
+      })
+      .catch((e) => {
+        if (!(e instanceof Desfazer)) throw e
+      })
+    return previa
+  })
+
 
   // Faturar baixa o estoque e, na venda, gera as parcelas a receber. Bonificação e perda só baixam o estoque.
   // Forma, parcelas e vencimento escolhidos no pedido valem quando não vierem aqui. Créditos do cliente
@@ -539,6 +596,16 @@ export async function rotasPedidos(app: FastifyInstance) {
           if (resta === 0) break
         }
       }
+      const usado = dados.creditos.reduce((s, c) => s + c.valor, 0)
+      await registrar(tx, {
+        pedidoId: id,
+        tipo: 'FATURADO',
+        descricao: condicaoVenda
+          ? `Faturado: ${condicaoVenda.parcelas} parcela(s), total ${reais(pedido.total)}.${usado ? ` ${reais(usado)} pagos com crédito do cliente.` : ''}`
+          : 'Confirmado: estoque baixado, sem contas a receber.',
+        totalNovo: pedido.total,
+        usuarioId: req.usuario.id,
+      })
       return tx.pedido.update({
         where: { id },
         data: {
@@ -554,6 +621,7 @@ export async function rotasPedidos(app: FastifyInstance) {
   // Cancelar um pedido faturado devolve o estoque e cancela as parcelas ainda abertas.
   app.post('/pedidos/:id/cancelar', async (req) => {
     const { id } = idParam.parse(req.params)
+    const { motivo } = z.object({ motivo: z.string().trim().max(500).nullish() }).parse(req.body ?? {})
     return prisma.$transaction(async (tx) => {
       const pedido = await tx.pedido.findUnique({
         where: { id },
@@ -580,6 +648,14 @@ export async function rotasPedidos(app: FastifyInstance) {
         }
         await desfazerFaturamento(tx, id, 'CANCELAMENTO')
       }
+      await registrar(tx, {
+        pedidoId: id,
+        tipo: 'CANCELADO',
+        descricao: pedido.status === 'FATURADO' ? 'Cancelado: estoque devolvido e parcelas em aberto canceladas.' : 'Cancelado.',
+        motivo: motivo || null,
+        totalAnterior: pedido.total,
+        usuarioId: req.usuario.id,
+      })
       return tx.pedido.update({ where: { id }, data: { status: 'CANCELADO' }, include: comDetalhes })
     })
   })

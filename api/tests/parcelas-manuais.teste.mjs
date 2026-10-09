@@ -45,11 +45,11 @@ conferir('null volta às parcelas mensais iguais', contas.length === 2 && contas
 
 // Alterar o pedido faturado trocando as parcelas refaz as contas.
 const corpoA = { clienteId: cliente.id, natureza: 'VENDA', itens: [{ produtoId: prod.id, quantidade: 1, precoUnitario: 10000 }], formaPagamento: 'BOLETO' }
-const alt = await chamar('PUT', `/pedidos/${a.id}/faturado`, { ...corpoA, vencimentos: [{ vencimento: '2027-01-10', valor: 10000 }] })
+const alt = await chamar('PUT', `/pedidos/${a.id}/faturado`, { motivo: 'Correção de teste', ...corpoA, vencimentos: [{ vencimento: '2027-01-10', valor: 10000 }] })
 contas = await contasDe(a.id)
 conferir('alterar as parcelas refaz as contas', alt.status === 200 && contas.length === 1 && dataDe(contas[0]) === '2027-01-10', JSON.stringify(alt.json))
 // Mudar a quantidade sem ajustar as parcelas é recusado, porque elas não fecham o novo total.
-const semAjuste = await chamar('PUT', `/pedidos/${a.id}/faturado`, { ...corpoA, itens: itens(2) })
+const semAjuste = await chamar('PUT', `/pedidos/${a.id}/faturado`, { motivo: 'Correção de teste', ...corpoA, itens: itens(2) })
 conferir('novo total sem ajustar as parcelas -> 400', semAjuste.status === 400, JSON.stringify(semAjuste.json))
 conferir('e nada muda', (await contasDe(a.id)).map((x) => x.valor).join() === '10000')
 

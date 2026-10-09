@@ -38,14 +38,14 @@ conferir('bonificação não guarda condição de pagamento', bonificacao.json.f
 // Alteração de pedido faturado: só cadastro
 const id = comCondicao.json.id
 const corpoAtual = { clienteId: cliente.id, formaPagamento: 'LINK_CARTAO', parcelas: 3, primeiroVencimento: dia(30), itens: [item(A, 3)] }
-const alterar = (corpo) => chamar('PUT', `/pedidos/${id}/faturado`, corpo)
+const alterar = (corpo) => chamar('PUT', `/pedidos/${id}/faturado`, { motivo: 'Correção de teste', ...corpo })
 const saldoAntes = await saldo(A)
 const cadastro = await alterar({ ...corpoAtual, clienteId: outro.id, vendedorId: vendedor.id, observacao: 'Ajuste de cadastro' })
 contas = await contasDo(id)
 conferir('alteração só de cadastro mantém parcelas e estoque', cadastro.status === 200 && cadastro.json.vendedor.nome === 'Vito Vendedor' && cadastro.json.cliente.id === outro.id && contas.filter((c) => c.status === 'ABERTA').length === 3 && (await saldo(A)) === saldoAntes, JSON.stringify(cadastro.json?.erro ?? ''))
 conferir('parcelas acompanham o novo cliente', (await chamar('GET', '/contas-receber?status=ABERTA')).json.filter((c) => c.descricao.startsWith(`Pedido nº ${comCondicao.json.numero} `)).every((c) => c.pessoa.id === outro.id))
 conferir('natureza não muda depois do faturamento -> 400', (await alterar({ ...corpoAtual, natureza: 'BONIFICACAO' })).status === 400)
-conferir('pedido em aberto não usa esta rota -> 409', (await chamar('PUT', `/pedidos/${bonificacao.json.id}/faturado`, { clienteId: cliente.id, natureza: 'BONIFICACAO', itens: [item(A, 1)] })).status === 409)
+conferir('pedido em aberto não usa esta rota -> 409', (await chamar('PUT', `/pedidos/${bonificacao.json.id}/faturado`, { motivo: 'Correção de teste', clienteId: cliente.id, natureza: 'BONIFICACAO', itens: [item(A, 1)] })).status === 409)
 
 // Alteração de itens e pagamento: refaz o faturamento
 const novo = await alterar({ ...corpoAtual, clienteId: outro.id, parcelas: 2, frete: 1000, itens: [item(A, 1), item(B, 2)] })
@@ -69,7 +69,7 @@ conferir('com parcela recebida, o cadastro ainda muda', soObs.status === 200 && 
 const venda2 = (await pedir({ formaPagamento: 'PIX', primeiroVencimento: hoje, itens: [item(A, 2)] })).json
 await chamar('POST', `/pedidos/${venda2.id}/faturar`, {})
 await chamar('POST', '/devolucoes', { pedidoId: venda2.id, itens: [{ pedidoItemId: venda2.itens[0].id, quantidade: 1 }] })
-conferir('pedido com devolução não muda valores -> 409', (await chamar('PUT', `/pedidos/${venda2.id}/faturado`, { clienteId: cliente.id, formaPagamento: 'PIX', primeiroVencimento: hoje, itens: [item(A, 1)] })).status === 409)
+conferir('pedido com devolução não muda valores -> 409', (await chamar('PUT', `/pedidos/${venda2.id}/faturado`, { motivo: 'Correção de teste', clienteId: cliente.id, formaPagamento: 'PIX', primeiroVencimento: hoje, itens: [item(A, 1)] })).status === 409)
 
 // Campanha: desconto manual só fora dos produtos dela
 const promo = (await chamar('POST', '/promocoes', { nome: 'Dez por cento A', modalidade: 'PERCENTUAL', percentual: 1000, inicio: dia(-1), fim: dia(1), itens: [{ produtoId: A.id, quantidade: 1 }] })).json

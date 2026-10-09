@@ -16,14 +16,14 @@ datasource db {
 // assim ele pode ir junto em qualquer gravação, inclusive nas aninhadas.
 
 model Empresa {
-  id        Int      @id @default(autoincrement())
-  nome      String
-  documento String? // CNPJ ou CPF
+  id           Int      @id @default(autoincrement())
+  nome         String
+  documento    String? // CNPJ ou CPF
   // Empresa inativa: ninguém dela consegue entrar, e as sessões abertas param na próxima chamada.
-  ativa     Boolean  @default(true)
+  ativa        Boolean  @default(true)
   // Último número de pedido usado. Cada empresa numera os próprios pedidos a partir do 1.
-  ultimoPedido Int   @default(0)
-  criadoEm  DateTime @default(now())
+  ultimoPedido Int      @default(0)
+  criadoEm     DateTime @default(now())
 
   usuarios Usuario[]
 }
@@ -50,6 +50,7 @@ model Usuario {
   devolucoes        Devolucao[]
   usosCredito       CreditoUso[]
   historicoEntregas EntregaHistorico[]
+  historicoPedidos  PedidoHistorico[]
   despesas          Despesa[]
   extratos          ExtratoBancario[]
 
@@ -318,6 +319,7 @@ model Pedido {
   contasReceber ContaReceber[]
   entregas      Entrega[]
   devolucoes    Devolucao[]
+  historico     PedidoHistorico[]
 
   @@unique([empresaId, numero])
   @@index([status])
@@ -368,6 +370,25 @@ model Entrega {
 }
 
 // Cada mudança de situação da entrega, feita no sistema ou pelo entregador no link da rota.
+// O que aconteceu com o pedido: lançado, alterado, faturado, alterado depois de faturado, cancelado.
+model PedidoHistorico {
+  id            Int      @id @default(autoincrement())
+  empresaId     Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  pedidoId      Int
+  pedido        Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  tipo          String // CRIADO | ALTERADO | FATURADO | ALTERADO_FATURADO | CANCELADO
+  descricao     String // o que mudou, uma mudança por linha
+  motivo        String?
+  totalAnterior Int?
+  totalNovo     Int?
+  usuarioId     Int?
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id])
+  criadoEm      DateTime @default(now())
+
+  @@index([pedidoId])
+  @@index([empresaId])
+}
+
 model EntregaHistorico {
   id         Int      @id @default(autoincrement())
   empresaId  Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))

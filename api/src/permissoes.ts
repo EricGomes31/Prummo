@@ -146,6 +146,7 @@ const REGRAS: Record<string, Permissao[]> = {
   'PUT /pedidos/:id': ['PEDIDOS_CADASTRAR'],
   'POST /pedidos/:id/faturar': ['PEDIDOS_FATURAR'],
   'PUT /pedidos/:id/faturado': ['PEDIDOS_ALTERAR_FATURADO'],
+  'POST /pedidos/:id/faturado/conferir': ['PEDIDOS_ALTERAR_FATURADO'],
   'POST /pedidos/:id/cancelar': ['PEDIDOS_CANCELAR'],
 
   'GET /entregas': ['LOGISTICA_VISUALIZAR', 'LOGISTICA_GERENCIAR'],

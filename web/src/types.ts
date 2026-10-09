@@ -138,6 +138,8 @@ export type Pedido = {
   // Parcelas escolhidas à mão (data e valor); null = mensais de valor igual.
   vencimentos: { vencimento: string; valor: number }[] | null
   enderecoEntrega: EnderecoEntrega | null
+  // Só no detalhe do pedido: o que aconteceu com ele, do mais recente para o mais antigo.
+  historico?: HistoricoPedido[]
   itens: { id: number; produtoId: number; unidade: string | null; quantidade: number; precoUnitario: number; desconto: number; produto: ProdutoRef }[]
   contasReceber?: Conta[]
 }
@@ -555,6 +557,20 @@ export type DashboardFinanceiro = {
 }
 
 export type PedidoParaEntrega = { id: number; numero: number; total: number; faturadoEm: string | null; cliente: Pessoa; enderecoEntrega: EnderecoEntrega | null }
+
+export type HistoricoPedido = {
+  id: number
+  tipo: 'CRIADO' | 'ALTERADO' | 'FATURADO' | 'ALTERADO_FATURADO' | 'CANCELADO'
+  descricao: string
+  motivo: string | null
+  totalAnterior: number | null
+  totalNovo: number | null
+  criadoEm: string
+  usuario: { id: number; nome: string } | null
+}
+
+// Resumo da alteração de um pedido faturado, antes de gravar.
+export type PreviaAlteracao = { totalAnterior: number; totalNovo: number; mudancas: string[]; refaz: boolean }
 
 // Endereço de entrega diferente do cadastro do cliente, escolhido no pedido.
 export type EnderecoEntrega = {
