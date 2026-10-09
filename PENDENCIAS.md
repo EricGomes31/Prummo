@@ -12,7 +12,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 
 - [x] Trocar a senha do administrador (`admin@prumo.local`). Feito em 08/10/2026: senha aleatória de 24 caracteres, guardada em `SEED_ADMIN_PASSWORD` no `api/.env` desta máquina.
 - [x] Limite de tentativas no login. Feito em 09/10/2026: 5 senhas erradas por e-mail e IP, ou 20 por IP, bloqueiam por 15 minutos.
-- [ ] Redefinir a senha do banco no Supabase e atualizar `DATABASE_URL` e `DIRECT_URL` no `api/.env` e nas variáveis do Railway. A senha atual foi digitada em uma conversa.
+- [x] Feito em 09/10/2026: redefinir a senha do banco no Supabase. A senha nova está no `api/.env.producao` (fora do Git) e nas variáveis `DATABASE_URL` e `DIRECT_URL` do Railway; o site ficou alguns minutos fora durante a troca e voltou, conferido. Cópia de segurança com a senha nova conferida.
 - [x] Remover a chave SSH `prumo-deploy`. Feito em 08/10/2026: excluída no cPanel da HostGator e apagada deste computador.
 
 ## Cadastros a completar
@@ -31,6 +31,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 - [ ] Apontar um subdomínio de `labsinfinity.com.br` (por exemplo `prumo.labsinfinity.com.br`) para o sistema, na Cloudflare.
 - [x] Feito em 09/10/2026: separar o banco de desenvolvimento do banco de produção. O `api/.env` agora aponta para um PostgreSQL nesta máquina (`npm run banco`, porta 5433, dados em `api/.banco-local`, fora do Git); o banco real ficou só no `api/.env.producao` (fora do Git). `npm run banco:copiar` tira uma cópia do banco real (só leitura) e carrega no local; o script de carga recusa qualquer banco que não seja local. Cópia carregada (262 linhas), API local conferida contra ele e as 32 suítes passaram. Instruções no README e no ANDAMENTO.
 - [ ] Avaliar o plano pago do Supabase. O gratuito pausa o projeto após cerca de uma semana sem uso e não tem backup automático.
+- [ ] Cópia diária do banco pelo GitHub. Em 09/10/2026 ficou pronto o `.github/workflows/copia-diaria.yml` (todo dia às 03:00, guarda a cópia por 30 dias como artefato do repositório privado). Falta: trocar a senha do Supabase, cadastrar o segredo `BANCO_URL` no GitHub, publicar o arquivo e conferir a primeira execução. Ao migrar para a VPS, a cópia passa a sair da própria VPS.
 - [x] Migrar o `railway.json` para o formato novo do Railway. Feito e aplicado em 09/10/2026: `.railway/railway.ts`.
 - [x] Colocar o projeto no Git. Feito em 08/10/2026: repositório privado `github.com/labsinfinitys-svg/Prumo`, branch `main`.
 - [x] Instalar no projeto as skills da pasta `Desktop\Skills`. Feito em 09/10/2026: brainstorming, find-skills, frontend-design e ui-ux-pro-max copiadas para `.claude/skills` (a skill-creator já existia).
