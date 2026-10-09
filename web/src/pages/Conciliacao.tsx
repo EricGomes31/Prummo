@@ -4,7 +4,7 @@ import { api, lerEmBase64, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { brl, dataBr } from '../format'
 import type { ArquivoOfx, Conta, ContaFinanceira, LinhaExtrato, Pessoa, SugestaoConciliacao } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
 const resolucoes: Record<string, string> = {
   BAIXA: 'Baixa de título',
@@ -30,7 +30,9 @@ export function Conciliacao({ seletor }: { seletor: ReactNode }) {
   const [aviso, setAviso] = useState('')
   const acao = useAcao()
   const linhas = pendentes.dados ?? []
+  const paginaPendentes = usePaginacao(linhas)
   const feitas = concluidas.dados ?? []
+  const paginaFeitas = usePaginacao(feitas)
 
   const atualizar = () => {
     pendentes.recarregar()
@@ -139,7 +141,7 @@ export function Conciliacao({ seletor }: { seletor: ReactNode }) {
                 </tr>
               </thead>
               <tbody>
-                {linhas.map((l) => {
+                {paginaPendentes.visiveis.map((l) => {
                   const melhor = l.sugestoes?.[0]
                   return (
                     <tr key={l.id}>
@@ -168,6 +170,7 @@ export function Conciliacao({ seletor }: { seletor: ReactNode }) {
               </tbody>
             </table>
           )}
+          {paginaPendentes.controle}
         </section>
       )}
 
@@ -188,7 +191,7 @@ export function Conciliacao({ seletor }: { seletor: ReactNode }) {
                 </tr>
               </thead>
               <tbody>
-                {feitas.map((l) => (
+                {paginaFeitas.visiveis.map((l) => (
                   <tr key={l.id}>
                     <td>{dataBr(l.data)}</td>
                     <td>{l.contaFinanceira.nome}</td>
@@ -219,6 +222,7 @@ export function Conciliacao({ seletor }: { seletor: ReactNode }) {
               </tbody>
             </table>
           )}
+          {paginaFeitas.controle}
         </section>
       )}
 

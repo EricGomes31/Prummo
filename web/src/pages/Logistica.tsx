@@ -5,7 +5,7 @@ import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { dataBr, hojeIso, mascarar, qtd, telefoneBr } from '../format'
 import type { Entrega, HistoricoEntrega, Motorista, Rota, Veiculo } from '../types'
-import { Campo, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
 // Campos numéricos opcionais ficam como texto no formulário e viram número ou vazio ao enviar.
 export const numeroOuNulo = (texto: string) => (texto.trim() === '' ? null : Number(texto.replace(',', '.')))
@@ -285,6 +285,7 @@ export function Motoristas() {
   const { dados, erro, carregando, recarregar } = useDados<Motorista[]>('/motoristas')
   const [editando, setEditando] = useState<Partial<Motorista> | null>(null)
   const lista = dados ?? []
+  const paginas = usePaginacao(lista)
   const gerencia = useSessao().pode('LOGISTICA_GERENCIAR')
 
   return (
@@ -311,7 +312,7 @@ export function Motoristas() {
               </tr>
             </thead>
             <tbody>
-              {lista.map((m) => (
+              {paginas.visiveis.map((m) => (
                 <tr key={m.id} className={m.ativo ? '' : 'linha-inativa'}>
                   <td>{m.nome}</td>
                   <td>{telefoneBr(m.telefone) ?? '—'}</td>
@@ -330,6 +331,7 @@ export function Motoristas() {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
       {editando && (
         <FormSimples
@@ -358,6 +360,7 @@ export function Veiculos() {
   const { dados, erro, carregando, recarregar } = useDados<Veiculo[]>('/veiculos')
   const [editando, setEditando] = useState<Partial<Veiculo> | null>(null)
   const lista = dados ?? []
+  const paginas = usePaginacao(lista)
   const gerencia = useSessao().pode('LOGISTICA_GERENCIAR')
 
   return (
@@ -383,7 +386,7 @@ export function Veiculos() {
               </tr>
             </thead>
             <tbody>
-              {lista.map((v) => (
+              {paginas.visiveis.map((v) => (
                 <tr key={v.id} className={v.ativo ? '' : 'linha-inativa'}>
                   <td>{v.placa}</td>
                   <td>{v.descricao ?? '—'}</td>
@@ -401,6 +404,7 @@ export function Veiculos() {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
       {editando && (
         <FormSimples

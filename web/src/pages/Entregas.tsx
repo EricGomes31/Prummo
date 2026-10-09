@@ -3,7 +3,7 @@ import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { brl, dataBr, hojeIso, mascarar } from '../format'
 import type { Endereco, Entrega, PedidoParaEntrega } from '../types'
-import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { HistoricoDaEntrega, Motoristas, numeroOuNulo, Rotas, Veiculos } from './Logistica'
 
 type Entregador = { id: number; nome: string }
@@ -55,6 +55,7 @@ export function Entregas() {
   const [aba, setAba] = useState<Aba>('entregas')
   const acao = useAcao()
   const entregas = dados ?? []
+  const paginas = usePaginacao(entregas)
 
   function direto(entrega: Entrega, operacao: 'sair' | 'cancelar') {
     if (operacao === 'cancelar' && !window.confirm(`Cancelar a entrega do pedido nº ${entrega.pedido.numero}?`)) return
@@ -142,7 +143,7 @@ export function Entregas() {
               </tr>
             </thead>
             <tbody>
-              {entregas.map((e) => {
+              {paginas.visiveis.map((e) => {
                 const whatsapp = linkWhatsapp(e.telefone)
                 return (
                   <tr key={e.id}>
@@ -222,6 +223,7 @@ export function Entregas() {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
       </>
       )}

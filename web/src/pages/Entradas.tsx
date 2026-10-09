@@ -4,7 +4,7 @@ import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { brl, dataBr, hojeIso, inteiro, unidadesDe } from '../format'
 import type { Entrada, ItemEdicao, Pessoa, Produto } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, totalItens } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, totalItens, usePaginacao } from '../ui'
 
 const naturezas = { COMPRA_REVENDA: 'Compra para revenda', BONIFICACAO: 'Bonificação' } as const
 type Natureza = keyof typeof naturezas
@@ -27,6 +27,7 @@ export function Entradas() {
   const [lancando, setLancando] = useState(false)
   const [documentosDe, setDocumentosDe] = useState<Entrada | null>(null)
   const entradas = dados ?? []
+  const paginas = usePaginacao(entradas)
   const { pode } = useSessao()
 
   return (
@@ -57,7 +58,7 @@ export function Entradas() {
               </tr>
             </thead>
             <tbody>
-              {entradas.map((e) => (
+              {paginas.visiveis.map((e) => (
                 <tr key={e.id}>
                   <td className="texto-suave">#{e.id}</td>
                   <td>{dataBr(e.data)}</td>
@@ -85,6 +86,7 @@ export function Entradas() {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
 
       {documentosDe && (

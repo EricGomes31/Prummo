@@ -59,7 +59,7 @@ Ficaram para depois, por decisão de 09/10/2026:
 - [x] Reorganizar Devoluções e créditos. Feito em 08/10/2026: indicadores no topo, "Nova devolução" em janela, listas em painéis com título e paginação.
 - [ ] Conferir no celular as telas que não passaram por print depois do visual novo: Entradas, Devoluções, Logística, Promoções, Relatórios, Usuários, Despesas, Caixa e bancos e Conciliação.
 - [x] Redesenho em preto, branco e cinza. Feito em 08/10/2026: menu escuro recolhível, barra superior com busca de telas e notificações, avisos rápidos, esqueleto de carregamento, paginação e tela de login nova.
-- [ ] Paginação nas demais listas. Hoje só Pessoas, Produtos, Pedidos e Devoluções usam `usePaginacao`.
+- [x] Paginação nas demais listas. Feito em 09/10/2026: Entradas, Entregas, Despesas, Promoções, Usuários, Empresas, Motoristas, Veículos e as duas listas da Conciliação, 25 por página. As rotas da Logística, em painéis, ficam sem paginação.
 - [ ] Busca do topo achar também registros (pessoas, produtos, pedidos). Hoje ela encontra telas.
 - [ ] Comparação com o período anterior nos indicadores ("+12,5% vs. mês anterior"). A API ainda não calcula o período anterior.
 - [ ] Filtros rápidos de período nos dashboards (hoje, 7, 30 e 90 dias). Hoje a escolha é por mês.

@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import type { Perfil, PerfilAcesso, PerfilPadrao, Perfis, Usuario } from '../types'
-import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
 type Rascunho = { id?: number; nome: string; email: string; perfil: Perfil; perfilId: number | null; ativo: boolean; senha: string }
 type RascunhoPerfil = { id?: number; nome: string; descricao: string; permissoes: string[]; dashboards: string[]; ativo: boolean }
@@ -20,6 +20,7 @@ export function Usuarios() {
   const [editandoPerfil, setEditandoPerfil] = useState<RascunhoPerfil | null>(null)
   const [vendoPerfil, setVendoPerfil] = useState<PerfilPadrao | null>(null)
   const lista = usuarios.dados ?? []
+  const paginas = usePaginacao(lista)
 
   if (!gerencia) return <Navigate to="/" replace />
 
@@ -70,7 +71,7 @@ export function Usuarios() {
                 </tr>
               </thead>
               <tbody>
-                {lista.map((u) => (
+                {paginas.visiveis.map((u) => (
                   <tr key={u.id} className={u.ativo ? '' : 'linha-inativa'}>
                     <td>{u.nome}</td>
                     <td>{u.email}</td>
@@ -86,6 +87,7 @@ export function Usuarios() {
               </tbody>
             </table>
           )}
+          {paginas.controle}
         </section>
       )}
 

@@ -6,7 +6,7 @@ import { Documentos } from '../Documentos'
 import { brl, dataBr, formasPagamentoDespesa, hojeIso, mascaraDocumento, mascaraTelefone } from '../format'
 import { exportarCsv, type Coluna } from '../relatorio'
 import type { ContaFinanceira, Despesa, ListaDespesas, Pessoa } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
 type Parcela = { vencimento: string; valor: number }
 
@@ -54,6 +54,7 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
   const [documentosDe, setDocumentosDe] = useState<Despesa | null>(null)
   const acao = useAcao()
   const linhas = despesas.dados?.linhas ?? []
+  const paginas = usePaginacao(linhas)
   const resumo = despesas.dados?.resumo
   // No filtro entram os fornecedores que aparecem na lista, para não depender do cadastro de pessoas.
   const fornecedoresDaLista = [...new Map(linhas.map((d) => [d.fornecedor.id, d.fornecedor])).values()]
@@ -165,7 +166,7 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
               </tr>
             </thead>
             <tbody>
-              {linhas.map((d) => (
+              {paginas.visiveis.map((d) => (
                 <tr key={d.id} className={d.status === 'CANCELADA' ? 'linha-inativa' : ''}>
                   <td>{d.fornecedor.nome}</td>
                   <td>{d.elemento}</td>
@@ -201,6 +202,7 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
 
       {editando && (

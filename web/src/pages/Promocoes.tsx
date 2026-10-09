@@ -3,7 +3,7 @@ import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { brl, dataBr, hojeIso, inteiro } from '../format'
 import type { ItemPromocao, Modalidade, Produto, Promocao } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
 const modalidades: Record<Modalidade, { rotulo: string; ajuda: string }> = {
   PERCENTUAL: { rotulo: 'Desconto percentual', ajuda: 'Desconto sobre todas as unidades de cada produto que atingir a quantidade mínima.' },
@@ -76,6 +76,7 @@ export function Promocoes() {
   const { dados, erro, carregando, recarregar } = useDados<Promocao[]>('/promocoes')
   const [editando, setEditando] = useState<Rascunho | null>(null)
   const campanhas = dados ?? []
+  const paginas = usePaginacao(campanhas)
 
   return (
     <>
@@ -113,7 +114,7 @@ export function Promocoes() {
               </tr>
             </thead>
             <tbody>
-              {campanhas.map((c) => {
+              {paginas.visiveis.map((c) => {
                 const s = situacao(c)
                 const lista = (papel: string) =>
                   c.itens
@@ -148,6 +149,7 @@ export function Promocoes() {
             </tbody>
           </table>
         )}
+        {paginas.controle}
       </section>
 
       {editando && (
