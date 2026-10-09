@@ -45,7 +45,7 @@ conferir('filtro por situação', (await rel('&status=FATURADO')).linhas.length 
 conferir('período de hoje inclui', (await rel(`&inicio=${hoje}&fim=${hoje}`)).linhas.length === 3)
 conferir('até ontem exclui', (await rel(`&fim=${ontem}`)).linhas.length === 0)
 conferir('a partir de amanhã exclui', (await rel(`&inicio=${amanha}`)).linhas.length === 0)
-const porNumero = (await chamar('GET', `/relatorios/vendas?busca=${encodeURIComponent('#' + b.id)}`)).json
+const porNumero = (await chamar('GET', `/relatorios/vendas?busca=${encodeURIComponent('#' + b.numero)}`)).json
 conferir('busca por número do pedido', porNumero.linhas.some((l) => l.id === b.id))
 conferir('busca por observação', (await chamar('GET', '/relatorios/vendas?busca=obs%20com%20sinal')).json.linhas.some((l) => l.id === a.id))
 conferir('busca ignora maiúsculas e minúsculas', (await chamar('GET', '/relatorios/vendas?busca=OBS%20COM%20SINAL')).json.linhas.some((l) => l.id === a.id) && (await chamar('GET', `/relatorios/vendas?busca=${encodeURIComponent(marca.toLowerCase())}`)).json.linhas.length === 3)

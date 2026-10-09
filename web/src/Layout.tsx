@@ -25,7 +25,7 @@ const menu: ItemMenu[] = [
     rotulo: 'Financeiro',
     icone: 'financeiro',
     grupo: 'Gestão',
-    exige: ['CONTAS_RECEBER_VISUALIZAR', 'CONTAS_RECEBER_BAIXAR', 'CONTAS_PAGAR_VISUALIZAR', 'CONTAS_PAGAR_BAIXAR', 'DESPESAS_VISUALIZAR', 'DESPESAS_LANCAR', 'CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR', 'OFX_IMPORTAR', 'CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR'],
+    exige: ['CONTAS_RECEBER_VISUALIZAR', 'CONTAS_RECEBER_BAIXAR', 'CONTAS_PAGAR_VISUALIZAR', 'CONTAS_PAGAR_BAIXAR', 'DESPESAS_VISUALIZAR', 'DESPESAS_LANCAR', 'CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR', 'CAIXA_LANCAR', 'OFX_IMPORTAR', 'CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR'],
   },
   { para: '/dashboards', rotulo: 'Dashboards', icone: 'dashboards', grupo: 'Gestão', dashboards: true },
   { para: '/relatorios', rotulo: 'Relatórios', icone: 'relatorios', grupo: 'Gestão', exige: ['RELATORIOS_VISUALIZAR'] },

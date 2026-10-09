@@ -34,7 +34,7 @@ export async function rotasRelatorios(app: FastifyInstance) {
                 { medico: { nome: contem } },
                 { paciente: { nome: contem } },
                 { observacao: contem },
-                ...(Number.isInteger(numero) ? [{ id: numero }] : []),
+                ...(Number.isInteger(numero) ? [{ numero }] : []),
               ],
             }
           : {}),

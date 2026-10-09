@@ -40,6 +40,9 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 ## Antes de desligar o SG Nexus
 
 - [ ] Rodar de novo os importadores (`api/scripts/importar-*.mjs`, com `--empresa=1`) para trazer o que for lançado no SG Nexus até a virada. Eles não duplicam o que já existe. Os pedidos importados mantêm o número do SG Nexus: se antes disso forem lançados pedidos no Prumo, eles ocupam os próximos números e a importação de um pedido do SG Nexus com o mesmo número para com aviso.
+- [ ] Comparação completa, tela por tela, entre o SG Nexus e o Prumo, para deixar o Prumo com todas as funções do SG Nexus, sem erros e melhor. Começada em 09/10/2026: levantamento somente leitura das 12 telas do SG Nexus (navegando logado, sem gravar nada) e inventário do Prumo a partir do código.
+- [x] Dois erros achados no inventário do Prumo. Corrigidos em 09/10/2026: a busca por número no relatório de vendas comparava com o id interno do pedido, e não com o número mostrado; quem tinha só a permissão de lançar no caixa não via o item Financeiro no menu.
+- [ ] Trocar a senha do usuário do SG Nexus (douglalves12@gmail.com): foi digitada em uma conversa.
 - [ ] Conferir se os horários importados estão certos. O SG Nexus não informa o fuso; foram tratados como horário de Brasília.
 - [ ] Confirmar com quem usa o SG Nexus as regras que foram definidas sem conseguir ver o servidor dele: bonificação e perda só baixam o estoque e ficam fora do faturamento; o crédito da devolução rateia os descontos do pedido e não inclui o frete; o crédito só baixa contas da própria pessoa elegível.
 
