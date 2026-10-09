@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useDados } from '../api'
-import { brl, formasPagamento, formasPagamentoDespesa, naturezasPedido } from '../format'
+import { brl, dataHoraBr, formasPagamento, formasPagamentoDespesa, naturezasPedido, origensMovimento } from '../format'
 import { exportarCsv, Resumo, Tabela, type Coluna } from '../relatorio'
-import type { RelatorioDespesas, RelatorioFinanceiro, RelatorioVendas } from '../types'
+import type { ContaFinanceira, RelatorioCaixa, RelatorioDespesas, RelatorioFinanceiro, RelatorioVendas } from '../types'
 import { Cabecalho, Campo, EstadoLista, Selo } from '../ui'
 import { CampoData } from '../calendario'
 
@@ -51,6 +51,24 @@ const colunasDespesas: Coluna<LinhaDespesa>[] = [
   { rotulo: 'Pago', valor: (l) => l.pago, tipo: 'dinheiro' },
 ]
 
+type LinhaCaixa = RelatorioCaixa['linhas'][number]
+const colunasCaixa: Coluna<LinhaCaixa>[] = [
+  { rotulo: 'Data', valor: (l) => l.data, tipo: 'data', exibir: (l) => dataHoraBr(l.data, l.comHora) },
+  { rotulo: 'Conta', valor: (l) => l.conta },
+  { rotulo: 'Histórico', valor: (l) => l.historico, largura: 200, exibir: (l) => (
+    <>
+      {l.historico}
+      {l.observacao && <small className="bloco texto-suave">{l.observacao}</small>}
+    </>
+  ) },
+  { rotulo: 'Origem', valor: (l) => `${origensMovimento[l.origem] ?? l.origem}${l.estornado ? ' (estornado)' : ''}` },
+  { rotulo: 'Entrada', valor: (l) => (l.tipo === 'ENTRADA' ? l.valor : null), tipo: 'dinheiro' },
+  { rotulo: 'Saída', valor: (l) => (l.tipo === 'SAIDA' ? l.valor : null), tipo: 'dinheiro' },
+  { rotulo: 'Conciliação', valor: (l) => (l.conciliado ? 'Conciliado' : 'Pendente'), exibir: (l) => <Selo valor={l.conciliado ? 'Conciliado' : 'Pendente'} tom={l.conciliado ? 'bom' : 'apagado'} /> },
+  { rotulo: 'Título relacionado', valor: (l) => l.titulo, largura: 180 },
+  { rotulo: 'Usuário', valor: (l) => l.usuario },
+]
+
 type Grupo = RelatorioDespesas['porElemento'][number]
 const colunasGrupo = (rotulo: string, nome: (g: Grupo) => string): Coluna<Grupo>[] => [
   { rotulo, valor: nome },
@@ -67,39 +85,42 @@ const situacoes = {
   vendas: [['ABERTO', 'Em aberto'], ['FATURADO', 'Faturados'], ['CANCELADO', 'Cancelados']],
   financeiro: [['ABERTA', 'Em aberto'], ['PAGA', 'Liquidadas'], ['CANCELADA', 'Canceladas']],
   despesas: [],
+  caixa: [],
 } as const
 type Aba = keyof typeof situacoes
 
-const rotuloInicio: Record<Aba, string> = { vendas: 'Vendas a partir de', financeiro: 'Vencimento a partir de', despesas: 'Competência a partir de' }
+const rotuloInicio: Record<Aba, string> = { vendas: 'Vendas a partir de', financeiro: 'Vencimento a partir de', despesas: 'Competência a partir de', caixa: 'Movimentos a partir de' }
 
 export function Relatorios() {
   const [aba, setAba] = useState<Aba>('vendas')
-  const [f, setF] = useState({ inicio: '', fim: '', status: '', tipo: '', natureza: '', busca: '' })
-  const consulta = new URLSearchParams(
-    Object.entries(f).filter(
-      ([chave, valor]) => valor && (chave !== 'tipo' || aba === 'financeiro') && (chave !== 'natureza' || aba === 'vendas') && (chave !== 'status' || aba !== 'despesas'),
-    ),
-  )
+  const [f, setF] = useState({ inicio: '', fim: '', status: '', tipo: '', natureza: '', busca: '', contaFinanceiraId: '', conciliacao: '' })
+  // Cada filtro só vale nas abas que o têm.
+  const vale: Record<string, Aba[]> = { tipo: ['financeiro', 'caixa'], natureza: ['vendas'], status: ['vendas', 'financeiro'], contaFinanceiraId: ['caixa'], conciliacao: ['caixa'] }
+  const consulta = new URLSearchParams(Object.entries(f).filter(([chave, valor]) => valor && (!vale[chave] || vale[chave].includes(aba))))
   const vendas = useDados<RelatorioVendas>(aba === 'vendas' ? `/relatorios/vendas?${consulta}` : null)
   const financeiro = useDados<RelatorioFinanceiro>(aba === 'financeiro' ? `/relatorios/financeiro?${consulta}` : null)
   const despesas = useDados<RelatorioDespesas>(aba === 'despesas' ? `/relatorios/despesas?${consulta}` : null)
-  const atual = { vendas, financeiro, despesas }[aba]
+  const caixa = useDados<RelatorioCaixa>(aba === 'caixa' ? `/relatorios/caixa?${consulta}` : null)
+  // Sem acesso às contas financeiras, o filtro de conta fica só com "Todas".
+  const contas = useDados<ContaFinanceira[]>(aba === 'caixa' ? '/contas-financeiras' : null).dados ?? []
+  const atual = { vendas, financeiro, despesas, caixa }[aba]
   const quantidade = atual.dados?.linhas.length ?? 0
 
   function trocarAba(nova: Aba) {
     setAba(nova)
-    setF({ ...f, status: '', tipo: '', natureza: '' })
+    setF({ ...f, status: '', tipo: '', natureza: '', contaFinanceiraId: '', conciliacao: '' })
   }
 
   function exportar() {
     if (aba === 'vendas' && vendas.dados) exportarCsv('relatorio-vendas', colunasVendas, vendas.dados.linhas)
     if (aba === 'financeiro' && financeiro.dados) exportarCsv('relatorio-financeiro', colunasFinanceiro, financeiro.dados.linhas)
     if (aba === 'despesas' && despesas.dados) exportarCsv('relatorio-despesas', colunasDespesas, despesas.dados.linhas)
+    if (aba === 'caixa' && caixa.dados) exportarCsv('relatorio-caixa', colunasCaixa, caixa.dados.linhas)
   }
 
   return (
     <>
-      <Cabecalho titulo="Relatórios" descricao="Analise vendas, lançamentos financeiros e despesas e exporte o resultado para o Excel.">
+      <Cabecalho titulo="Relatórios" descricao="Analise vendas, lançamentos financeiros, despesas e o caixa e exporte o resultado para o Excel.">
         <button type="button" className="botao" onClick={atual.recarregar} disabled={atual.carregando}>
           Atualizar
         </button>
@@ -118,6 +139,9 @@ export function Relatorios() {
         <button type="button" role="tab" aria-selected={aba === 'despesas'} onClick={() => trocarAba('despesas')}>
           Despesas
         </button>
+        <button type="button" role="tab" aria-selected={aba === 'caixa'} onClick={() => trocarAba('caixa')}>
+          Caixa e conciliação
+        </button>
       </div>
 
       <section className="painel filtros-relatorio">
@@ -127,7 +151,7 @@ export function Relatorios() {
         <Campo rotulo="Até">
           <CampoData type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
         </Campo>
-        {aba !== 'despesas' && (
+        {situacoes[aba].length > 0 && (
           <Campo rotulo="Situação">
             <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
               <option value="">Todas</option>
@@ -160,6 +184,34 @@ export function Relatorios() {
             </select>
           </Campo>
         )}
+        {aba === 'caixa' && (
+          <>
+            <Campo rotulo="Conta">
+              <select value={f.contaFinanceiraId} onChange={(e) => setF({ ...f, contaFinanceiraId: e.target.value })}>
+                <option value="">Todas</option>
+                {contas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+              </select>
+            </Campo>
+            <Campo rotulo="Tipo">
+              <select value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value })}>
+                <option value="">Entradas e saídas</option>
+                <option value="ENTRADA">Entradas</option>
+                <option value="SAIDA">Saídas</option>
+              </select>
+            </Campo>
+            <Campo rotulo="Conciliação">
+              <select value={f.conciliacao} onChange={(e) => setF({ ...f, conciliacao: e.target.value })}>
+                <option value="">Todas</option>
+                <option value="CONCILIADOS">Conciliados com o banco</option>
+                <option value="PENDENTES">Pendentes</option>
+              </select>
+            </Campo>
+          </>
+        )}
         <Campo rotulo="Pesquisar">
           <input
             type="search"
@@ -170,7 +222,9 @@ export function Relatorios() {
                 ? 'Pedido, cliente, vendedor, médico, paciente ou observação'
                 : aba === 'financeiro'
                   ? 'Descrição, cliente ou fornecedor'
-                  : 'Elemento, descrição, documento ou fornecedor'
+                  : aba === 'caixa'
+                    ? 'Histórico ou observação'
+                    : 'Elemento, descrição, documento ou fornecedor'
             }
           />
         </Campo>
@@ -204,6 +258,15 @@ export function Relatorios() {
         </section>
       )}
 
+      {caixa.dados && aba === 'caixa' && (
+        <section className="indicadores">
+          <Resumo rotulo="Entradas" valor={brl(caixa.dados.resumo.entradas)} />
+          <Resumo rotulo="Saídas" valor={brl(caixa.dados.resumo.saidas)} />
+          <Resumo rotulo="Saldo do período" valor={brl(caixa.dados.resumo.saldo)} />
+          <Resumo rotulo="Não conciliados" valor={String(caixa.dados.resumo.naoConciliados)} nota="movimentos sem linha do extrato do banco" />
+        </section>
+      )}
+
       {aba === 'despesas' && despesas.dados && quantidade > 0 && (
         <div className="duas-colunas" style={{ marginBottom: 18 }}>
           <section className="painel">
@@ -232,6 +295,7 @@ export function Relatorios() {
         {aba === 'despesas' && despesas.dados && quantidade > 0 && (
           <Tabela colunas={colunasDespesas} linhas={despesas.dados.linhas} chave={(l) => l.id} />
         )}
+        {aba === 'caixa' && caixa.dados && quantidade > 0 && <Tabela colunas={colunasCaixa} linhas={caixa.dados.linhas} chave={(l) => l.id} />}
       </section>
     </>
   )

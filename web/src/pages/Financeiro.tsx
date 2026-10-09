@@ -572,6 +572,19 @@ function FormConta(props: { aba: AbaContas; onFechar: () => void; onSalvo: () =>
 }
 
 // Contas financeiras com o saldo atual e o extrato dos movimentos.
+// O extrato exportado para o Excel, com os filtros da tela.
+const colunasExtrato: Coluna<MovimentoFinanceiro>[] = [
+  { rotulo: 'Data', valor: (m) => m.data, tipo: 'data' },
+  { rotulo: 'Conta', valor: (m) => m.contaFinanceira.nome },
+  { rotulo: 'Histórico', valor: (m) => m.historico },
+  { rotulo: 'Observação', valor: (m) => m.observacao },
+  { rotulo: 'Origem', valor: (m) => `${origensMovimento[m.origem] ?? m.origem}${m.estornado ? ' (estornado)' : ''}` },
+  { rotulo: 'Entrada', valor: (m) => (m.tipo === 'ENTRADA' ? m.valor : null), tipo: 'dinheiro' },
+  { rotulo: 'Saída', valor: (m) => (m.tipo === 'SAIDA' ? m.valor : null), tipo: 'dinheiro' },
+  { rotulo: 'Conciliado', valor: (m) => (m.extratoId ? 'Sim' : 'Não') },
+  { rotulo: 'Usuário', valor: (m) => m.usuario?.nome ?? null },
+]
+
 function CaixaBancos({ seletor }: { seletor: ReactNode }) {
   const { pode } = useSessao()
   const lanca = pode('CAIXA_LANCAR')
@@ -609,6 +622,9 @@ function CaixaBancos({ seletor }: { seletor: ReactNode }) {
       <Cabecalho titulo="Caixa e bancos" descricao="Saldos das contas financeiras e o extrato de entradas e saídas.">
         <button type="button" className="botao" onClick={atualizar}>
           Atualizar
+        </button>
+        <button type="button" className="botao" onClick={() => exportarCsv('extrato', colunasExtrato, linhas)} disabled={linhas.length === 0}>
+          Exportar para Excel
         </button>
         {lanca && (
           <>

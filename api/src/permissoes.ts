@@ -233,6 +233,7 @@ const REGRAS: Record<string, Permissao[]> = {
   'GET /relatorios/vendas': ['RELATORIOS_VISUALIZAR'],
   'GET /relatorios/financeiro': ['RELATORIOS_VISUALIZAR'],
   'GET /relatorios/despesas': ['RELATORIOS_VISUALIZAR'],
+  'GET /relatorios/caixa': ['RELATORIOS_VISUALIZAR'],
   'GET /relatorios/cobranca': ['RELATORIOS_VISUALIZAR', 'CONTAS_RECEBER_VISUALIZAR', 'CONTAS_RECEBER_BAIXAR'],
 
   'GET /usuarios': ['USUARIOS_GERENCIAR'],

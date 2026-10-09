@@ -317,6 +317,25 @@ export type Extrato = {
   resumo: { saldoInicial: number; entradas: number; saidas: number; saldoFinal: number }
 }
 
+export type RelatorioCaixa = {
+  linhas: {
+    id: number
+    data: string
+    comHora: boolean
+    conta: string
+    tipo: 'ENTRADA' | 'SAIDA'
+    origem: string
+    historico: string
+    observacao: string | null
+    valor: number
+    conciliado: boolean
+    estornado: boolean
+    titulo: string | null
+    usuario: string | null
+  }[]
+  resumo: { entradas: number; saidas: number; saldo: number; naoConciliados: number }
+}
+
 export type StatusEntrega = 'PENDENTE' | 'EM_ROTA' | 'ENTREGUE' | 'FALHOU' | 'CANCELADA'
 
 export type Endereco = {

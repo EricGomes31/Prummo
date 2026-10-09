@@ -260,4 +260,60 @@ export async function rotasRelatorios(app: FastifyInstance) {
       },
     }
   })
+
+  // Caixa e conciliação: os movimentos das contas financeiras no período, por conta, tipo e situação da
+  // conciliação com o extrato do banco, com o título (conta a receber ou a pagar) de cada um.
+  app.get('/relatorios/caixa', async (req) => {
+    const q = z
+      .object({
+        ...periodo,
+        contaFinanceiraId: z.coerce.number().int().positive().optional(),
+        tipo: z.enum(['ENTRADA', 'SAIDA']).optional(),
+        conciliacao: z.enum(['CONCILIADOS', 'PENDENTES']).optional(),
+      })
+      .parse(req.query)
+    const contem = { contains: q.busca, mode: 'insensitive' as const }
+    const movimentos = await prisma.movimentoFinanceiro.findMany({
+      where: {
+        data: intervalo(q.inicio, q.fim),
+        ...(q.contaFinanceiraId ? { contaFinanceiraId: q.contaFinanceiraId } : {}),
+        ...(q.tipo ? { tipo: q.tipo } : {}),
+        ...(q.conciliacao ? { extratoId: q.conciliacao === 'CONCILIADOS' ? { not: null } : null } : {}),
+        ...(q.busca ? { OR: [{ historico: contem }, { observacao: contem }] } : {}),
+      },
+      include: {
+        contaFinanceira: { select: { nome: true } },
+        contaReceber: { select: { descricao: true } },
+        contaPagar: { select: { descricao: true } },
+        usuario: { select: { nome: true } },
+      },
+      orderBy: [{ data: 'asc' }, { id: 'asc' }],
+      take: 5000,
+    })
+    const linhas = movimentos.map((m) => ({
+      id: m.id,
+      data: m.data,
+      comHora: m.comHora,
+      conta: m.contaFinanceira.nome,
+      tipo: m.tipo,
+      origem: m.origem,
+      historico: m.historico,
+      observacao: m.observacao,
+      valor: m.valor,
+      conciliado: m.extratoId !== null,
+      estornado: m.estornado,
+      titulo: m.contaReceber?.descricao ?? m.contaPagar?.descricao ?? null,
+      usuario: m.usuario?.nome ?? null,
+    }))
+    const soma = (tipo: string) => linhas.filter((l) => l.tipo === tipo).reduce((s, l) => s + l.valor, 0)
+    return {
+      linhas,
+      resumo: {
+        entradas: soma('ENTRADA'),
+        saidas: soma('SAIDA'),
+        saldo: soma('ENTRADA') - soma('SAIDA'),
+        naoConciliados: linhas.filter((l) => !l.conciliado).length,
+      },
+    }
+  })
 }
