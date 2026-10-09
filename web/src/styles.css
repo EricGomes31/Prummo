@@ -131,7 +131,7 @@ button, a, input, select, textarea, label { touch-action: manipulation; }
 .lateral nav::-webkit-scrollbar { display: none; }
 /* Em tela baixa o menu rola; sem isto os itens encolheriam e os títulos de grupo sumiriam. */
 .lateral nav > * { flex: none; }
-.menu-grupo { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #84848c; padding: 16px 12px 6px; white-space: nowrap; overflow: hidden; }
+.menu-grupo { font-size: 0.74rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #84848c; padding: 16px 12px 6px; white-space: nowrap; overflow: hidden; }
 .menu-grupo:first-child { padding-top: 4px; }
 .lateral nav a { display: flex; align-items: center; gap: 12px; padding: 0 12px; min-height: 38px; border-radius: var(--raio-controle); color: var(--cinza); font-weight: 500; white-space: nowrap; transition: background 0.15s, color 0.15s; }
 .lateral nav a svg { width: 18px; height: 18px; flex: none; }
@@ -167,7 +167,7 @@ button, a, input, select, textarea, label { touch-action: manipulation; }
 .busca-botao:hover { border-color: var(--borda-forte); }
 .busca-botao svg { width: 16px; height: 16px; flex: none; }
 .busca-botao span { flex: 1; text-align: left; }
-kbd { font: inherit; font-size: 0.72rem; font-weight: 500; color: var(--suave); background: var(--fundo); border: 1px solid var(--borda); border-radius: 5px; padding: 1px 5px; }
+kbd { font: inherit; font-size: 0.76rem; font-weight: 500; color: var(--suave); background: var(--fundo); border: 1px solid var(--borda); border-radius: 5px; padding: 1px 5px; }
 .topo .botao-icone { position: relative; width: 36px; height: 36px; color: var(--tinta); }
 /* O contador fica no canto de fora do botão, para não cobrir o sino. */
 .contador { position: absolute; top: -3px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 99px; background: var(--ruim-forte); color: #fff; font-size: 0.62rem; font-weight: 700; line-height: 1; display: grid; place-items: center; border: 2px solid var(--fundo); box-sizing: content-box; }
@@ -276,7 +276,7 @@ input.curto { width: 96px; text-align: right; }
 .cartao > h2 { margin-bottom: 16px; }
 .cartao.estreito .ranking { max-width: 620px; }
 table { width: 100%; border-collapse: collapse; }
-th { text-align: left; font-size: 0.74rem; font-weight: 550; letter-spacing: 0.02em; color: var(--suave); padding: 11px 18px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+th { text-align: left; font-size: 0.78rem; font-weight: 550; letter-spacing: 0.02em; color: var(--suave); padding: 11px 18px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
 td { padding: 13px 18px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
 tr:last-child td { border-bottom: 0; }
 .painel > table > tbody > tr { transition: background 0.12s; }
@@ -294,7 +294,7 @@ th[aria-sort='ascending'] .ordenar span, th[aria-sort='descending'] .ordenar spa
 .paginacao .botao { min-height: 32px; padding: 0 11px; }
 
 /* Selos de situação: fundo suave, texto na cor correspondente, com um ponto na frente. */
-.selo { display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; font-weight: 550; padding: 2px 9px 2px 8px; border-radius: 99px; white-space: nowrap; border: 1px solid transparent; }
+.selo { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 550; padding: 2px 9px 2px 8px; border-radius: 99px; white-space: nowrap; border: 1px solid transparent; }
 .selo::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.85; }
 .selo-neutro { background: var(--azul-claro); color: var(--azul-texto); border-color: #dbeafe; }
 .selo-bom { background: var(--bom-claro); color: var(--bom); border-color: #dcfce7; }
@@ -329,7 +329,7 @@ button.indicador:hover { border-color: var(--preto); }
 .legenda span, .dica span { display: flex; align-items: center; gap: 6px; }
 .legenda i, .dica i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .grafico-corpo { display: grid; grid-template-columns: auto 1fr; grid-template-rows: 190px auto; column-gap: 10px; margin-top: 22px; }
-.grafico-eixo { display: flex; flex-direction: column; justify-content: space-between; text-align: right; font-size: 0.75rem; color: var(--suave); font-variant-numeric: tabular-nums; }
+.grafico-eixo { display: flex; flex-direction: column; justify-content: space-between; text-align: right; font-size: 0.78rem; color: var(--suave); font-variant-numeric: tabular-nums; }
 .grafico-eixo span { line-height: 1; transform: translateY(-50%); }
 .grafico-eixo span:last-child { transform: translateY(50%); }
 .grafico-plano { position: relative; }
@@ -341,7 +341,7 @@ button.indicador:hover { border-color: var(--preto); }
 .grafico-barras { height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 0 2px; }
 .grafico-barra { flex: 0 1 24px; min-width: 2px; border-radius: 4px 4px 0 0; }
 .grafico-valor { position: absolute; left: 50%; transform: translateX(-50%); margin-bottom: 4px; font-size: 0.75rem; white-space: nowrap; pointer-events: none; }
-.grafico-rotulos { display: flex; padding-top: 6px; font-size: 0.75rem; color: var(--suave); }
+.grafico-rotulos { display: flex; padding-top: 6px; font-size: 0.78rem; color: var(--suave); }
 .grafico-rotulos span { flex: 1; min-width: 0; text-align: center; white-space: nowrap; }
 .dica { display: none; position: absolute; top: 4px; z-index: 2; flex-direction: column; gap: 3px; white-space: nowrap; pointer-events: none; background: var(--preto); color: #fff; border-radius: 8px; padding: 8px 10px; font-size: 0.82rem; box-shadow: var(--sombra-2); }
 .dica .texto-suave { color: var(--cinza); }
@@ -371,12 +371,16 @@ button.indicador:hover { border-color: var(--preto); }
 .form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 14px; }
 .campo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .campo > span { font-size: 0.84rem; font-weight: 500; color: #3f3f46; }
+/* Campo obrigatório ganha um asterisco no rótulo, a partir do próprio required do campo. */
+.campo:has(> :is(input, select, textarea):required, > * > :is(input, select, textarea):required) > span::after { content: ' *'; color: var(--ruim); }
+/* No login os dois campos são óbvios; o asterisco só poluiria. */
+.entrar .entrar-cartao .campo > span::after { content: none; }
 .col-2 { grid-column: span 2; }
 .col-3 { grid-column: 1 / -1; }
 .campo-duplo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .marcar { display: flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; }
 /* Título de seção do formulário: pequeno, em maiúsculas, para separar os blocos sem pesar. */
-.secao { margin: 10px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--borda); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--suave); }
+.secao { margin: 10px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--borda); font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--suave); }
 .secao:first-child { margin-top: 0; }
 .marcacoes { border: 1px solid var(--borda); margin: 0; padding: 10px 14px; background: var(--superficie-2); border-radius: var(--raio); display: flex; flex-wrap: wrap; gap: 6px 22px; }
 .marcar-ativo { margin-left: auto; font-weight: 550; }

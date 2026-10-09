@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SyntheticEvent } from 'react'
 import { brl, centavosParaTexto, inteiro, paraCentavos, qtd, saldoBase, unidadesDe } from './format'
 import { Icone } from './icones'
 import type { ItemEdicao, Produto } from './types'
@@ -24,10 +24,20 @@ export function Modal(props: { titulo: string; onFechar: () => void; largo?: boo
   const { onFechar } = props
   const esta = useRef({})
   const caixa = useRef<HTMLDivElement>(null)
+  // Algo digitado num formulário da janela. Fechar pelo Esc, pelo fundo ou pelo X pergunta antes
+  // de descartar; o Cancelar e o Salvar do formulário chamam onFechar direto, sem perguntar.
+  const alterada = useRef(false)
+  const marcarAlterada = (e: SyntheticEvent) => {
+    if ((e.target as HTMLElement).closest('form')) alterada.current = true
+  }
+  const fechar = useCallback(() => {
+    if (alterada.current && !confirm('Descartar o que foi preenchido nesta janela?')) return
+    onFechar()
+  }, [onFechar])
   useEffect(() => {
     const aoTeclar = (e: KeyboardEvent) => {
       if (janelasAbertas.at(-1) !== esta.current) return
-      if (e.key === 'Escape') onFechar()
+      if (e.key === 'Escape') fechar()
       // O Tab circula só pelos controles da janela, sem cair na página por trás.
       if (e.key === 'Tab' && caixa.current) {
         const focaveis = [...caixa.current.querySelectorAll<HTMLElement>(FOCAVEIS)].filter((el) => el.offsetParent !== null)
@@ -46,7 +56,7 @@ export function Modal(props: { titulo: string; onFechar: () => void; largo?: boo
     }
     window.addEventListener('keydown', aoTeclar)
     return () => window.removeEventListener('keydown', aoTeclar)
-  }, [onFechar])
+  }, [fechar])
 
   // Ao abrir, o foco entra na janela (a menos que um campo dela já o tenha pego com autoFocus);
   // ao fechar, volta ao botão que a abriu.
@@ -70,11 +80,11 @@ export function Modal(props: { titulo: string; onFechar: () => void; largo?: boo
   }, [])
 
   return (
-    <div className="modal-fundo" onMouseDown={(e) => e.target === e.currentTarget && onFechar()}>
-      <div ref={caixa} tabIndex={-1} className={`modal ${props.largo ? 'modal-largo' : ''}`} role="dialog" aria-modal="true" aria-label={props.titulo}>
+    <div className="modal-fundo" onMouseDown={(e) => e.target === e.currentTarget && fechar()}>
+      <div ref={caixa} tabIndex={-1} className={`modal ${props.largo ? 'modal-largo' : ''}`} role="dialog" aria-modal="true" aria-label={props.titulo} onInputCapture={marcarAlterada} onChangeCapture={marcarAlterada}>
         <div className="modal-topo">
           <h2>{props.titulo}</h2>
-          <button type="button" className="botao-icone" onClick={onFechar} aria-label="Fechar">
+          <button type="button" className="botao-icone" onClick={fechar} aria-label="Fechar">
             <Icone nome="fechar" />
           </button>
         </div>
