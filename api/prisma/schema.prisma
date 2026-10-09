@@ -304,6 +304,9 @@ model Pedido {
   formaPagamento     String?
   parcelas           Int       @default(1)
   primeiroVencimento DateTime?
+  // Parcelas escolhidas à mão: [{ "vencimento": "AAAA-MM-DD", "valor": centavos }]. Vazio = parcelas
+  // mensais de valor igual a partir do primeiro vencimento.
+  vencimentos        Json?
 
   itens         PedidoItem[]
   contasReceber ContaReceber[]

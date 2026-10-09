@@ -18,6 +18,12 @@ const corpo = z
       .trim()
       .regex(/^\d{1,3}(\/\d{1,3}){0,11}$/, 'Condição de pagamento inválida')
       .nullish(),
+    // Parcelas com data e valor escolhidos à mão, no lugar dos prazos da condição.
+    parcelas: z
+      .array(z.object({ vencimento: dia, valor: z.number().int().positive('O valor de cada parcela deve ser maior que zero.') }))
+      .min(1, 'Informe ao menos uma parcela.')
+      .max(24, 'De 1 a 24 parcelas')
+      .nullish(),
     frete: centavos.default(0),
     outrasDespesas: centavos.default(0),
     cfop: z
@@ -43,8 +49,10 @@ const corpo = z
     if (new Set(d.itens.map((i) => `${i.produtoId}:${i.unidade ?? ''}`)).size !== d.itens.length) {
       erro('O mesmo produto aparece em mais de um item na mesma unidade.')
     }
-    if (d.condicaoPagamento && !d.fornecedorId) erro('Informe o fornecedor para gerar as contas a pagar.')
-    if (d.condicaoPagamento && d.natureza === 'BONIFICACAO') erro('Bonificação não tem condição de pagamento.')
+    const pagavel = d.condicaoPagamento || d.parcelas?.length
+    if (pagavel && !d.fornecedorId) erro('Informe o fornecedor para gerar as contas a pagar.')
+    if (pagavel && d.natureza === 'BONIFICACAO') erro('Bonificação não tem condição de pagamento.')
+    if (d.condicaoPagamento && d.parcelas?.length) erro('Informe a condição ou as parcelas, não as duas.')
   })
 
 const comDetalhes = {
@@ -86,6 +94,16 @@ export async function rotasEntradas(app: FastifyInstance) {
     const totalItens = dados.itens.reduce((soma, i) => soma + i.quantidade * i.custoUnitario, 0)
     const total = totalItens + dados.frete + dados.outrasDespesas
     const compra = dados.natureza === 'COMPRA_REVENDA'
+    // Parcelas à mão: em ordem de data, precisam fechar o total. A condição gravada (o que a lista mostra)
+    // são os dias de cada vencimento contados da data da entrada.
+    const parcelas = dados.parcelas?.length ? [...dados.parcelas].sort((a, b) => a.vencimento.localeCompare(b.vencimento)) : null
+    if (parcelas) {
+      const soma = parcelas.reduce((s, p) => s + p.valor, 0)
+      const reais = (v: number) => (v / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      if (soma !== total) throw new AppError(400, `As parcelas somam ${reais(soma)}; o total da entrada é ${reais(total)}. Ajuste os valores das parcelas.`)
+    }
+    const dias = (vencimento: string) => Math.max(0, Math.round((new Date(`${vencimento}T12:00:00`).getTime() - dados.data.getTime()) / 864e5))
+    const condicaoPagamento = parcelas ? parcelas.map((p) => dias(p.vencimento)).join('/') : (dados.condicaoPagamento ?? null)
 
     const entrada = await prisma.$transaction(async (tx) => {
       // Confere os produtos e descobre o fator da unidade de cada lançamento antes de gravar.
@@ -104,7 +122,7 @@ export async function rotasEntradas(app: FastifyInstance) {
           natureza: dados.natureza,
           numeroDocumento: dados.numeroDocumento,
           data: dados.data,
-          condicaoPagamento: dados.condicaoPagamento ?? null,
+          condicaoPagamento,
           frete: dados.frete,
           outrasDespesas: dados.outrasDespesas,
           cfop: dados.cfop,
@@ -132,7 +150,19 @@ export async function rotasEntradas(app: FastifyInstance) {
         })
       }
 
-      if (dados.condicaoPagamento && total > 0) {
+      if (parcelas) {
+        for (const [n, p] of parcelas.entries()) {
+          await tx.contaPagar.create({
+            data: {
+              pessoaId: dados.fornecedorId!,
+              entradaId: criada.id,
+              descricao: `Entrada de estoque nº ${criada.id} — parcela ${n + 1}/${parcelas.length}`,
+              valor: p.valor,
+              vencimento: new Date(`${p.vencimento}T12:00:00`),
+            },
+          })
+        }
+      } else if (dados.condicaoPagamento && total > 0) {
         const prazos = dados.condicaoPagamento.split('/').map(Number)
         const base = Math.floor(total / prazos.length)
         const resto = total - base * prazos.length

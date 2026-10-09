@@ -521,6 +521,10 @@ button.indicador:hover { border-color: var(--preto); }
 .unidades-extras th, .unidades-extras td { padding: 6px 8px; }
 .adicionar-item { display: grid; grid-template-columns: 1fr 96px 110px 140px auto; gap: 12px; align-items: end; border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px; margin-bottom: 8px; background: var(--superficie-2); }
 .adicionar-nota { grid-column: 1 / -1; }
+.parcelas { border: 1px solid var(--borda); border-radius: var(--raio); padding: 4px 8px 8px; overflow-x: auto; }
+.parcelas td, .parcelas th { padding: 6px 8px; }
+.parcelas-pe { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 6px; }
+.parcelas-pe span { margin-left: auto; font-size: 0.9rem; }
 .documentos { display: flex; flex-direction: column; gap: 12px; }
 .busca-produto { position: relative; }
 .achados { position: absolute; top: 100%; left: 0; right: 0; z-index: 3; list-style: none; margin: 4px 0 0; padding: 4px; background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-controle); box-shadow: var(--sombra-2); max-height: 260px; overflow-y: auto; animation: descer 0.12s var(--curva); }

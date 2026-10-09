@@ -7,6 +7,7 @@ import type { Classificacao, Credito, ItemEdicao, NaturezaPedido, Pedido, Pessoa
 import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, useAtrasado, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
+import { dividirParcelas, somaParcelas, TabelaParcelas, type Parcela } from '../parcelas'
 
 // O mesmo limite da API: a lista traz no máximo esse tanto, dos mais recentes.
 const LIMITE_LISTA = 300
@@ -173,6 +174,8 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   const [formaPagamento, setFormaPagamento] = useState(pedido?.formaPagamento ?? '')
   const [parcelas, setParcelas] = useState(pedido?.parcelas ?? 1)
   const [primeiroVencimento, setPrimeiroVencimento] = useState(pedido?.primeiroVencimento?.slice(0, 10) ?? '')
+  // Parcelas com data e valor escolhidos à mão; null = mensais iguais.
+  const [vencimentos, setVencimentos] = useState<Parcela[] | null>(pedido?.vencimentos ?? null)
   // Pedido faturado: alterar itens, valores ou pagamento refaz o faturamento.
   const faturado = pedido?.status === 'FATURADO'
   const podeFaturar = !faturado && pode('PEDIDOS_FATURAR')
@@ -200,6 +203,9 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   const campanhas = (useDados<Promocao[]>('/promocoes').dados ?? []).filter((c) => c.vigente || c.id === pedido?.promocao?.id)
   const [promocaoId, setPromocaoId] = useState(pedido?.promocao?.id ?? 0)
   const [campanha, setCampanha] = useState({ desconto: pedido?.descontoPromocao ?? 0, aviso: '' })
+  const totalPedido = perda ? 0 : Math.max(0, subtotal - descontoItens - desconto - campanha.desconto) + frete
+  // Parcelas à mão que não fecham o total impedem de salvar (o faturamento recusaria).
+  const parcelasNaoFecham = venda && !!vencimentos && somaParcelas(vencimentos) !== totalPedido
   // Os produtos da campanha escolhida não aceitam desconto manual; os demais aceitam.
   const produtosDaCampanha = (id: number) => new Set((campanhas.find((c) => c.id === id)?.itens ?? []).map((i) => i.produtoId))
   const participantes = produtosDaCampanha(promocaoId)
@@ -267,6 +273,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
         formaPagamento: venda ? formaPagamento || null : null,
         parcelas: venda ? parcelas : 1,
         primeiroVencimento: venda ? primeiroVencimento || null : null,
+        vencimentos: venda ? vencimentos : null,
         itens: itens.map((i) => ({
           produtoId: i.produtoId,
           unidade: i.unidade,
@@ -386,12 +393,29 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
                 ))}
               </select>
             </Campo>
-            <Campo rotulo="Parcelas">
-              <input type="number" min={1} max={24} required value={parcelas} onChange={(e) => setParcelas(Math.min(24, Math.max(1, inteiro(e.target.value))))} />
-            </Campo>
-            <Campo rotulo={faturado ? 'Primeiro vencimento' : 'Primeiro vencimento (opcional)'}>
-              <CampoData type="date" required={faturado} value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
-            </Campo>
+            {!vencimentos && (
+              <>
+                <Campo rotulo="Parcelas">
+                  <input type="number" min={1} max={24} required value={parcelas} onChange={(e) => setParcelas(Math.min(24, Math.max(1, inteiro(e.target.value))))} />
+                </Campo>
+                <Campo rotulo={faturado ? 'Primeiro vencimento' : 'Primeiro vencimento (opcional)'}>
+                  <CampoData type="date" required={faturado} value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
+                </Campo>
+              </>
+            )}
+            <label className="marcar col-3">
+              <input
+                type="checkbox"
+                checked={!!vencimentos}
+                onChange={(e) => setVencimentos(e.target.checked ? dividirParcelas(totalPedido, parcelas, primeiroVencimento || undefined) : null)}
+              />
+              Escolher a data e o valor de cada parcela
+            </label>
+            {vencimentos && (
+              <div className="col-3">
+                <TabelaParcelas parcelas={vencimentos} onChange={setVencimentos} total={totalPedido} rotuloTotal="o total do pedido" />
+              </div>
+            )}
           </>
         )}
 
@@ -401,7 +425,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
             Subtotal {brl(subtotal)}
             {descontoItens > 0 && ` · Descontos nos itens −${brl(descontoItens)}`}
             {campanha.desconto > 0 && ` · Campanha −${brl(campanha.desconto)}`} · Total{' '}
-            <strong>{brl(Math.max(0, subtotal - descontoItens - desconto - campanha.desconto) + frete)}</strong>
+            <strong>{brl(totalPedido)}</strong>
           </p>
         )}
         {faturado && (
@@ -428,11 +452,11 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
             Fechar
           </button>
           {/* Com permissão de faturar, o caminho mais comum (salvar e já faturar) é o botão principal. */}
-          <button className={`botao ${podeFaturar ? '' : 'botao-primario'}`} disabled={ocupado}>
+          <button className={`botao ${podeFaturar ? '' : 'botao-primario'}`} disabled={ocupado || parcelasNaoFecham}>
             {podeFaturar ? 'Só salvar' : 'Salvar pedido'}
           </button>
           {podeFaturar && (
-            <button className="botao botao-primario" data-faturar="sim" disabled={ocupado}>
+            <button className="botao botao-primario" data-faturar="sim" disabled={ocupado || parcelasNaoFecham}>
               {venda ? 'Salvar e faturar' : 'Salvar e confirmar'}
             </button>
           )}
@@ -449,6 +473,9 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
   const [parcelas, setParcelas] = useState(pedido.parcelas || 1)
   const [primeiroVencimento, setPrimeiroVencimento] = useState(pedido.primeiroVencimento?.slice(0, 10) ?? hojeIso())
   const [formaPagamento, setFormaPagamento] = useState(pedido.formaPagamento ?? '')
+  // As parcelas à mão escolhidas no pedido já vêm preenchidas e podem ser ajustadas aqui.
+  const [vencimentos, setVencimentos] = useState<Parcela[] | null>(pedido.vencimentos ?? null)
+  const parcelasNaoFecham = !!vencimentos && somaParcelas(vencimentos) !== pedido.total
   const { erro, ocupado, executar } = useAcao()
   // Créditos que o cliente pode usar; o valor escolhido de cada um abate as parcelas geradas.
   const { pode } = useSessao()
@@ -463,7 +490,7 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
       const creditos = Object.entries(usoCreditos)
         .filter(([, valor]) => valor > 0)
         .map(([creditoId, valor]) => ({ creditoId: Number(creditoId), valor }))
-      await api(`/pedidos/${pedido.id}/faturar`, { body: venda ? { parcelas, primeiroVencimento, formaPagamento, creditos } : {} })
+      await api(`/pedidos/${pedido.id}/faturar`, { body: venda ? { parcelas, primeiroVencimento, formaPagamento, vencimentos, creditos } : {} })
       props.onSalvo()
     })
   }
@@ -486,12 +513,29 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
                 ))}
               </select>
             </Campo>
-            <Campo rotulo="Parcelas">
-              <input type="number" min={1} max={24} required value={parcelas} onChange={(e) => setParcelas(Math.max(1, inteiro(e.target.value)))} />
-            </Campo>
-            <Campo rotulo="Primeiro vencimento" largura={2}>
-              <CampoData type="date" required value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
-            </Campo>
+            {!vencimentos && (
+              <>
+                <Campo rotulo="Parcelas">
+                  <input type="number" min={1} max={24} required value={parcelas} onChange={(e) => setParcelas(Math.min(24, Math.max(1, inteiro(e.target.value))))} />
+                </Campo>
+                <Campo rotulo="Primeiro vencimento" largura={2}>
+                  <CampoData type="date" required value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
+                </Campo>
+              </>
+            )}
+            <label className="marcar col-3">
+              <input
+                type="checkbox"
+                checked={!!vencimentos}
+                onChange={(e) => setVencimentos(e.target.checked ? dividirParcelas(pedido.total, parcelas, primeiroVencimento || undefined) : null)}
+              />
+              Escolher a data e o valor de cada parcela
+            </label>
+            {vencimentos && (
+              <div className="col-3">
+                <TabelaParcelas parcelas={vencimentos} onChange={setVencimentos} total={pedido.total} rotuloTotal="o total do pedido" />
+              </div>
+            )}
           </>
         )}
         {disponiveis.length > 0 && (
@@ -533,7 +577,7 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
         )}
         <p className="texto-suave col-3">
           {venda
-            ? `Faturar baixa o estoque dos itens e gera ${parcelas} parcela(s) mensal(is) em contas a receber.${totalCreditos > 0 ? ` ${brl(totalCreditos)} de crédito abatem as parcelas, da primeira para a última.` : ''}`
+            ? `Faturar baixa o estoque dos itens e gera ${vencimentos ? `${vencimentos.length} parcela(s), nas datas escolhidas,` : `${parcelas} parcela(s) mensal(is)`} em contas a receber.${totalCreditos > 0 ? ` ${brl(totalCreditos)} de crédito abatem as parcelas, da primeira para a última.` : ''}`
             : 'Confirmar baixa o estoque dos itens. Não são geradas contas a receber.'}
         </p>
         <Erro mensagem={erro} />
@@ -541,7 +585,7 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
           <button type="button" className="botao" onClick={props.onFechar}>
             Voltar
           </button>
-          <button className="botao botao-primario" disabled={ocupado || totalCreditos > pedido.total}>
+          <button className="botao botao-primario" disabled={ocupado || totalCreditos > pedido.total || parcelasNaoFecham}>
             {venda ? 'Faturar' : 'Confirmar'}
           </button>
         </div>

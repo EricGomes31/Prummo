@@ -8,6 +8,7 @@ import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, totalItens, useAt
 import { Icone } from '../icones'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
+import { dividirParcelas, somaParcelas, TabelaParcelas, type Parcela } from '../parcelas'
 
 const naturezas = { COMPRA_REVENDA: 'Compra para revenda', BONIFICACAO: 'Bonificação' } as const
 type Natureza = keyof typeof naturezas
@@ -23,6 +24,13 @@ const condicoes: [string, string][] = [
   ['30/60/90', '30, 60 e 90 dias'],
   ['28/56/84', '28, 56 e 84 dias'],
 ]
+// Valor da condição que abre a tabela de parcelas escolhidas à mão.
+const MANUAL = 'MANUAL'
+const somarDias = (dia: string, dias: number) => {
+  const d = new Date(`${dia}T12:00:00`)
+  d.setDate(d.getDate() + dias)
+  return d.toLocaleDateString('sv-SE')
+}
 const rotuloCondicao = (c: string | null) => (c === null ? '—' : (condicoes.find(([valor]) => valor === c)?.[1] ?? `${c} dias`))
 
 export function Entradas() {
@@ -153,6 +161,10 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
   const compra = f.natureza === 'COMPRA_REVENDA'
   const somaItens = totalItens(itens)
   const total = somaItens + f.frete + f.outrasDespesas
+  // "Escolher datas e valores": as parcelas da tabela no lugar dos prazos fixos.
+  const manual = compra && f.condicaoPagamento === MANUAL
+  const [parcelas, setParcelas] = useState<Parcela[]>([])
+  const parcelasNaoFecham = manual && somaParcelas(parcelas) !== total
 
   function enviar(e: FormEvent) {
     e.preventDefault()
@@ -163,7 +175,8 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
         body: {
           ...f,
           fornecedorId: f.fornecedorId || null,
-          condicaoPagamento: compra ? f.condicaoPagamento : null,
+          condicaoPagamento: compra && !manual ? f.condicaoPagamento : null,
+          parcelas: manual ? parcelas : null,
           itens: itens.map((i) => ({ produtoId: i.produtoId, unidade: i.unidade, quantidade: i.quantidade, custoUnitario: i.valor })),
         },
       })
@@ -198,13 +211,23 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
           <CampoData type="date" required value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} />
         </Campo>
         <Campo rotulo="Condição de pagamento">
-          <select required={compra} disabled={!compra} value={compra ? f.condicaoPagamento : ''} onChange={(e) => setF({ ...f, condicaoPagamento: e.target.value })}>
+          <select
+            required={compra}
+            disabled={!compra}
+            value={compra ? f.condicaoPagamento : ''}
+            onChange={(e) => {
+              setF({ ...f, condicaoPagamento: e.target.value })
+              // Ao escolher as parcelas à mão, a tabela começa com uma parcela de 30 dias com o total.
+              if (e.target.value === MANUAL && parcelas.length === 0) setParcelas(dividirParcelas(total, 1, somarDias(f.data, 30)))
+            }}
+          >
             <option value="">{compra ? 'Selecione' : 'Não se aplica'}</option>
             {condicoes.map(([valor, rotulo]) => (
               <option key={valor} value={valor}>
                 {rotulo}
               </option>
             ))}
+            <option value={MANUAL}>Escolher datas e valores…</option>
           </select>
         </Campo>
         <Campo rotulo="Nº do documento">
@@ -283,6 +306,12 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
         <dt className="totais-final">Total da entrada</dt>
         <dd className="totais-final">{brl(total)}</dd>
       </dl>
+      {manual && (
+        <>
+          <h3>Parcelas a pagar</h3>
+          <TabelaParcelas parcelas={parcelas} onChange={setParcelas} total={total} rotuloTotal="o total da entrada" />
+        </>
+      )}
       <p className="texto-suave">
         {compra
           ? 'A entrada soma ao saldo, atualiza o custo dos produtos e gera as contas a pagar conforme a condição de pagamento.'
@@ -293,7 +322,7 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
         <button type="button" className="botao" onClick={props.onFechar}>
           Cancelar
         </button>
-        <button form="form-entrada" className="botao botao-primario" disabled={ocupado}>
+        <button form="form-entrada" className="botao botao-primario" disabled={ocupado || parcelasNaoFecham}>
           Registrar entrada
         </button>
       </div>

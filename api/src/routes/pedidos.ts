@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { AppError, centavos, dataIso, dia, idParam, intervalo, prisma, quantidadeTexto, somarMeses, texto, type Transacao } from '../lib.js'
@@ -21,7 +22,23 @@ const condicao = {
   formaPagamento: z.enum(FORMAS_PAGAMENTO, 'Selecione a forma de pagamento').nullish(),
   parcelas: z.number().int().min(1, 'De 1 a 24 parcelas').max(24, 'De 1 a 24 parcelas').optional(),
   primeiroVencimento: dataIso.nullish(),
+  // Parcelas com data e valor escolhidos à mão; null volta às mensais iguais.
+  vencimentos: z
+    .array(z.object({ vencimento: dia, valor: z.number().int().positive('O valor de cada parcela deve ser maior que zero.') }))
+    .min(1, 'Informe ao menos uma parcela.')
+    .max(24, 'De 1 a 24 parcelas')
+    .nullish(),
 }
+
+type Vencimento = { vencimento: string; valor: number }
+
+// Parcelas escolhidas à mão, em ordem de data. O que estiver gravado fora do formato é ignorado.
+function lerVencimentos(valor: unknown): Vencimento[] | null {
+  if (!Array.isArray(valor) || valor.length === 0) return null
+  return (valor as Vencimento[]).filter((v) => /^\d{4}-\d{2}-\d{2}$/.test(v?.vencimento) && Number.isInteger(v?.valor)).sort((a, b) => a.vencimento.localeCompare(b.vencimento))
+}
+
+const reais = (centavos: number) => (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
 const corpo = z
   .object({
@@ -129,13 +146,16 @@ async function valores(dados: Corpo) {
   }
 }
 
-// Só a venda tem condição de pagamento.
+// Só a venda tem condição de pagamento. Com parcelas escolhidas à mão, a quantidade e o primeiro
+// vencimento saem delas.
 function condicaoDoPedido(dados: Corpo) {
   const venda = dados.natureza === 'VENDA'
+  const vencimentos = venda ? lerVencimentos(dados.vencimentos) : null
   return {
     formaPagamento: venda ? (dados.formaPagamento ?? null) : null,
-    parcelas: venda ? (dados.parcelas ?? 1) : 1,
-    primeiroVencimento: venda ? (dados.primeiroVencimento ?? null) : null,
+    parcelas: vencimentos?.length ?? (venda ? (dados.parcelas ?? 1) : 1),
+    primeiroVencimento: vencimentos ? new Date(`${vencimentos[0].vencimento}T12:00:00`) : venda ? (dados.primeiroVencimento ?? null) : null,
+    vencimentos: vencimentos ?? Prisma.DbNull,
   }
 }
 
@@ -154,7 +174,7 @@ const comDetalhes = {
   itens: { include: { produto: { select: { id: true, sku: true, nome: true, unidade: true } } } },
 } as const
 
-type Condicao = { formaPagamento: string; parcelas: number; primeiroVencimento: Date }
+type Condicao = { formaPagamento: string; parcelas: number; primeiroVencimento: Date; vencimentos: Vencimento[] | null }
 
 // Faturamento: confere e baixa o estoque, guarda o custo dos itens e, na venda, gera as parcelas a receber.
 async function faturarNaTransacao(tx: Transacao, id: number, condicao: Condicao | null) {
@@ -195,7 +215,22 @@ async function faturarNaTransacao(tx: Transacao, id: number, condicao: Condicao 
     })
   }
 
-  if (condicao && pedido.total > 0) {
+  if (condicao?.vencimentos && pedido.total > 0) {
+    // Parcelas escolhidas à mão: precisam fechar o total, que pode ter mudado depois que foram escolhidas.
+    const soma = condicao.vencimentos.reduce((s, v) => s + v.valor, 0)
+    if (soma !== pedido.total) throw new AppError(400, `As parcelas somam ${reais(soma)}; o total do pedido é ${reais(pedido.total)}. Ajuste os valores das parcelas.`)
+    for (const [n, v] of condicao.vencimentos.entries()) {
+      await tx.contaReceber.create({
+        data: {
+          pessoaId: pedido.clienteId,
+          pedidoId: id,
+          descricao: `Pedido nº ${pedido.numero} — parcela ${n + 1}/${condicao.vencimentos.length}`,
+          valor: v.valor,
+          vencimento: new Date(`${v.vencimento}T12:00:00`),
+        },
+      })
+    }
+  } else if (condicao && pedido.total > 0) {
     const base = Math.floor(pedido.total / condicao.parcelas)
     const resto = pedido.total - base * condicao.parcelas
     for (let n = 0; n < condicao.parcelas; n++) {
@@ -243,15 +278,28 @@ async function desfazerFaturamento(tx: Transacao, id: number, origem: 'CANCELAME
 
 // A condição final de uma venda: o que veio agora, completado pelo que ficou gravado no pedido.
 function condicaoFinal(
-  pedido: { formaPagamento: string | null; parcelas: number; primeiroVencimento: Date | null },
-  dados: { formaPagamento?: string | null; parcelas?: number; primeiroVencimento?: Date | null },
+  pedido: { formaPagamento: string | null; parcelas: number; primeiroVencimento: Date | null; vencimentos: unknown },
+  dados: { formaPagamento?: string | null; parcelas?: number; primeiroVencimento?: Date | null; vencimentos?: Vencimento[] | null },
 ): Condicao {
   const formaPagamento = dados.formaPagamento ?? pedido.formaPagamento
-  const primeiroVencimento = dados.primeiroVencimento ?? pedido.primeiroVencimento
   if (!formaPagamento) throw new AppError(400, 'Selecione a forma de pagamento')
+  // Parcelas à mão que vierem agora valem; null pedido agora volta às mensais; sem nada, vale o gravado.
+  const vencimentos = dados.vencimentos !== undefined ? lerVencimentos(dados.vencimentos) : lerVencimentos(pedido.vencimentos)
+  if (vencimentos) {
+    return { formaPagamento, parcelas: vencimentos.length, primeiroVencimento: new Date(`${vencimentos[0].vencimento}T12:00:00`), vencimentos }
+  }
+  const primeiroVencimento = dados.primeiroVencimento ?? pedido.primeiroVencimento
   if (!primeiroVencimento) throw new AppError(400, 'Informe o primeiro vencimento.')
-  return { formaPagamento, parcelas: dados.parcelas ?? pedido.parcelas, primeiroVencimento }
+  return { formaPagamento, parcelas: dados.parcelas ?? pedido.parcelas, primeiroVencimento, vencimentos: null }
 }
+
+// Como a condição é gravada no pedido.
+const gravarCondicao = (c: Condicao | null) => ({
+  formaPagamento: c?.formaPagamento ?? null,
+  parcelas: c?.parcelas ?? 1,
+  primeiroVencimento: c?.primeiroVencimento ?? null,
+  vencimentos: c?.vencimentos ?? Prisma.DbNull,
+})
 
 // Os itens e valores do pedido, para comparar o que estava gravado com o que chegou.
 const assinaturaValores = (p: {
@@ -382,7 +430,8 @@ export async function rotasPedidos(app: FastifyInstance) {
         venda &&
         (novaCondicao!.formaPagamento !== atual.formaPagamento ||
           novaCondicao!.parcelas !== atual.parcelas ||
-          novaCondicao!.primeiroVencimento.toDateString() !== atual.primeiroVencimento?.toDateString())
+          novaCondicao!.primeiroVencimento.toDateString() !== atual.primeiroVencimento?.toDateString() ||
+          JSON.stringify(novaCondicao!.vencimentos) !== JSON.stringify(lerVencimentos(atual.vencimentos)))
       const motivoPerda = atual.natureza === 'PERDA' ? (dados.motivoPerda ?? null) : null
       // Item sem unidade é na unidade base do produto, que é a gravada no pedido.
       const bases = await tx.produto.findMany({ where: { id: { in: dados.itens.map((i) => i.produtoId) } }, select: { id: true, unidade: true } })
@@ -409,9 +458,7 @@ export async function rotasPedidos(app: FastifyInstance) {
             observacao: dados.observacao,
             ...pessoas,
             ...(await valores(dados)),
-            formaPagamento: novaCondicao?.formaPagamento ?? null,
-            parcelas: novaCondicao?.parcelas ?? 1,
-            primeiroVencimento: novaCondicao?.primeiroVencimento ?? null,
+            ...gravarCondicao(novaCondicao),
           },
         })
         await faturarNaTransacao(tx, id, novaCondicao)
@@ -468,9 +515,7 @@ export async function rotasPedidos(app: FastifyInstance) {
         data: {
           status: 'FATURADO',
           faturadoEm: new Date(),
-          formaPagamento: condicaoVenda?.formaPagamento ?? null,
-          parcelas: condicaoVenda?.parcelas ?? 1,
-          primeiroVencimento: condicaoVenda?.primeiroVencimento ?? null,
+          ...gravarCondicao(condicaoVenda),
         },
         include: comDetalhes,
       })

@@ -133,6 +133,8 @@ export type Pedido = {
   formaPagamento: string | null
   parcelas: number
   primeiroVencimento: string | null
+  // Parcelas escolhidas à mão (data e valor); null = mensais de valor igual.
+  vencimentos: { vencimento: string; valor: number }[] | null
   itens: { id: number; produtoId: number; unidade: string | null; quantidade: number; precoUnitario: number; desconto: number; produto: ProdutoRef }[]
   contasReceber?: Conta[]
 }
