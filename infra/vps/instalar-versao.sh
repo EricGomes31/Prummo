@@ -6,15 +6,16 @@ set -euo pipefail
 VERSAO=$1
 ANTERIOR=$(readlink -f /opt/prumo/atual || true)
 set -a; . /etc/prumo/prumo.env; set +a
+# O NODE_ENV=production do serviço faria o npm pular as ferramentas de montagem (Vite, TypeScript, tsx).
 
 echo "== Montando o site"
 cd "$VERSAO/web"
-npm ci --no-audit --no-fund --loglevel=error
+npm ci --include=dev --no-audit --no-fund --loglevel=error --no-update-notifier
 npm run build >/dev/null
 
 echo "== Instalando a API"
 cd "$VERSAO/api"
-npm ci --no-audit --no-fund --loglevel=error
+npm ci --include=dev --no-audit --no-fund --loglevel=error --no-update-notifier
 npx prisma generate >/dev/null
 
 # Mudanças de estrutura do banco nunca são aplicadas aqui: rodam antes, de propósito, com cópia de segurança.
