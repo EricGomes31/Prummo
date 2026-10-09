@@ -223,6 +223,9 @@ kbd { font: inherit; font-size: 0.76rem; font-weight: 500; color: var(--suave); 
 .botao:hover:not(:disabled) { background: var(--superficie-2); border-color: var(--cinza); }
 .botao:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 .botao:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
+.botao svg { width: 18px; height: 18px; flex: none; }
+/* Botão só com ícone (as setas de mês do Dashboard, por exemplo) fica quadrado. */
+.botao:has(> svg:only-child) { padding: 0; width: var(--altura-controle); }
 .botao-primario { background: var(--preto); border-color: var(--preto); color: #fff; }
 .botao-primario:hover:not(:disabled) { background: #262626; border-color: #262626; }
 .botao-perigo { color: var(--ruim); border-color: #fecaca; }
