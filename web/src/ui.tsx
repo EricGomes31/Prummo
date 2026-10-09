@@ -6,6 +6,7 @@ import type { ItemEdicao, Produto } from './types'
 // Janelas abertas, da mais antiga para a mais nova. A rolagem da página só volta quando a última fecha,
 // e o Esc fecha só a de cima (uma janela pode abrir outra, como o cadastro rápido dentro de um lançamento).
 const janelasAbertas: object[] = []
+const FOCAVEIS = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 
 export function Cabecalho({ titulo, descricao, children }: { titulo: string; descricao?: string; children?: ReactNode }) {
   return (
@@ -22,11 +23,40 @@ export function Cabecalho({ titulo, descricao, children }: { titulo: string; des
 export function Modal(props: { titulo: string; onFechar: () => void; largo?: boolean; children: ReactNode }) {
   const { onFechar } = props
   const esta = useRef({})
+  const caixa = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const aoTeclar = (e: KeyboardEvent) => e.key === 'Escape' && janelasAbertas.at(-1) === esta.current && onFechar()
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (janelasAbertas.at(-1) !== esta.current) return
+      if (e.key === 'Escape') onFechar()
+      // O Tab circula só pelos controles da janela, sem cair na página por trás.
+      if (e.key === 'Tab' && caixa.current) {
+        const focaveis = [...caixa.current.querySelectorAll<HTMLElement>(FOCAVEIS)].filter((el) => el.offsetParent !== null)
+        if (focaveis.length === 0) return
+        const primeiro = focaveis[0]
+        const ultimo = focaveis[focaveis.length - 1]
+        const dentro = caixa.current.contains(document.activeElement)
+        if (e.shiftKey && (document.activeElement === primeiro || !dentro)) {
+          e.preventDefault()
+          ultimo.focus()
+        } else if (!e.shiftKey && (document.activeElement === ultimo || !dentro)) {
+          e.preventDefault()
+          primeiro.focus()
+        }
+      }
+    }
     window.addEventListener('keydown', aoTeclar)
     return () => window.removeEventListener('keydown', aoTeclar)
   }, [onFechar])
+
+  // Ao abrir, o foco entra na janela (a menos que um campo dela já o tenha pego com autoFocus);
+  // ao fechar, volta ao botão que a abriu.
+  useEffect(() => {
+    const origem = document.activeElement as HTMLElement | null
+    if (!caixa.current?.contains(document.activeElement)) caixa.current?.focus({ preventScroll: true })
+    return () => {
+      if (origem?.isConnected) origem.focus({ preventScroll: true })
+    }
+  }, [])
 
   // Com a janela aberta, a página por trás não rola.
   useEffect(() => {
@@ -41,7 +71,7 @@ export function Modal(props: { titulo: string; onFechar: () => void; largo?: boo
 
   return (
     <div className="modal-fundo" onMouseDown={(e) => e.target === e.currentTarget && onFechar()}>
-      <div className={`modal ${props.largo ? 'modal-largo' : ''}`} role="dialog" aria-modal="true" aria-label={props.titulo}>
+      <div ref={caixa} tabIndex={-1} className={`modal ${props.largo ? 'modal-largo' : ''}`} role="dialog" aria-modal="true" aria-label={props.titulo}>
         <div className="modal-topo">
           <h2>{props.titulo}</h2>
           <button type="button" className="botao-icone" onClick={onFechar} aria-label="Fechar">
@@ -329,7 +359,7 @@ export function EditorItens(props: {
                     disabled={itens.length === 1}
                     onClick={() => onChange(itens.filter((_, n) => n !== i))}
                   >
-                    ×
+                    <Icone nome="fechar" />
                   </button>
                 </td>
               </tr>

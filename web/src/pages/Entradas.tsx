@@ -5,6 +5,7 @@ import { Documentos } from '../Documentos'
 import { brl, dataBr, hojeIso, inteiro, unidadesDe } from '../format'
 import type { Entrada, ItemEdicao, Pessoa, Produto } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, totalItens, usePaginacao } from '../ui'
+import { Icone } from '../icones'
 
 const naturezas = { COMPRA_REVENDA: 'Compra para revenda', BONIFICACAO: 'Bonificação' } as const
 type Natureza = keyof typeof naturezas
@@ -239,7 +240,7 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
                   <td className="num">
                     <button type="button" className="botao-icone" aria-label={`Remover ${produto?.nome}`}
                       onClick={() => setItens(itens.filter((i) => i.produtoId !== item.produtoId))}>
-                      ×
+                      <Icone nome="fechar" />
                     </button>
                   </td>
                 </tr>

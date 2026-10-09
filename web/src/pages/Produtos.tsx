@@ -4,6 +4,7 @@ import { useSessao } from '../auth'
 import { brl, dataBr, inteiro, qtd, saldoBase, unidades } from '../format'
 import type { Movimento, Produto } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Icone } from '../icones'
 
 type Rascunho = Omit<Produto, 'id' | 'saldo' | 'divisor'> & { id?: number }
 
@@ -211,7 +212,7 @@ function FormProduto(props: { inicial: Rascunho; onFechar: () => void; onSalvo: 
                       <td className="num">
                         <button type="button" className="botao-icone" aria-label={`Remover ${u.sigla}`}
                           onClick={() => setP({ ...p, unidades: p.unidades.filter((_, n) => n !== i) })}>
-                          ×
+                          <Icone nome="fechar" />
                         </button>
                       </td>
                     </tr>

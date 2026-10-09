@@ -4,6 +4,7 @@ import { useSessao } from '../auth'
 import { brl, dataBr, hojeIso, inteiro } from '../format'
 import type { ItemPromocao, Modalidade, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Icone } from '../icones'
 
 const modalidades: Record<Modalidade, { rotulo: string; ajuda: string }> = {
   PERCENTUAL: { rotulo: 'Desconto percentual', ajuda: 'Desconto sobre todas as unidades de cada produto que atingir a quantidade mínima.' },
@@ -324,7 +325,7 @@ function ListaProdutos(props: {
               <td className="num">
                 <button type="button" className="botao-icone" aria-label="Remover produto" disabled={doPapel.length === 1}
                   onClick={() => props.onChange(itens.filter((_, n) => n !== indice))}>
-                  ×
+                  <Icone nome="fechar" />
                 </button>
               </td>
             </tr>

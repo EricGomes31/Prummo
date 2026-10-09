@@ -5,6 +5,7 @@ import { useSessao } from '../auth'
 import { brl, dataBr } from '../format'
 import type { ArquivoOfx, Conta, ContaFinanceira, LinhaExtrato, Pessoa, SugestaoConciliacao } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Icone } from '../icones'
 
 const resolucoes: Record<string, string> = {
   BAIXA: 'Baixa de título',
@@ -475,7 +476,7 @@ function Resolver(props: { linha: LinhaExtrato; onFechar: () => void; onResolvid
                       </td>
                       <td>
                         <button type="button" className="botao-icone" aria-label="Tirar título" onClick={() => setVarios(varios.filter((_, n) => n !== i))}>
-                          ×
+                          <Icone nome="fechar" />
                         </button>
                       </td>
                     </tr>

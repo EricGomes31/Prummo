@@ -33,6 +33,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 - [ ] Avaliar o plano pago do Supabase. O gratuito pausa o projeto após cerca de uma semana sem uso e não tem backup automático.
 - [x] Migrar o `railway.json` para o formato novo do Railway. Feito e aplicado em 09/10/2026: `.railway/railway.ts`.
 - [x] Colocar o projeto no Git. Feito em 08/10/2026: repositório privado `github.com/labsinfinitys-svg/Prumo`, branch `main`.
+- [x] Instalar no projeto as skills da pasta `Desktop\Skills`. Feito em 09/10/2026: brainstorming, find-skills, frontend-design e ui-ux-pro-max copiadas para `.claude/skills` (a skill-creator já existia).
 - [ ] Ligar o Railway ao repositório do GitHub, para publicar a cada envio. Hoje a publicação continua manual, por `railway up`.
 - [ ] Definir o backup da pasta de anexos (volume `/data` no Railway) junto com o do banco.
 
@@ -71,3 +72,6 @@ Ficaram para depois, por decisão de 09/10/2026:
 - [x] Máscara de CPF/CNPJ, telefone e CEP. Feito em 09/10/2026: a API guarda só os dígitos e as telas formatam ao mostrar e ao digitar.
 - [x] Rodar no banco real `api/prisma/migracoes/2026-10-09-so-digitos.sql`. Feito em 09/10/2026, com cópia de segurança antes em `backups/2026-10-09-0438`: nenhum CPF/CNPJ, telefone ou CEP ficou com pontuação.
 - [ ] Testes automatizados do frontend. Hoje só a API é testada.
+- [x] Revisão de acessibilidade e uso no celular com a skill ui-ux-pro-max, sem mudar o visual. Feito em 09/10/2026: contorno de foco visível no menu escuro e no painel do login; mais contraste no cinza dos textos secundários e nos títulos de grupo do menu; botões de ícone com 44 px no celular; link "Pular para o conteúdo"; foco vai para o conteúdo a cada troca de tela; janelas prendem o Tab dentro delas e devolvem o foco ao botão que as abriu; "×" de texto trocado pelo ícone de fechar; botão "Mostrar" na senha do login; ícone da aba do navegador em preto (era roxo).
+- [ ] Conferir no navegador, logado, as melhorias acima nas telas internas (janelas, menu recolhido, tabelas em cartões no celular). Só a tela de login foi vista em print.
+- [ ] Sugestões da revisão que mudam um pouco a aparência e dependem de decisão: aumentar os textos muito pequenos (selos, títulos de coluna e de grupo do menu, entre 10 e 11 px); marcar com asterisco os campos obrigatórios; perguntar antes de fechar uma janela com dados não salvos; mostrar o erro embaixo do campo, e não só no fim do formulário.

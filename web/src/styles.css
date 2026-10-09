@@ -7,7 +7,7 @@
   --superficie: #ffffff;
   --superficie-2: #fafafa;
   --tinta: #111111;
-  --suave: #71717a;
+  --suave: #6b6b73;
   --cinza: #a1a1aa;
   --borda: #e5e5e5;
   --borda-forte: #d4d4d8;
@@ -56,6 +56,15 @@ a { color: var(--azul-texto); text-decoration: none; }
 a:hover { text-decoration: underline; }
 small { font-size: 0.83rem; }
 :focus-visible { outline: 2px solid var(--preto); outline-offset: 2px; }
+/* Em fundo escuro (menu, painel do login, avisos) o contorno preto sumiria; lá ele é branco. */
+.lateral :focus-visible, .entrar-painel :focus-visible, .aviso-rapido :focus-visible { outline-color: #fff; }
+/* O conteúdo recebe o foco a cada troca de tela (para o leitor de tela), sem desenhar contorno. */
+.conteudo:focus, .modal:focus { outline: none; }
+/* Toque sem a espera de duplo toque do celular. */
+button, a, input, select, textarea, label { touch-action: manipulation; }
+/* Link para pular o menu, visível só quando recebe o foco pelo teclado. */
+.pular { position: fixed; top: 10px; left: 10px; z-index: 80; padding: 10px 14px; border-radius: var(--raio-controle); background: var(--preto); color: #fff; font-weight: 500; transform: translateY(-160%); transition: transform 0.15s var(--curva); }
+.pular:focus { transform: none; text-decoration: none; outline-color: #fff; }
 
 .texto-suave { color: var(--suave); }
 .texto-bom { color: var(--bom); }
@@ -122,7 +131,7 @@ small { font-size: 0.83rem; }
 .lateral nav::-webkit-scrollbar { display: none; }
 /* Em tela baixa o menu rola; sem isto os itens encolheriam e os títulos de grupo sumiriam. */
 .lateral nav > * { flex: none; }
-.menu-grupo { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; padding: 16px 12px 6px; white-space: nowrap; overflow: hidden; }
+.menu-grupo { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #84848c; padding: 16px 12px 6px; white-space: nowrap; overflow: hidden; }
 .menu-grupo:first-child { padding-top: 4px; }
 .lateral nav a { display: flex; align-items: center; gap: 12px; padding: 0 12px; min-height: 38px; border-radius: var(--raio-controle); color: var(--cinza); font-weight: 500; white-space: nowrap; transition: background 0.15s, color 0.15s; }
 .lateral nav a svg { width: 18px; height: 18px; flex: none; }
@@ -401,12 +410,15 @@ button.indicador:hover { border-color: var(--preto); }
 .entrar-painel .marca-glifo::after { background: var(--preto); box-shadow: 0 10px 0 2px var(--preto); }
 .entrar-frase { font-size: 2rem; font-weight: 600; line-height: 1.2; letter-spacing: -0.03em; max-width: 440px; }
 .entrar-frase small { display: block; margin-top: 14px; font-size: 1rem; font-weight: 400; letter-spacing: 0; color: var(--cinza); line-height: 1.5; }
-.entrar-rodape { color: #52525b; font-size: 0.85rem; }
+.entrar-rodape { color: #84848c; font-size: 0.85rem; }
 .entrar-lado { display: grid; place-items: center; padding: 24px; }
 .entrar-cartao { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
 .entrar-cartao h1 { font-size: 1.5rem; }
 .entrar-cartao .marca { display: none; margin-bottom: 8px; }
-.entrar-cartao .botao { min-height: 44px; margin-top: 6px; }
+.entrar-cartao > .botao { min-height: 44px; margin-top: 6px; }
+.campo-senha { position: relative; }
+.campo-senha input { padding-right: 76px; }
+.campo-senha .botao-texto { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); min-height: 32px; color: var(--suave); }
 
 /* Rotas de entrega */
 .rota { margin-bottom: 16px; }
@@ -453,7 +465,7 @@ button.indicador:hover { border-color: var(--preto); }
   /* Na gaveta o menu aparece sempre inteiro, mesmo que esteja recolhido no computador. */
   .app.recolhida .lateral .marca, .app.recolhida .lateral-usuario, .app.recolhida .lateral-pe .botao-icone { display: flex; }
   .app.recolhida .lateral-topo { justify-content: space-between; padding: 0 4px 0 8px; }
-  .app.recolhida .menu-grupo { height: auto; padding: 16px 12px 6px; margin: 0; background: none; color: #52525b; }
+  .app.recolhida .menu-grupo { height: auto; padding: 16px 12px 6px; margin: 0; background: none; color: #84848c; }
   .app.recolhida .menu-grupo:first-child { display: block; }
   .app.recolhida .lateral nav a { justify-content: flex-start; padding: 0 12px; gap: 12px; font-size: inherit; }
   .app.recolhida .lateral-pe { justify-content: flex-start; padding: 12px 4px 0; }
@@ -474,6 +486,10 @@ button.indicador:hover { border-color: var(--preto); }
   input, select, textarea { font-size: 16px; }
   input[type='file']::file-selector-button { height: 34px; }
   :root { --altura-controle: 44px; --altura-topo: 54px; }
+  /* Alvos de toque de 44 px: botões de ícone, botões de texto e a paginação. */
+  .botao-icone, .topo .botao-icone, .busca-botao { width: 44px; height: 44px; }
+  .botao-texto, .paginacao .botao { min-height: 40px; }
+  .marcar { min-height: 44px; }
 
   .cabecalho { align-items: stretch; flex-direction: column; margin-bottom: 18px; }
   .acoes .botao { flex: 1; }

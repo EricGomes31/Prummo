@@ -71,11 +71,16 @@ export function Layout() {
   const [buscando, setBuscando] = useState(false)
   const { pathname } = useLocation()
   const carregandoDados = useCarregando()
+  const conteudo = useRef<HTMLElement>(null)
+  const primeiraTela = useRef(true)
 
   // Cada tela nova começa fechando a gaveta e do topo, e não onde a anterior estava rolada.
   useEffect(() => {
     setMenuAberto(false)
     window.scrollTo(0, 0)
+    // O leitor de tela passa a ler a tela nova; na primeira o foco fica onde o navegador pôs.
+    if (primeiraTela.current) primeiraTela.current = false
+    else conteudo.current?.focus({ preventScroll: true })
   }, [pathname])
 
   useEffect(() => {
@@ -118,6 +123,9 @@ export function Layout() {
 
   return (
     <div className={`app ${recolhido ? 'recolhida' : ''}`}>
+      <a href="#conteudo" className="pular">
+        Pular para o conteúdo
+      </a>
       {carregandoDados && <div className="barra-carregando" role="progressbar" aria-label="Carregando" />}
       {menuAberto && <button type="button" className="lateral-fundo" aria-label="Fechar o menu" onClick={() => setMenuAberto(false)} />}
 
@@ -202,7 +210,7 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="conteudo">
+        <main className="conteudo" id="conteudo" tabIndex={-1} ref={conteudo}>
           {/* A chave refaz o bloco a cada tela, e é isso que dispara a animação de entrada. */}
           <div key={pathname} className="pagina">
             <Outlet />
