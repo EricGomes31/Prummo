@@ -298,7 +298,7 @@ function FormDespesa(props: {
               ))}
           </select>
           {pode('PESSOAS_CADASTRAR') ? (
-            <button type="button" className="botao botao-texto" onClick={() => setCadastrando(true)}>
+            <button type="button" className="botao botao-texto" style={{ alignSelf: 'flex-start' }} onClick={() => setCadastrando(true)}>
               + Cadastrar fornecedor
             </button>
           ) : (

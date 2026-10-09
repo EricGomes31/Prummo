@@ -28,7 +28,7 @@ function mesVizinho(mes: string, passo: number) {
 type Escolha = { tipo: 'mes'; mes: string } | { tipo: 'ano'; ano: string } | { tipo: 'tudo' }
 
 const consultaDe = (e: Escolha) => (e.tipo === 'mes' ? `mes=${e.mes}` : e.tipo === 'ano' ? `ano=${e.ano}` : 'tudo=1')
-const nomeDoPeriodo = (p: PeriodoDashboard) => (p.tipo === 'mes' ? mesPorExtenso(p.chave) : p.tipo === 'ano' ? `o ano de ${p.chave}` : 'todo o período')
+const nomeDoPeriodo = (p: PeriodoDashboard) => (p.tipo === 'mes' ? mesPorExtenso(p.chave) : p.tipo === 'ano' ? p.chave : 'todo o período')
 const titulos = {
   mes: { detalhe: 'por dia', historico: 'últimos 6 meses', doPeriodo: 'do mês' },
   ano: { detalhe: 'por mês', historico: 'últimos 6 anos', doPeriodo: 'do ano' },
@@ -49,7 +49,7 @@ export function Dashboards() {
   const financeiro = useDados<DashboardFinanceiro>(aba === 'financeiro' ? `/dashboards/financeiro?${consulta}` : null)
   const atual = aba === 'comercial' ? comercial : financeiro
   const descricao =
-    escolha.tipo === 'mes' ? mesPorExtenso(escolha.mes) : escolha.tipo === 'ano' ? `o ano de ${escolha.ano}` : 'todo o período'
+    escolha.tipo === 'mes' ? mesPorExtenso(escolha.mes) : escolha.tipo === 'ano' ? escolha.ano : 'todo o período'
 
   function trocarTipo(tipo: Escolha['tipo']) {
     if (tipo === 'mes') setEscolha({ tipo, mes: escolha.tipo === 'ano' && escolha.ano !== anoAtual ? `${escolha.ano}-12` : mesAtual })

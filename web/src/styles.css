@@ -372,6 +372,9 @@ button.indicador:hover { border-color: var(--preto); }
 .marcacoes { border: 1px solid var(--borda); margin: 0; padding: 10px 14px; background: var(--superficie-2); border-radius: var(--raio); display: flex; flex-wrap: wrap; gap: 6px 22px; }
 .marcar-ativo { margin-left: auto; font-weight: 550; }
 .form-pe { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+/* Janelas com relatório: filtros, indicadores e tabela em blocos separados. */
+.modal > .form + .indicadores { margin-top: 16px; }
+.modal > table + .form-pe, .modal > .tabela-relatorio + .form-pe, .modal > .erro + .form-pe { margin-top: 16px; }
 .empurra { margin-right: auto; }
 .total { text-align: right; color: var(--suave); }
 .total strong { color: var(--tinta); font-size: 1.15rem; margin-left: 4px; }
@@ -417,6 +420,7 @@ button.indicador:hover { border-color: var(--preto); }
 .entregador header, .pagina-publica header { display: flex; flex-direction: column; gap: 4px; }
 .entregador header p, .pagina-publica header p { margin: 0; }
 .entregador header .botao { align-self: flex-start; margin-top: 8px; }
+.pagina-publica .form.painel { padding: 16px; }
 .parada-topo { font: inherit; color: inherit; text-align: left; background: none; border: 0; width: 100%; padding: 14px 16px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; }
 .parada-topo span { color: var(--suave); font-size: 0.92rem; }
 .parada-detalhe { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }

@@ -204,7 +204,7 @@ export function Relatorios() {
       )}
 
       {aba === 'despesas' && despesas.dados && quantidade > 0 && (
-        <div className="duas-colunas">
+        <div className="duas-colunas" style={{ marginBottom: 18 }}>
           <section className="painel">
             <div className="painel-topo">
               <h2>Por elemento</h2>
