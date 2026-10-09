@@ -45,10 +45,12 @@ const prefixo = webDist ? '/api' : ''
 const app = Fastify({ logger: true, trustProxy: webDist ? (_endereco: string, salto: number) => salto < 2 : false })
 
 // Endereço antigo desativado: com REDIRECIONAR_PARA (ex.: https://prummo.tech), toda chamada vai para o
-// endereço novo e nada mais é gravado aqui. Usado na mudança do Railway para a VPS.
+// endereço novo e nada mais é gravado aqui (menos /api/saude). Usado na mudança do Railway para a VPS.
 const redirecionarPara = process.env.REDIRECIONAR_PARA?.replace(/\/$/, '')
 if (redirecionarPara) {
   app.addHook('onRequest', async (req, reply) => {
+    // A conferência de saúde da hospedagem continua respondendo, senão ela recusa a instalação.
+    if (req.url === '/api/saude') return
     if (req.url.startsWith('/api/')) return reply.status(410).send({ erro: `O Prumo mudou de endereço: ${redirecionarPara}` })
     return reply.redirect(redirecionarPara + req.url, 301)
   })
