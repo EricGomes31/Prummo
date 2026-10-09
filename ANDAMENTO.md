@@ -71,6 +71,10 @@ Feito, aplicado ao banco real e publicado em 09/10/2026 (cópia de segurança an
 - Banco que já tem pedidos: `api/prisma/migracoes/2026-10-09-numero-pedido.sql`, **antes** do `db:push`. Os pedidos existentes ficam com o número igual ao id (o que já aparecia) e a contagem continua do maior.
 - Importadores (`api/scripts/empresa.mjs`): usam o cliente do Prisma da API, com a empresa de `--empresa`. O número do pedido do SG Nexus vira o número no Prumo; se o número já for de outro pedido (outro cliente ou outro total), a importação para com aviso. A suíte `importadores` roda os quatro scripts de verdade numa segunda empresa.
 
+### Limite de tentativas no login
+
+Feito em 09/10/2026 (`api/src/limite.ts`, o mesmo mecanismo dos links públicos). Cinco senhas erradas para o mesmo e-mail, vindas do mesmo IP, bloqueiam esse e-mail nesse IP por 15 minutos; vinte falhas do mesmo IP, com quaisquer e-mails, bloqueiam o IP. Não há bloqueio só pelo e-mail, para ninguém conseguir trancar a conta de outra pessoa de propósito. Entrar com a senha certa zera a contagem do e-mail. A senha atual errada na troca de senha conta como falha de login da conta. Os contadores ficam em memória e zeram quando a API reinicia. Suíte `login-limite`.
+
 ### Funções que faltavam do SG Nexus
 
 Feito, aplicado ao banco real e publicado em 09/10/2026. Estrutura nova no banco: condição de pagamento no `Pedido`, `Devolucao.estornada`, origem e cancelamento no `Credito`, estorno no `CreditoUso`, hora e transferência no `MovimentoFinanceiro`, acessos do link na `Rota` e link de cadastro na `Pessoa`. Os dados antigos são ajustados por `api/prisma/migracoes/2026-10-09-funcoes.sql`. Permissões novas: alterar pedido faturado, lançar crédito avulso e lançar no caixa (36 no total).
@@ -100,7 +104,7 @@ Para conferir telas sem tocar nos dados reais, suba uma instância com PostgreSQ
 
 ### Testes
 
-A API tem 24 suítes com 668 verificações (`cd api`, depois `npm test`). Elas sobem um PostgreSQL descartável e nunca usam o banco do `.env`. O frontend não tem testes automatizados; cada tela nova foi conferida no navegador, sem gravar nos dados reais.
+A API tem 25 suítes com 678 verificações (`cd api`, depois `npm test`). Elas sobem um PostgreSQL descartável e nunca usam o banco do `.env`. O frontend não tem testes automatizados; cada tela nova foi conferida no navegador, sem gravar nos dados reais.
 
 O PostgreSQL descartável se recusa a rodar num terminal aberto como administrador ("Execution of PostgreSQL by a user with administrative permissions is not permitted"); nesse caso o `npm test` termina logo depois de "Preparando o banco de teste…". Rode num terminal comum, ou com privilégio reduzido: `runas /trustlevel:0x20000 "cmd /c cd /d <pasta>\api && npm test > saida.txt 2>&1"`.
 

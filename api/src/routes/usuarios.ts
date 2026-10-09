@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { autenticar, usuarioDaSessao } from '../auth.js'
 import { AppError, idParam, prisma, texto } from '../lib.js'
+import { conferirLogin, registrarFalhaDeLogin, registrarLogin } from '../limite.js'
 import { acessosDe, DASHBOARDS, GRUPOS_PERMISSOES, PERFIS_PADRAO, PERMISSOES } from '../permissoes.js'
 
 const publico = {
@@ -39,9 +40,15 @@ async function perfilParaGravar(dados: { perfil: 'ADMIN' | 'OPERADOR'; perfilId?
 export async function rotasAuth(app: FastifyInstance) {
   app.post('/auth/login', async (req) => {
     const dados = z.object({ email: z.string().trim().toLowerCase(), senha: z.string() }).parse(req.body)
+    // Bloqueado depois de muitas senhas erradas, mesmo que esta esteja certa (ver limite.ts).
+    conferirLogin(req, dados.email)
     const usuario = await usuarioDaSessao({ email: dados.email })
     const confere = usuario && usuario.ativo && (await bcrypt.compare(dados.senha, usuario.senhaHash))
-    if (!usuario || !confere) throw new AppError(401, 'E-mail ou senha incorretos.')
+    if (!usuario || !confere) {
+      registrarFalhaDeLogin(req, dados.email)
+      throw new AppError(401, 'E-mail ou senha incorretos.')
+    }
+    registrarLogin(req, dados.email)
     const token = app.jwt.sign({ sub: usuario.sessao.id })
     return { token, usuario: usuario.sessao }
   })
@@ -50,8 +57,11 @@ export async function rotasAuth(app: FastifyInstance) {
 
   app.put('/auth/senha', { onRequest: autenticar }, async (req, reply) => {
     const dados = z.object({ senhaAtual: z.string(), novaSenha: senha }).parse(req.body)
+    // A senha atual errada conta como tentativa de login da conta: quem pegou uma sessão aberta não fica testando senhas.
+    conferirLogin(req, req.usuario.email)
     const usuario = await prisma.usuario.findUniqueOrThrow({ where: { id: req.usuario.id } })
     if (!(await bcrypt.compare(dados.senhaAtual, usuario.senhaHash))) {
+      registrarFalhaDeLogin(req, req.usuario.email)
       throw new AppError(400, 'A senha atual não confere.')
     }
     await prisma.usuario.update({
