@@ -69,5 +69,5 @@ Ficaram para depois, por decisão de 09/10/2026:
 - [x] Esconder, em cada tela, os botões das operações que o perfil do usuário não permite. Feito em 09/10/2026 em Pessoas, Produtos, Entradas, Pedidos, Entregas, Logística e Contas a receber e a pagar (as demais telas já escondiam). Quem só pode ver uma conta abre o histórico, sem o formulário de baixa; quem não pode editar um pedido em aberto vê os detalhes.
 - [ ] Criar as permissões dos cartões e operadoras, quando o módulo entrar.
 - [x] Máscara de CPF/CNPJ, telefone e CEP. Feito em 09/10/2026: a API guarda só os dígitos e as telas formatam ao mostrar e ao digitar.
-- [ ] Rodar no banco real `api/prisma/migracoes/2026-10-09-so-digitos.sql`, que tira a pontuação do que foi gravado antes. O código já foi publicado em 09/10/2026 e as telas mostram certo nos dois casos; a cópia de segurança está em `backups/2026-10-09-0438`.
+- [x] Rodar no banco real `api/prisma/migracoes/2026-10-09-so-digitos.sql`. Feito em 09/10/2026, com cópia de segurança antes em `backups/2026-10-09-0438`: nenhum CPF/CNPJ, telefone ou CEP ficou com pontuação.
 - [ ] Testes automatizados do frontend. Hoje só a API é testada.
