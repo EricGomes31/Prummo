@@ -1,0 +1,8 @@
+{
+  "name": "prumo",
+  "private": true,
+  "description": "Só para a configuração do Railway em .railway/railway.ts. A API e o frontend têm o próprio package.json em api/ e web/.",
+  "devDependencies": {
+    "railway": "^3.13.1"
+  }
+}

@@ -22,7 +22,7 @@ O Prumo está publicado e funcionando, com os dados do SG Nexus importados. Dos 
 ### Infraestrutura
 
 - Banco trocado de SQLite para PostgreSQL no Supabase, com RLS em todas as tabelas (`api/prisma/rls.sql`, encadeado no `npm run db:push`).
-- A API passou a entregar também o frontend em produção (`WEB_DIST`), em um serviço único, com `Dockerfile` e `railway.json`.
+- A API passou a entregar também o frontend em produção (`WEB_DIST`), em um serviço único, com `Dockerfile`. A configuração do serviço no Railway (Dockerfile, verificação de saúde, reinício, volume) está em `.railway/railway.ts` desde 09/10/2026, no lugar do `railway.json`, que deixa de ser lido em 01/12/2026.
 - Publicação no Railway, com as variáveis de ambiente e o volume dos anexos.
 - Instalados na máquina: Ghidra 12.1.4, JDK 21 e a CLI do Railway. As skills `reverse-engineer-anything` e as duas do Supabase estão em `.claude/skills`.
 
@@ -131,6 +131,7 @@ Cuidados ao retomar:
 - **O banco é um só.** Toda mudança de estrutura e todo cadastro feito localmente caem nos dados reais e aparecem no site publicado.
 - **Pare a API antes do `prisma generate`.** No Windows, a API em execução segura o arquivo do Prisma e o comando falha com `EPERM`.
 - **O código está no Git desde 08/10/2026.** Repositório privado `github.com/labsinfinitys-svg/Prumo`, branch `main`. Faça um commit ao concluir cada etapa (`git add -A`, `git commit -m "..."`, `git push`). O envio ao GitHub não publica o sistema: a publicação continua por `railway up`.
+- **Configuração do Railway** (`.railway/railway.ts`): a publicação não a lê. Depois de mudar o arquivo, rode `railway config plan` e `railway config apply`. No Windows o pacote `railway` não acha a CLI pelo atalho do npm; chame o executável e informe o caminho dele em `_`: `env _='C:/Users/Eric/AppData/Roaming/npm/node_modules/@railway/cli/bin/railway.exe' /c/Users/Eric/AppData/Roaming/npm/node_modules/@railway/cli/bin/railway.exe config plan`. O reinício em caso de falha não aparece no arquivo porque é o padrão do Railway.
 - **Sessão do Railway.** Se a CLI pedir login de novo, rode `railway login` e confirme no navegador.
 
 ## Próximos passos, na ordem sugerida
