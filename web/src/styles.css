@@ -516,7 +516,10 @@ button.indicador:hover { border-color: var(--preto); }
 .total strong { color: var(--tinta); font-size: 1.15rem; margin-left: 4px; }
 .itens { border: 1px solid var(--borda); border-radius: var(--raio); padding: 4px 8px 8px; overflow-x: auto; }
 .itens td small { display: block; margin-top: 3px; }
-.itens td:first-child { min-width: 260px; }
+.itens td:first-child { min-width: 200px; }
+/* Muitas colunas numa janela: menos respiro lateral para caber sem rolar de lado. */
+.itens td, .itens th { padding-inline: 5px; }
+.itens input.curto { width: 86px; }
 .unidades-extras { margin: 8px 0 4px; }
 .unidades-extras th, .unidades-extras td { padding: 6px 8px; }
 .adicionar-item { display: grid; grid-template-columns: 1fr 96px 110px 140px auto; gap: 12px; align-items: end; border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px; margin-bottom: 8px; background: var(--superficie-2); }

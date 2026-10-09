@@ -30,6 +30,25 @@ const condicao = {
     .nullish(),
 }
 
+// Endereço de entrega diferente do cadastro do cliente.
+const enderecoEntrega = z
+  .object({
+    cep: texto.digitos,
+    logradouro: z.string().trim().min(2, 'Informe a rua do endereço de entrega.').max(200),
+    numero: texto.opcional,
+    complemento: texto.opcional,
+    bairro: texto.opcional,
+    cidade: z.string().trim().min(2, 'Informe a cidade do endereço de entrega.').max(120),
+    uf: z
+      .string()
+      .trim()
+      .max(2)
+      .nullish()
+      .transform((v) => v?.toUpperCase() || null),
+    referencia: texto.opcional,
+  })
+  .nullish()
+
 type Vencimento = { vencimento: string; valor: number }
 
 // Parcelas escolhidas à mão, em ordem de data. O que estiver gravado fora do formato é ignorado.
@@ -52,6 +71,7 @@ const corpo = z
     desconto: centavos.default(0),
     frete: centavos.default(0),
     observacao: texto.opcional,
+    enderecoEntrega,
     // Data da venda; sem ela, vale hoje. Não pode ser futura.
     data: dataIso.optional().refine((d) => !d || d.getTime() <= fimDeHoje(), 'A data da venda não pode ser futura.'),
     ...condicao,
@@ -372,6 +392,7 @@ export async function rotasPedidos(app: FastifyInstance) {
       usuarioId: req.usuario.id,
       observacao: dados.observacao,
       ...(dados.data ? { data: dados.data } : {}),
+      enderecoEntrega: dados.enderecoEntrega ?? Prisma.DbNull,
       ...(await pessoasDoPedido(dados)),
       ...(await valores(dados)),
       ...condicaoDoPedido(dados),
@@ -401,6 +422,8 @@ export async function rotasPedidos(app: FastifyInstance) {
         data: {
           clienteId: dados.clienteId,
           observacao: dados.observacao,
+          ...(dados.data ? { data: dados.data } : {}),
+          enderecoEntrega: dados.enderecoEntrega ?? Prisma.DbNull,
           ...(await pessoasDoPedido(dados)),
           ...(await valores(dados)),
           ...condicaoDoPedido(dados),
@@ -460,6 +483,7 @@ export async function rotasPedidos(app: FastifyInstance) {
             clienteId: dados.clienteId,
             observacao: dados.observacao,
             ...(dados.data ? { data: dados.data } : {}),
+            enderecoEntrega: dados.enderecoEntrega ?? Prisma.DbNull,
             ...pessoas,
             ...(await valores(dados)),
             ...gravarCondicao(novaCondicao),
@@ -468,7 +492,7 @@ export async function rotasPedidos(app: FastifyInstance) {
         await faturarNaTransacao(tx, id, novaCondicao)
       } else {
         // A data da venda muda sem refazer o faturamento, como cliente e observação.
-        await tx.pedido.update({ where: { id }, data: { clienteId: dados.clienteId, observacao: dados.observacao, ...(dados.data ? { data: dados.data } : {}), ...pessoas } })
+        await tx.pedido.update({ where: { id }, data: { clienteId: dados.clienteId, observacao: dados.observacao, ...(dados.data ? { data: dados.data } : {}), enderecoEntrega: dados.enderecoEntrega ?? Prisma.DbNull, ...pessoas } })
         // As parcelas acompanham o cliente do pedido.
         if (dados.clienteId !== atual.clienteId) {
           await tx.contaReceber.updateMany({ where: { pedidoId: id, status: 'ABERTA' }, data: { pessoaId: dados.clienteId } })

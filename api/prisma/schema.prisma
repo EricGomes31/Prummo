@@ -310,6 +310,9 @@ model Pedido {
   // Parcelas escolhidas à mão: [{ "vencimento": "AAAA-MM-DD", "valor": centavos }]. Vazio = parcelas
   // mensais de valor igual a partir do primeiro vencimento.
   vencimentos        Json?
+  // Endereço de entrega diferente do cadastro do cliente: { cep, logradouro, numero, complemento, bairro,
+  // cidade, uf, referencia }. Vazio = entregar no endereço do cliente. A nova entrega parte dele.
+  enderecoEntrega    Json?
 
   itens         PedidoItem[]
   contasReceber ContaReceber[]

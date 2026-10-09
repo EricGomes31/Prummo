@@ -95,7 +95,7 @@ export async function rotasEntregas(app: FastifyInstance) {
   app.get('/entregas/pedidos-disponiveis', async () =>
     prisma.pedido.findMany({
       where: { status: 'FATURADO', natureza: { not: 'PERDA' }, entregas: { none: { status: { not: 'CANCELADA' } } } },
-      select: { id: true, numero: true, total: true, faturadoEm: true, cliente: true },
+      select: { id: true, numero: true, total: true, faturadoEm: true, cliente: true, enderecoEntrega: true },
       orderBy: { id: 'desc' },
     }),
   )

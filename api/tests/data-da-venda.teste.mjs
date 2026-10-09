@@ -23,6 +23,9 @@ const semData = (await chamar('POST', '/pedidos', corpo({}))).json
 conferir('sem data, vale hoje', diaLocal(new Date(semData.data)) === hoje, semData.data)
 const antigo = (await chamar('POST', '/pedidos', corpo({ data: mesPassado }))).json
 conferir('data anterior é aceita', diaLocal(new Date(antigo.data)) === mesPassado, antigo.data)
+const editado = await chamar('PUT', `/pedidos/${semData.id}`, corpo({ data: ontem }))
+conferir('editar o pedido em aberto muda a data da venda', editado.status === 200 && diaLocal(new Date(editado.json.data)) === ontem, JSON.stringify(editado.json))
+await chamar('PUT', `/pedidos/${semData.id}`, corpo({ data: hoje }))
 conferir('data futura -> 400', (await chamar('POST', '/pedidos', corpo({ data: amanha }))).status === 400)
 
 const doPeriodo = (await chamar('GET', `/pedidos?busca=${marca}&inicio=${mesPassado}&fim=${mesPassado}`)).json
@@ -44,5 +47,16 @@ conferir('relatório filtra pela data da venda', rel.linhas.length === 1 && rel.
 const mes = ontem.slice(0, 7)
 const dash = (await chamar('GET', `/dashboards/comercial?mes=${mes}`)).json
 conferir('dashboard conta a venda pela data dela', dash.kpis.vendas === 1 && dash.kpis.faturamento === 1000, JSON.stringify(dash.kpis))
+
+// Endereço de entrega alternativo: gravado no pedido e oferecido para a nova entrega.
+const endereco = { cep: '29.160-000', logradouro: 'Rua das Acácias', numero: '45', complemento: null, bairro: 'Centro', cidade: 'Serra', uf: 'es', referencia: 'Portão azul' }
+const comEndereco = (await chamar('POST', '/pedidos', corpo({ enderecoEntrega: endereco }))).json
+conferir('pedido guarda o endereço de entrega, com CEP só em dígitos e UF maiúscula', comEndereco.enderecoEntrega?.cep === '29160000' && comEndereco.enderecoEntrega.uf === 'ES' && comEndereco.enderecoEntrega.referencia === 'Portão azul', JSON.stringify(comEndereco.enderecoEntrega))
+conferir('endereço sem rua -> 400', (await chamar('POST', '/pedidos', corpo({ enderecoEntrega: { ...endereco, logradouro: '' } }))).status === 400)
+await chamar('POST', `/pedidos/${comEndereco.id}/faturar`, { formaPagamento: 'PIX', primeiroVencimento: hoje })
+const disponiveis = (await chamar('GET', '/entregas/pedidos-disponiveis')).json
+conferir('pedido disponível para entrega leva o endereço', disponiveis.find((p) => p.id === comEndereco.id)?.enderecoEntrega?.logradouro === 'Rua das Acácias')
+const semEndereco = await chamar('PUT', `/pedidos/${comEndereco.id}/faturado`, { ...corpo({ enderecoEntrega: null }), natureza: 'VENDA', formaPagamento: 'PIX', primeiroVencimento: hoje })
+conferir('tirar o endereço do faturado volta ao do cliente', semEndereco.status === 200 && semEndereco.json.enderecoEntrega === null, JSON.stringify(semEndereco.json.enderecoEntrega))
 
 await encerrar()

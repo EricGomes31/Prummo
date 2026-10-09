@@ -137,6 +137,7 @@ export type Pedido = {
   primeiroVencimento: string | null
   // Parcelas escolhidas à mão (data e valor); null = mensais de valor igual.
   vencimentos: { vencimento: string; valor: number }[] | null
+  enderecoEntrega: EnderecoEntrega | null
   itens: { id: number; produtoId: number; unidade: string | null; quantidade: number; precoUnitario: number; desconto: number; produto: ProdutoRef }[]
   contasReceber?: Conta[]
 }
@@ -553,7 +554,19 @@ export type DashboardFinanceiro = {
   despesasPorElemento: ItemRanking[]
 }
 
-export type PedidoParaEntrega = { id: number; numero: number; total: number; faturadoEm: string | null; cliente: Pessoa }
+export type PedidoParaEntrega = { id: number; numero: number; total: number; faturadoEm: string | null; cliente: Pessoa; enderecoEntrega: EnderecoEntrega | null }
+
+// Endereço de entrega diferente do cadastro do cliente, escolhido no pedido.
+export type EnderecoEntrega = {
+  cep: string | null
+  logradouro: string
+  numero: string | null
+  complemento: string | null
+  bairro: string | null
+  cidade: string
+  uf: string | null
+  referencia: string | null
+}
 
 export type Resumo = {
   entregas: { pendentes: number; emRota: number; falhas: number }

@@ -1,4 +1,4 @@
--- Pedido ganha a data da venda e as parcelas escolhidas à mão (09/10/2026). Rode uma vez, antes de publicar
+-- Pedido ganha a data da venda, as parcelas escolhidas à mão e o endereço de entrega alternativo (09/10/2026). Rode uma vez, antes de publicar
 -- a API nova (a publicada hoje ignora as colunas novas e continua funcionando):
 --   npx prisma db execute --file prisma/migracoes/2026-10-09-data-e-parcelas-do-pedido.sql --schema prisma/schema.prisma
 -- Pode ser rodada de novo sem efeito: a data dos pedidos existentes só é preenchida quando a coluna é criada.
@@ -14,5 +14,6 @@ begin
 end $$;
 
 alter table "Pedido" add column if not exists "vencimentos" jsonb;
+alter table "Pedido" add column if not exists "enderecoEntrega" jsonb;
 
 commit;

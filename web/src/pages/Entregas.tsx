@@ -272,19 +272,23 @@ function FormEntrega(props: { entrega: Entrega | null; entregadores: Entregador[
   // Ao escolher o pedido, o destino começa com os dados do cadastro do cliente.
   function escolherPedido(id: number) {
     setPedidoId(id)
-    const cliente = disponiveis.find((p) => p.id === id)?.cliente
-    if (!cliente) return
+    const escolhido = disponiveis.find((p) => p.id === id)
+    if (!escolhido) return
+    const { cliente } = escolhido
+    // O endereço de entrega escolhido no pedido vale; sem ele, o do cadastro do cliente.
+    const endereco = escolhido.enderecoEntrega ?? cliente
     setF({
       ...f,
       destinatario: cliente.nome,
       telefone: cliente.celular ?? cliente.telefone ?? '',
-      complemento: cliente.complemento ?? '',
-      cep: cliente.cep ?? '',
-      logradouro: cliente.logradouro ?? '',
-      numero: cliente.numero ?? '',
-      bairro: cliente.bairro ?? '',
-      cidade: cliente.cidade ?? '',
-      uf: cliente.uf ?? '',
+      complemento: endereco.complemento ?? '',
+      cep: endereco.cep ?? '',
+      logradouro: endereco.logradouro ?? '',
+      numero: endereco.numero ?? '',
+      bairro: endereco.bairro ?? '',
+      cidade: endereco.cidade ?? '',
+      uf: endereco.uf ?? '',
+      observacao: escolhido.enderecoEntrega?.referencia ?? f.observacao,
     })
   }
 

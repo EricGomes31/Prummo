@@ -2,12 +2,21 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
-import { brl, dataBr, formasPagamento, hojeIso, inteiro, motivosPerda, naturezasPedido, unidadesDe } from '../format'
-import type { Classificacao, Credito, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
+import { consultarCep } from '../cep'
+import { brl, cepBr, dataBr, formasPagamento, hojeIso, inteiro, mascaraCep, motivosPerda, naturezasPedido, unidadesDe } from '../format'
+import type { Classificacao, Credito, EnderecoEntrega, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, useAtrasado, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
 import { dividirParcelas, somaParcelas, TabelaParcelas, type Parcela } from '../parcelas'
+
+// "Rua, número, complemento — bairro, cidade/UF, CEP", com o que houver preenchido.
+type PartesEndereco = Partial<Pick<EnderecoEntrega, 'logradouro' | 'numero' | 'complemento' | 'bairro' | 'cidade' | 'uf' | 'cep'>>
+function enderecoTexto(e: { [K in keyof PartesEndereco]?: string | null }) {
+  const rua = [e.logradouro, e.numero, e.complemento].filter(Boolean).join(', ')
+  const lugar = [e.bairro, [e.cidade, e.uf].filter(Boolean).join('/'), cepBr(e.cep)].filter(Boolean).join(', ')
+  return [rua, lugar].filter(Boolean).join(' — ')
+}
 
 // O mesmo limite da API: a lista traz no máximo esse tanto, dos mais recentes.
 const LIMITE_LISTA = 300
@@ -174,6 +183,13 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   const [formaPagamento, setFormaPagamento] = useState(pedido?.formaPagamento ?? '')
   const [parcelas, setParcelas] = useState(pedido?.parcelas ?? 1)
   const [primeiroVencimento, setPrimeiroVencimento] = useState(pedido?.primeiroVencimento?.slice(0, 10) ?? '')
+  // Endereço de entrega diferente do cadastro do cliente; null = o do cliente.
+  const [endereco, setEndereco] = useState<EnderecoEntrega | null>(pedido?.enderecoEntrega ?? null)
+  const trocarEndereco = (parte: Partial<EnderecoEntrega>) => setEndereco((atual) => (atual ? { ...atual, ...parte } : atual))
+  async function completarPeloCep() {
+    const achado = await consultarCep(endereco?.cep)
+    if (achado) setEndereco((atual) => atual && { ...atual, logradouro: atual.logradouro || achado.logradouro, bairro: atual.bairro || achado.bairro, cidade: achado.cidade, uf: achado.uf })
+  }
   // Data da venda: hoje, por padrão; pode ser anterior (venda lançada depois), nunca futura.
   const [dataVenda, setDataVenda] = useState(pedido ? new Date(pedido.data).toLocaleDateString('sv-SE') : hojeIso())
   // Parcelas com data e valor escolhidos à mão; null = mensais iguais.
@@ -197,6 +213,8 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   const perda = natureza === 'PERDA'
   const subtotal = perda ? 0 : totalItens(itens)
   const descontoItens = perda ? 0 : descontoDosItens(itens)
+
+  const clienteEscolhido = pessoas.find((p) => p.id === clienteId)
 
   // Pessoas ativas com a classificação pedida, mais a já escolhida mesmo que tenha sido desativada.
   const comClassificacao = (classificacao: Classificacao, escolhida: number) =>
@@ -273,6 +291,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
         frete: venda ? frete : 0,
         observacao,
         data: dataVenda,
+        enderecoEntrega: perda ? null : endereco,
         formaPagamento: venda ? formaPagamento || null : null,
         parcelas: venda ? parcelas : 1,
         primeiroVencimento: venda ? primeiroVencimento || null : null,
@@ -421,6 +440,54 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
               <div className="col-3">
                 <TabelaParcelas parcelas={vencimentos} onChange={setVencimentos} total={totalPedido} rotuloTotal="o total do pedido" />
               </div>
+            )}
+          </>
+        )}
+
+        {!perda && (
+          <>
+            <label className="marcar col-3">
+              <input
+                type="checkbox"
+                checked={!!endereco}
+                onChange={(e) =>
+                  setEndereco(e.target.checked ? { cep: null, logradouro: '', numero: null, complemento: null, bairro: null, cidade: '', uf: null, referencia: null } : null)
+                }
+              />
+              Entregar em outro endereço, não no do cadastro do cliente
+            </label>
+            {!endereco && clienteEscolhido && (
+              <p className="texto-suave col-3">
+                {enderecoTexto(clienteEscolhido) ? `Entrega em: ${enderecoTexto(clienteEscolhido)}` : 'O cliente não tem endereço no cadastro. Marque acima para informar onde entregar.'}
+              </p>
+            )}
+            {endereco && (
+              <>
+                <Campo rotulo="CEP">
+                  <input inputMode="numeric" value={mascaraCep(endereco.cep ?? '')} onChange={(e) => trocarEndereco({ cep: e.target.value })} onBlur={completarPeloCep} />
+                </Campo>
+                <Campo rotulo="Rua" largura={2}>
+                  <input required value={endereco.logradouro} onChange={(e) => trocarEndereco({ logradouro: e.target.value })} />
+                </Campo>
+                <Campo rotulo="Número">
+                  <input value={endereco.numero ?? ''} onChange={(e) => trocarEndereco({ numero: e.target.value })} />
+                </Campo>
+                <Campo rotulo="Complemento">
+                  <input value={endereco.complemento ?? ''} onChange={(e) => trocarEndereco({ complemento: e.target.value })} />
+                </Campo>
+                <Campo rotulo="Bairro">
+                  <input value={endereco.bairro ?? ''} onChange={(e) => trocarEndereco({ bairro: e.target.value })} />
+                </Campo>
+                <Campo rotulo="Cidade" largura={2}>
+                  <input required value={endereco.cidade} onChange={(e) => trocarEndereco({ cidade: e.target.value })} />
+                </Campo>
+                <Campo rotulo="UF">
+                  <input maxLength={2} value={endereco.uf ?? ''} onChange={(e) => trocarEndereco({ uf: e.target.value.toUpperCase() })} />
+                </Campo>
+                <Campo rotulo="Referência para a entrega" largura={3}>
+                  <input value={endereco.referencia ?? ''} onChange={(e) => trocarEndereco({ referencia: e.target.value })} placeholder="Ex.: portão azul, ao lado da farmácia" />
+                </Campo>
+              </>
             )}
           </>
         )}
@@ -632,6 +699,7 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
               pedido.motivoPerda && `Motivo da perda: ${motivosPerda[pedido.motivoPerda] ?? pedido.motivoPerda}`,
               pedido.formaPagamento &&
                 `Pagamento: ${formasPagamento[pedido.formaPagamento] ?? pedido.formaPagamento}${pedido.parcelas > 1 ? ` em ${pedido.parcelas}x` : ''}`,
+              pedido.enderecoEntrega && `Entregar em: ${enderecoTexto(pedido.enderecoEntrega)}${pedido.enderecoEntrega.referencia ? ` (${pedido.enderecoEntrega.referencia})` : ''}`,
               pedido.usuario && `Lançado por: ${pedido.usuario.nome}`,
               pedido.observacao,
             ]
