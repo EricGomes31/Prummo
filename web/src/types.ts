@@ -124,7 +124,10 @@ export type Pedido = {
   observacao: string | null
   criadoEm: string
   faturadoEm: string | null
+  // Condição de pagamento da venda: escolhida no pedido ou ao faturar.
   formaPagamento: string | null
+  parcelas: number
+  primeiroVencimento: string | null
   itens: { id: number; produtoId: number; unidade: string | null; quantidade: number; precoUnitario: number; desconto: number; produto: ProdutoRef }[]
   contasReceber?: Conta[]
 }

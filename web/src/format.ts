@@ -43,11 +43,12 @@ export const unidades: Record<string, string> = {
   DZ: 'Dúzia', KG: 'Quilograma', G: 'Grama', L: 'Litro', ML: 'Mililitro', M: 'Metro', SV: 'Serviço',
 }
 
-export const formasPagamento:Record<string, string> = {
+export const formasPagamento: Record<string, string> = {
   DINHEIRO: 'Dinheiro',
   PIX: 'Pix',
-  CARTAO_CREDITO: 'Cartão de crédito',
-  CARTAO_DEBITO: 'Cartão de débito',
+  CARTAO_CREDITO: 'Cartão de crédito (maquininha)',
+  CARTAO_DEBITO: 'Cartão de débito (maquininha)',
+  LINK_CARTAO: 'Cartão por link de pagamento',
   BOLETO: 'Boleto',
   TRANSFERENCIA: 'Transferência',
 }

@@ -28,6 +28,7 @@ export const GRUPOS_PERMISSOES = [
       ['PEDIDOS_VISUALIZAR', 'Ver pedidos'],
       ['PEDIDOS_CADASTRAR', 'Criar e alterar pedidos em aberto'],
       ['PEDIDOS_FATURAR', 'Faturar pedidos'],
+      ['PEDIDOS_ALTERAR_FATURADO', 'Alterar pedidos já faturados'],
       ['PEDIDOS_CANCELAR', 'Cancelar pedidos'],
     ],
   },
@@ -139,6 +140,7 @@ const REGRAS: Record<string, Permissao[]> = {
   'POST /pedidos': ['PEDIDOS_CADASTRAR'],
   'PUT /pedidos/:id': ['PEDIDOS_CADASTRAR'],
   'POST /pedidos/:id/faturar': ['PEDIDOS_FATURAR'],
+  'PUT /pedidos/:id/faturado': ['PEDIDOS_ALTERAR_FATURADO'],
   'POST /pedidos/:id/cancelar': ['PEDIDOS_CANCELAR'],
 
   'GET /entregas': ['LOGISTICA_VISUALIZAR', 'LOGISTICA_GERENCIAR'],

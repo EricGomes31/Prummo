@@ -185,6 +185,8 @@ export function EditorItens(props: {
   comDesconto?: boolean
   // Esconde preço, desconto e total (a perda só baixa o estoque).
   semValores?: boolean
+  // Produtos em que o desconto fica bloqueado (os da campanha escolhida).
+  semDescontoEm?: Set<number>
 }) {
   const { produtos, itens, onChange, campoPreco } = props
   const comDesconto = props.comDesconto && !props.semValores
@@ -212,6 +214,7 @@ export function EditorItens(props: {
             const produto = produtos.find((p) => p.id === item.produtoId)
             const opcoes = produto ? unidadesDe(produto) : []
             const fator = opcoes.find((u) => u.sigla === item.unidade)?.fator ?? 1
+            const descontoBloqueado = !!props.semDescontoEm?.has(item.produtoId)
             return (
               <tr key={i}>
                 <td>
@@ -289,6 +292,8 @@ export function EditorItens(props: {
                       step="0.01"
                       className="curto"
                       aria-label="Desconto em percentual"
+                      disabled={descontoBloqueado}
+                      title={descontoBloqueado ? 'Produto da campanha: sem desconto manual' : undefined}
                       value={item.valor && item.desconto ? Number((((item.desconto ?? 0) / item.valor) * 100).toFixed(2)) : ''}
                       onChange={(e) => {
                         const percentual = Math.min(100, Math.max(0, Number(e.target.value) || 0))
@@ -302,6 +307,8 @@ export function EditorItens(props: {
                     <Dinheiro
                       className="curto"
                       aria-label="Desconto por unidade"
+                      disabled={descontoBloqueado}
+                      title={descontoBloqueado ? 'Produto da campanha: sem desconto manual' : undefined}
                       valor={item.desconto ?? 0}
                       onChange={(desconto) => trocar(i, { desconto: Math.min(desconto, item.valor) })}
                     />

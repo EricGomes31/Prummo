@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { useSessao } from '../auth'
+import { Documentos } from '../Documentos'
 import { brl, dataBr, formasPagamento, hojeIso, inteiro, motivosPerda, naturezasPedido, unidadesDe } from '../format'
 import type { Classificacao, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, usePaginacao } from '../ui'
@@ -93,7 +95,17 @@ export function Pedidos() {
 
       {editando && <FormPedido pedido={editando === 'novo' ? null : editando} onFechar={() => setEditando(null)} onSalvo={fecharTudo} />}
       {faturando && <Faturar pedido={faturando} onFechar={() => setFaturando(null)} onSalvo={fecharTudo} />}
-      {vendo && <Detalhes pedidoId={vendo.id} onFechar={() => setVendo(null)} onAlterado={fecharTudo} />}
+      {vendo && (
+        <Detalhes
+          pedidoId={vendo.id}
+          onFechar={() => setVendo(null)}
+          onAlterado={fecharTudo}
+          onAlterar={(p) => {
+            setVendo(null)
+            setEditando(p)
+          }}
+        />
+      )}
     </>
   )
 }
@@ -111,6 +123,11 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   const [desconto, setDesconto] = useState(pedido?.desconto ?? 0)
   const [frete, setFrete] = useState(pedido?.frete ?? 0)
   const [observacao, setObservacao] = useState(pedido?.observacao ?? '')
+  const [formaPagamento, setFormaPagamento] = useState(pedido?.formaPagamento ?? '')
+  const [parcelas, setParcelas] = useState(pedido?.parcelas ?? 1)
+  const [primeiroVencimento, setPrimeiroVencimento] = useState(pedido?.primeiroVencimento?.slice(0, 10) ?? '')
+  // Pedido faturado: alterar itens, valores ou pagamento refaz o faturamento.
+  const faturado = pedido?.status === 'FATURADO'
   const [itens, setItens] = useState<ItemEdicao[]>(
     pedido
       ? pedido.itens.map((i) => ({
@@ -135,6 +152,9 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   const campanhas = (useDados<Promocao[]>('/promocoes').dados ?? []).filter((c) => c.vigente || c.id === pedido?.promocao?.id)
   const [promocaoId, setPromocaoId] = useState(pedido?.promocao?.id ?? 0)
   const [campanha, setCampanha] = useState({ desconto: pedido?.descontoPromocao ?? 0, aviso: '' })
+  // Os produtos da campanha escolhida não aceitam desconto manual; os demais aceitam.
+  const produtosDaCampanha = (id: number) => new Set((campanhas.find((c) => c.id === id)?.itens ?? []).map((i) => i.produtoId))
+  const participantes = produtosDaCampanha(promocaoId)
   // A simulação precisa do fator da unidade de cada item, porque a campanha conta na unidade base.
   const fatorDe = (i: ItemEdicao) => {
     const produto = produtos.find((p) => p.id === i.produtoId)
@@ -160,12 +180,13 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
     }
   }, [promocaoId, chaveItens])
 
-  // A campanha não acumula com desconto manual, nem no total nem nos itens.
+  // A campanha não acumula com o desconto no total nem com desconto nos produtos dela.
   function escolherCampanha(id: number) {
     setPromocaoId(id)
     if (id) {
+      const daCampanha = produtosDaCampanha(id)
       setDesconto(0)
-      setItens(itens.map((i) => ({ ...i, desconto: 0 })))
+      setItens(itens.map((i) => (daCampanha.has(i.produtoId) ? { ...i, desconto: 0 } : i)))
     }
   }
 
@@ -193,6 +214,9 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
         desconto: perda ? 0 : desconto,
         frete: venda ? frete : 0,
         observacao,
+        formaPagamento: venda ? formaPagamento || null : null,
+        parcelas: venda ? parcelas : 1,
+        primeiroVencimento: venda ? primeiroVencimento || null : null,
         itens: itens.map((i) => ({
           produtoId: i.produtoId,
           unidade: i.unidade,
@@ -201,7 +225,8 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
           desconto: perda ? 0 : (i.desconto ?? 0),
         })),
       }
-      await api(pedido ? `/pedidos/${pedido.id}` : '/pedidos', { method: pedido ? 'PUT' : 'POST', body: corpo })
+      const caminho = !pedido ? '/pedidos' : faturado ? `/pedidos/${pedido.id}/faturado` : `/pedidos/${pedido.id}`
+      await api(caminho, { method: pedido ? 'PUT' : 'POST', body: corpo })
       props.onSalvo()
     })
   }
@@ -241,7 +266,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
           </select>
         </Campo>
         <Campo rotulo="Natureza da operação">
-          <select value={natureza} onChange={(e) => escolherNatureza(e.target.value as NaturezaPedido)}>
+          <select value={natureza} disabled={faturado} onChange={(e) => escolherNatureza(e.target.value as NaturezaPedido)}>
             {Object.entries(naturezasPedido).map(([valor, rotulo]) => (
               <option key={valor} value={valor}>
                 {rotulo}
@@ -294,7 +319,8 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
             campoPreco="precoVenda"
             rotuloValor="Preço unit."
             mostrarSaldo
-            comDesconto={!promocaoId}
+            comDesconto
+            semDescontoEm={promocaoId ? participantes : undefined}
             semValores={perda}
           />
         </div>
@@ -312,6 +338,26 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
             <Dinheiro valor={frete} onChange={setFrete} />
           </Campo>
         )}
+        {venda && (
+          <>
+            <Campo rotulo={faturado ? 'Forma de pagamento' : 'Forma de pagamento (opcional)'}>
+              <select required={faturado} value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}>
+                <option value="">{faturado ? 'Selecione…' : 'Definir ao faturar'}</option>
+                {Object.entries(formasPagamento).map(([valor, rotulo]) => (
+                  <option key={valor} value={valor}>
+                    {rotulo}
+                  </option>
+                ))}
+              </select>
+            </Campo>
+            <Campo rotulo="Parcelas">
+              <input type="number" min={1} max={24} required value={parcelas} onChange={(e) => setParcelas(Math.min(24, Math.max(1, inteiro(e.target.value))))} />
+            </Campo>
+            <Campo rotulo={faturado ? 'Primeiro vencimento' : 'Primeiro vencimento (opcional)'}>
+              <input type="date" required={faturado} value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
+            </Campo>
+          </>
+        )}
 
         {campanha.aviso && <p className="texto-ruim col-3">{campanha.aviso}</p>}
         {!perda && (
@@ -322,9 +368,22 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
             <strong>{brl(Math.max(0, subtotal - descontoItens - desconto - campanha.desconto) + frete)}</strong>
           </p>
         )}
+        {faturado && (
+          <p className="texto-suave col-3">
+            Pedido já faturado. Cliente, vendedor, médico, paciente e observação mudam direto. Mudar itens, valores ou pagamento refaz o
+            faturamento: o estoque volta, as parcelas em aberto dão lugar às novas e o estoque é baixado de novo. Para isso, nada pode ter
+            sido recebido nem devolvido.
+          </p>
+        )}
+        {pedido && (
+          <div className="col-3">
+            <h3>Anexos</h3>
+            <Documentos origem="PEDIDO" origemId={pedido.id} />
+          </div>
+        )}
         <Erro mensagem={erro} />
         <div className="form-pe">
-          {pedido && (
+          {pedido && !faturado && (
             <button type="button" className="botao botao-perigo empurra" onClick={cancelar} disabled={ocupado}>
               Cancelar pedido
             </button>
@@ -344,9 +403,10 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
 function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => void }) {
   const { pedido } = props
   const venda = pedido.natureza === 'VENDA'
-  const [parcelas, setParcelas] = useState(1)
-  const [primeiroVencimento, setPrimeiroVencimento] = useState(hojeIso())
-  const [formaPagamento, setFormaPagamento] = useState('')
+  // A condição escolhida no pedido já vem preenchida.
+  const [parcelas, setParcelas] = useState(pedido.parcelas || 1)
+  const [primeiroVencimento, setPrimeiroVencimento] = useState(pedido.primeiroVencimento?.slice(0, 10) ?? hojeIso())
+  const [formaPagamento, setFormaPagamento] = useState(pedido.formaPagamento ?? '')
   const { erro, ocupado, executar } = useAcao()
 
   function enviar(e: FormEvent) {
@@ -402,8 +462,9 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
   )
 }
 
-function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: () => void }) {
+function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: () => void; onAlterar: (pedido: Pedido) => void }) {
   const { dados: pedido, erro: erroCarga, carregando } = useDados<Pedido>(`/pedidos/${props.pedidoId}`)
+  const { pode } = useSessao()
   const { erro, ocupado, executar } = useAcao()
 
   function cancelar() {
@@ -431,7 +492,8 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
               pedido.medico && `Médico: ${pedido.medico.nome}`,
               pedido.paciente && `Paciente: ${pedido.paciente.nome}`,
               pedido.motivoPerda && `Motivo da perda: ${motivosPerda[pedido.motivoPerda] ?? pedido.motivoPerda}`,
-              pedido.formaPagamento && `Pagamento: ${formasPagamento[pedido.formaPagamento] ?? pedido.formaPagamento}`,
+              pedido.formaPagamento &&
+                `Pagamento: ${formasPagamento[pedido.formaPagamento] ?? pedido.formaPagamento}${pedido.parcelas > 1 ? ` em ${pedido.parcelas}x` : ''}`,
               pedido.usuario && `Lançado por: ${pedido.usuario.nome}`,
               pedido.observacao,
             ]
@@ -483,11 +545,18 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
               </table>
             </>
           )}
+          <h3>Anexos</h3>
+          <Documentos origem="PEDIDO" origemId={pedido.id} />
           <Erro mensagem={erro} />
           <div className="form-pe">
             {pedido.status === 'FATURADO' && (
               <button type="button" className="botao botao-perigo empurra" onClick={cancelar} disabled={ocupado}>
                 Cancelar pedido
+              </button>
+            )}
+            {pedido.status === 'FATURADO' && pode('PEDIDOS_ALTERAR_FATURADO') && (
+              <button type="button" className="botao" onClick={() => props.onAlterar(pedido)}>
+                Alterar
               </button>
             )}
             <button type="button" className="botao" onClick={props.onFechar}>

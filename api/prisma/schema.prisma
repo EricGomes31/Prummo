@@ -263,36 +263,39 @@ model EntradaItem {
 }
 
 model Pedido {
-  id               Int       @id @default(autoincrement())
-  empresaId        Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
-  clienteId        Int
-  cliente          Pessoa    @relation("PedidoCliente", fields: [clienteId], references: [id])
+  id                 Int       @id @default(autoincrement())
+  empresaId          Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  clienteId          Int
+  cliente            Pessoa    @relation("PedidoCliente", fields: [clienteId], references: [id])
   // Quem lançou o pedido. O vendedor, o médico e o paciente são pessoas do cadastro, todos opcionais.
-  usuarioId        Int?
-  usuario          Usuario?  @relation(fields: [usuarioId], references: [id])
-  vendedorId       Int?
-  vendedor         Pessoa?   @relation("PedidoVendedor", fields: [vendedorId], references: [id])
-  medicoId         Int?
-  medico           Pessoa?   @relation("PedidoMedico", fields: [medicoId], references: [id])
-  pacienteId       Int?
-  paciente         Pessoa?   @relation("PedidoPaciente", fields: [pacienteId], references: [id])
+  usuarioId          Int?
+  usuario            Usuario?  @relation(fields: [usuarioId], references: [id])
+  vendedorId         Int?
+  vendedor           Pessoa?   @relation("PedidoVendedor", fields: [vendedorId], references: [id])
+  medicoId           Int?
+  medico             Pessoa?   @relation("PedidoMedico", fields: [medicoId], references: [id])
+  pacienteId         Int?
+  paciente           Pessoa?   @relation("PedidoPaciente", fields: [pacienteId], references: [id])
   // VENDA | BONIFICACAO | PERDA. Só a venda gera contas a receber e conta como faturamento.
-  natureza         String    @default("VENDA")
-  motivoPerda      String? // AVARIA | VENCIMENTO | QUEBRA | EXTRAVIO | OUTROS
-  status           String    @default("ABERTO") // ABERTO | FATURADO | CANCELADO
-  subtotal         Int // itens pelo preço cheio
-  descontoItens    Int       @default(0) // soma dos descontos lançados nos itens
-  desconto         Int       @default(0) // desconto no total do pedido
-  frete            Int       @default(0)
-  promocaoId       Int?
-  promocao         Promocao? @relation(fields: [promocaoId], references: [id])
-  descontoPromocao Int       @default(0) // calculado pelo servidor ao salvar o pedido
-  total            Int // subtotal - descontoItens - desconto - descontoPromocao + frete
-  observacao       String?
-  criadoEm         DateTime  @default(now())
-  faturadoEm       DateTime?
-  // DINHEIRO | PIX | CARTAO_CREDITO | CARTAO_DEBITO | BOLETO | TRANSFERENCIA; definida ao faturar
-  formaPagamento   String?
+  natureza           String    @default("VENDA")
+  motivoPerda        String? // AVARIA | VENCIMENTO | QUEBRA | EXTRAVIO | OUTROS
+  status             String    @default("ABERTO") // ABERTO | FATURADO | CANCELADO
+  subtotal           Int // itens pelo preço cheio
+  descontoItens      Int       @default(0) // soma dos descontos lançados nos itens
+  desconto           Int       @default(0) // desconto no total do pedido
+  frete              Int       @default(0)
+  promocaoId         Int?
+  promocao           Promocao? @relation(fields: [promocaoId], references: [id])
+  descontoPromocao   Int       @default(0) // calculado pelo servidor ao salvar o pedido
+  total              Int // subtotal - descontoItens - desconto - descontoPromocao + frete
+  observacao         String?
+  criadoEm           DateTime  @default(now())
+  faturadoEm         DateTime?
+  // Condição de pagamento da venda. Pode ser escolhida já no pedido e é confirmada ao faturar.
+  // DINHEIRO | PIX | CARTAO_CREDITO | CARTAO_DEBITO (maquininha) | LINK_CARTAO | BOLETO | TRANSFERENCIA
+  formaPagamento     String?
+  parcelas           Int       @default(1)
+  primeiroVencimento DateTime?
 
   itens         PedidoItem[]
   contasReceber ContaReceber[]

@@ -272,6 +272,9 @@ const rotuloOrigem: Record<string, string> = {
   ENTRADA_ESTOQUE: 'Entrada nº',
   PEDIDO: 'Pedido nº',
   CANCELAMENTO: 'Cancelamento do pedido nº',
+  ALTERACAO: 'Alteração do pedido nº',
+  DEVOLUCAO: 'Devolução nº',
+  ESTORNO_DEVOLUCAO: 'Estorno da devolução nº',
   AJUSTE: 'Ajuste de inventário',
 }
 
