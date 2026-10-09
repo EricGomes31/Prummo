@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
+import { documentoBr, mascarar, telefoneBr } from '../format'
 import type { Classificacao, Pessoa } from '../types'
 import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 
@@ -74,8 +75,8 @@ export function Pessoas() {
                     {p.nomeFantasia && <small className="bloco texto-suave">{p.nomeFantasia}</small>}
                   </td>
                   <td>{chaves.filter((chave) => p[chave]).map((chave) => classificacoes[chave]).join(', ')}</td>
-                  <td>{p.documento}</td>
-                  <td>{[p.celular, p.telefone, p.email].filter(Boolean).join(' · ')}</td>
+                  <td>{documentoBr(p.documento)}</td>
+                  <td>{[telefoneBr(p.celular), telefoneBr(p.telefone), p.email].filter(Boolean).join(' · ')}</td>
                   <td>{[p.cidade, p.uf].filter(Boolean).join('/')}</td>
                   <td className="num">
                     <button type="button" className="botao botao-texto" onClick={() => setEditando(p)}>
@@ -168,8 +169,8 @@ function FormPessoa(props: { inicial: Rascunho; onFechar: () => void; onSalvo: (
   const { pode } = useSessao()
   const { erro, ocupado, executar } = useAcao()
   const campo = (nome: CampoTexto) => ({
-    value: p[nome] ?? '',
-    onChange: (e: { target: { value: string } }) => setP({ ...p, [nome]: e.target.value }),
+    value: mascarar(nome, p[nome] ?? ''),
+    onChange: (e: { target: { value: string } }) => setP({ ...p, [nome]: mascarar(nome, e.target.value) }),
   })
 
   // Preenche o endereço a partir do CEP usando o serviço público ViaCEP.

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
-import { dataBr } from '../format'
+import { dataBr, documentoBr, mascaraDocumento } from '../format'
 import type { Empresa } from '../types'
 import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo } from '../ui'
 
@@ -48,7 +48,7 @@ export function Empresas() {
                     {e.nome}
                     {e.id === usuario.empresa.id && <span className="texto-suave"> · sua empresa</span>}
                   </td>
-                  <td>{e.documento ?? '—'}</td>
+                  <td>{documentoBr(e.documento) ?? '—'}</td>
                   <td className="num">{e.usuarios}</td>
                   <td>{dataBr(e.criadoEm)}</td>
                   <td><Selo valor={e.ativa ? 'Ativa' : 'Inativa'} tom={e.ativa ? 'bom' : 'apagado'} /></td>
@@ -104,7 +104,7 @@ function FormEmpresa(props: { inicial: Rascunho; propria: boolean; onFechar: () 
           <input required autoFocus value={e.nome} onChange={(v) => setE({ ...e, nome: v.target.value })} />
         </Campo>
         <Campo rotulo="CNPJ ou CPF">
-          <input value={e.documento} onChange={(v) => setE({ ...e, documento: v.target.value })} />
+          <input inputMode="numeric" value={mascaraDocumento(e.documento)} onChange={(v) => setE({ ...e, documento: mascaraDocumento(v.target.value) })} />
         </Campo>
 
         {!e.id && (

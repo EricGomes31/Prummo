@@ -10,7 +10,7 @@ import { mudarEntrega } from './entregas.js'
 
 const corpoMotorista = z.object({
   nome: z.string().trim().min(2, 'Informe o nome').max(120),
-  telefone: texto.opcional,
+  telefone: texto.digitos,
   cnh: texto.opcional,
   validadeCnh: dataIso.nullish().or(z.literal('').transform(() => null)),
   ativo: z.boolean().default(true),
@@ -235,7 +235,7 @@ export async function rotasEntregador(app: FastifyInstance) {
         status: e.status,
         destinatario: e.destinatario,
         telefone: e.telefone,
-        endereco: [[e.logradouro, e.numero].filter(Boolean).join(', '), e.complemento, e.bairro, [e.cidade, e.uf].filter(Boolean).join('/'), e.cep]
+        endereco: [[e.logradouro, e.numero].filter(Boolean).join(', '), e.complemento, e.bairro, [e.cidade, e.uf].filter(Boolean).join('/'), e.cep?.replace(/^(\d{5})(\d{3})$/, '$1-$2')]
           .filter(Boolean)
           .join(' · '),
         inicioRecebimento: e.inicioRecebimento,

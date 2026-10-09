@@ -39,7 +39,7 @@ const corpoContaFinanceira = z
     codigoBanco: texto.opcional,
     agencia: texto.opcional,
     numeroConta: texto.opcional,
-    documentoTitular: texto.opcional,
+    documentoTitular: texto.digitos,
     // Pode ser negativo (conta que começa no cheque especial).
     saldoInicial: z.number().int().default(0),
     ativa: z.boolean().default(true),

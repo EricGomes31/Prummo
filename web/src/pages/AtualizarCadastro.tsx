@@ -2,6 +2,7 @@
 // enviou. Não usa login: vale a chave que vem depois do "#", e o link vale uma vez.
 import { useEffect, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
+import { mascarar } from '../format'
 
 type Dados = {
   empresa: string
@@ -54,8 +55,8 @@ export function AtualizarCadastro() {
   }, [])
 
   const campo = (nome: Campo) => ({
-    value: dados?.[nome] ?? '',
-    onChange: (e: { target: { value: string } }) => dados && setDados({ ...dados, [nome]: e.target.value }),
+    value: mascarar(nome, dados?.[nome] ?? ''),
+    onChange: (e: { target: { value: string } }) => dados && setDados({ ...dados, [nome]: mascarar(nome, e.target.value) }),
   })
 
   // Preenche o endereço a partir do CEP usando o serviço público ViaCEP.

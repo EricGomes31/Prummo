@@ -102,7 +102,7 @@ const cobranca = (await chamar('GET', '/relatorios/cobranca?vencidas=1')).json
 conferir('cobrança só das vencidas', cobranca.linhas.length === 1 && cobranca.linhas[0].id === vencida.id && cobranca.linhas[0].diasAtraso === 10 && cobranca.resumo.vencido === 2500 && cobranca.resumo.aVencer === 0, JSON.stringify(cobranca.resumo))
 const todas = (await chamar('GET', '/relatorios/cobranca')).json
 const daCarla = todas.porCliente.find((g) => g.cliente === 'Carla Cliente')
-conferir('cobrança agrupa por cliente com o contato', daCarla.telefone === '(11) 99999-0000' && daCarla.vencido === 0 && todas.porCliente[0].cliente === 'Otávio Outro')
+conferir('cobrança agrupa por cliente com o contato', daCarla.telefone === '11999990000' && daCarla.vencido === 0 && todas.porCliente[0].cliente === 'Otávio Outro')
 conferir('cobrança por vendedor', (await chamar('GET', `/relatorios/cobranca?vendedorId=${vendedora.id}`)).json.linhas.every((l) => l.vendedor === 'Valéria Vendas'))
 
 // Permissões

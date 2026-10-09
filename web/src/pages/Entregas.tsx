@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
-import { brl, dataBr, hojeIso } from '../format'
+import { brl, dataBr, hojeIso, mascarar } from '../format'
 import type { Endereco, Entrega, PedidoParaEntrega } from '../types'
 import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo } from '../ui'
 import { HistoricoDaEntrega, Motoristas, numeroOuNulo, Rotas, Veiculos } from './Logistica'
@@ -258,8 +258,8 @@ function FormEntrega(props: { entrega: Entrega | null; entregadores: Entregador[
   const { erro, ocupado, executar } = useAcao()
   const disponiveis = pedidos.dados ?? []
   const texto = (nome: keyof typeof f) => ({
-    value: f[nome] as string,
-    onChange: (e: { target: { value: string } }) => setF({ ...f, [nome]: e.target.value }),
+    value: mascarar(nome, f[nome] as string),
+    onChange: (e: { target: { value: string } }) => setF({ ...f, [nome]: mascarar(nome, e.target.value) }),
   })
 
   // Ao escolher o pedido, o destino começa com os dados do cadastro do cliente.

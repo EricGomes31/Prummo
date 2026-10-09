@@ -68,5 +68,6 @@ Ficaram para depois, por decisão de 09/10/2026:
 - [ ] Modo escuro.
 - [ ] Esconder, em cada tela, os botões das operações que o perfil do usuário não permite. Hoje eles aparecem e a API recusa com uma mensagem.
 - [ ] Criar as permissões dos cartões e operadoras, quando o módulo entrar.
-- [ ] Máscara de CPF/CNPJ, telefone e CEP na exibição. Os dados importados estão só com dígitos.
+- [x] Máscara de CPF/CNPJ, telefone e CEP. Feito em 09/10/2026: a API guarda só os dígitos e as telas formatam ao mostrar e ao digitar.
+- [ ] Rodar no banco real `api/prisma/migracoes/2026-10-09-so-digitos.sql`, que tira a pontuação do que foi gravado antes, e publicar.
 - [ ] Testes automatizados do frontend. Hoje só a API é testada.

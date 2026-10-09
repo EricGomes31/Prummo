@@ -6,7 +6,7 @@ import { AppError, idParam, prisma, texto } from '../lib.js'
 
 const corpoEmpresa = z.object({
   nome: z.string().trim().min(2, 'Informe o nome da empresa').max(120),
-  documento: texto.opcional,
+  documento: texto.digitos,
 })
 
 const corpoNovaEmpresa = corpoEmpresa.extend({

@@ -2,7 +2,7 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { Documentos } from '../Documentos'
-import { dataBr, hojeIso, qtd } from '../format'
+import { dataBr, hojeIso, mascarar, qtd, telefoneBr } from '../format'
 import type { Entrega, HistoricoEntrega, Motorista, Rota, Veiculo } from '../types'
 import { Campo, Erro, EstadoLista, Modal, Selo } from '../ui'
 
@@ -297,7 +297,7 @@ export function Motoristas() {
               {lista.map((m) => (
                 <tr key={m.id} className={m.ativo ? '' : 'linha-inativa'}>
                   <td>{m.nome}</td>
-                  <td>{m.telefone ?? '—'}</td>
+                  <td>{telefoneBr(m.telefone) ?? '—'}</td>
                   <td>{m.cnh ?? '—'}</td>
                   <td>{m.validadeCnh ? dataBr(m.validadeCnh) : '—'}</td>
                   <td><Selo valor={m.ativo ? 'Ativo' : 'Inativo'} tom={m.ativo ? 'bom' : 'apagado'} /></td>
@@ -434,8 +434,8 @@ function FormSimples(props: {
               inputMode={c.numero ? 'decimal' : undefined}
               required={c.obrigatorio}
               autoFocus={i === 0}
-              value={String(f[c.chave] ?? '')}
-              onChange={(e) => setF({ ...f, [c.chave]: e.target.value })}
+              value={mascarar(c.chave, String(f[c.chave] ?? ''))}
+              onChange={(e) => setF({ ...f, [c.chave]: mascarar(c.chave, e.target.value) })}
             />
           </Campo>
         ))}

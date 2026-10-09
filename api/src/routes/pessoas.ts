@@ -11,12 +11,12 @@ export const CLASSIFICACOES = ['cliente', 'fornecedor', 'prestador', 'paciente',
 const dadosDaPessoa = {
   nome: z.string().trim().min(2, 'Informe o nome').max(160),
   nomeFantasia: texto.opcional,
-  documento: texto.opcional,
+  documento: texto.digitos,
   rgIe: texto.opcional,
   email: texto.opcional,
-  telefone: texto.opcional,
-  celular: texto.opcional,
-  cep: texto.opcional,
+  telefone: texto.digitos,
+  celular: texto.digitos,
+  cep: texto.digitos,
   logradouro: texto.opcional,
   numero: texto.opcional,
   complemento: texto.opcional,
@@ -44,10 +44,13 @@ export async function rotasPessoas(app: FastifyInstance) {
       .object({ busca: z.string().trim().optional(), classificacao: z.enum(CLASSIFICACOES).optional() })
       .parse(req.query)
     const campos = ['nome', 'nomeFantasia', 'documento', 'email', 'telefone', 'celular'] as const
+    // Documento e telefones ficam só com dígitos: "123.456.789" também acha quem foi gravado como "123456789".
+    const digitos = q.busca?.replace(/\D/g, '') ?? ''
+    const porDigitos = digitos.length >= 3 ? (['documento', 'telefone', 'celular'] as const).map((campo) => ({ [campo]: { contains: digitos } })) : []
     return prisma.pessoa.findMany({
       where: {
         ...(q.classificacao ? { [q.classificacao]: true } : {}),
-        ...(q.busca ? { OR: campos.map((campo) => ({ [campo]: { contains: q.busca, mode: 'insensitive' as const } })) } : {}),
+        ...(q.busca ? { OR: [...campos.map((campo) => ({ [campo]: { contains: q.busca, mode: 'insensitive' as const } })), ...porDigitos] } : {}),
       },
       orderBy: { nome: 'asc' },
     })

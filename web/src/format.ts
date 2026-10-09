@@ -105,6 +105,41 @@ export const motivosPerda: Record<string, string> = {
 
 export const dataBr =(iso: string) => new Date(iso).toLocaleDateString('pt-BR')
 
+// CPF/CNPJ, telefone e CEP: a API guarda só os dígitos. As máscaras de digitação formatam aos poucos,
+// conforme os dígitos chegam; as de exibição só formatam quando o número está completo e mostram o
+// resto como veio, para um dado fora do padrão não aparecer cortado.
+const digitosDe = (v: string | null | undefined) => (v ?? '').replace(/\D/g, '')
+
+function aplicar(digitos: string, padrao: string) {
+  let saida = ''
+  let i = 0
+  for (const c of padrao) {
+    if (i >= digitos.length) break
+    saida += c === '#' ? digitos[i++] : c
+  }
+  return saida
+}
+
+export const mascaraDocumento = (v: string) => {
+  const d = digitosDe(v).slice(0, 14)
+  return aplicar(d, d.length <= 11 ? '###.###.###-##' : '##.###.###/####-##')
+}
+export const mascaraTelefone = (v: string) => {
+  const d = digitosDe(v).slice(0, 11)
+  return aplicar(d, d.length <= 10 ? '(##) ####-####' : '(##) #####-####')
+}
+export const mascaraCep = (v: string) => aplicar(digitosDe(v).slice(0, 8), '#####-###')
+
+export const documentoBr = (v: string | null | undefined) => {
+  const d = digitosDe(v)
+  return d.length === 11 || d.length === 14 ? mascaraDocumento(d) : v || null
+}
+export const telefoneBr = (v: string | null | undefined) => {
+  const d = digitosDe(v)
+  return d.length === 10 || d.length === 11 ? mascaraTelefone(d) : v || null
+}
+export const cepBr = (v: string | null | undefined) => (digitosDe(v).length === 8 ? mascaraCep(v!) : v || null)
+
 export function hojeIso() {
   const d = new Date()
   const dois = (n: number) => String(n).padStart(2, '0')
@@ -116,3 +151,13 @@ export function estaVencida(conta: { status: string; vencimento: string }) {
   hoje.setHours(0, 0, 0, 0)
   return conta.status === 'ABERTA' && new Date(conta.vencimento) < hoje
 }
+
+// Máscara de digitação pelo nome do campo, como os formulários e a API chamam cada um. Sem máscara, o texto passa como está.
+const MASCARAS: Record<string, (v: string) => string> = {
+  documento: mascaraDocumento,
+  documentoTitular: mascaraDocumento,
+  telefone: mascaraTelefone,
+  celular: mascaraTelefone,
+  cep: mascaraCep,
+}
+export const mascarar = (campo: string, valor: string) => (MASCARAS[campo] ? MASCARAS[campo](valor) : valor)

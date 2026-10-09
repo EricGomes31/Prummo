@@ -3,7 +3,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
-import { brl, dataBr, formasPagamentoDespesa, hojeIso } from '../format'
+import { brl, dataBr, formasPagamentoDespesa, hojeIso, mascaraDocumento, mascaraTelefone } from '../format'
 import { exportarCsv, type Coluna } from '../relatorio'
 import type { ContaFinanceira, Despesa, ListaDespesas, Pessoa } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo } from '../ui'
@@ -477,10 +477,10 @@ function NovoFornecedor(props: { onFechar: () => void; onSalvo: (pessoa: Pessoa)
           </select>
         </Campo>
         <Campo rotulo="CPF ou CNPJ">
-          <input value={f.documento} onChange={(e) => setF({ ...f, documento: e.target.value })} />
+          <input inputMode="numeric" value={mascaraDocumento(f.documento)} onChange={(e) => setF({ ...f, documento: mascaraDocumento(e.target.value) })} />
         </Campo>
         <Campo rotulo="Telefone">
-          <input value={f.telefone} onChange={(e) => setF({ ...f, telefone: e.target.value })} />
+          <input type="tel" value={mascaraTelefone(f.telefone)} onChange={(e) => setF({ ...f, telefone: mascaraTelefone(e.target.value) })} />
         </Campo>
         <Campo rotulo="E-mail" largura={3}>
           <input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />

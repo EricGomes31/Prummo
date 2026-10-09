@@ -25,7 +25,14 @@ const textoOpcional = z
   .nullish()
   .transform((v) => v || null)
 
-export const texto = { opcional: textoOpcional }
+// CPF/CNPJ, telefone e CEP: guardados só com os dígitos, como vieram da importação. A tela formata ao mostrar.
+const soDigitos = z
+  .string()
+  .max(200)
+  .nullish()
+  .transform((v) => v?.replace(/\D/g, '') || null)
+
+export const texto = { opcional: textoOpcional, digitos: soDigitos }
 
 export const centavos = z.number().int().min(0)
 

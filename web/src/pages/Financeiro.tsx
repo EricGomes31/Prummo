@@ -2,7 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { BANCOS } from '../bancos'
-import { agoraLocal, brl, dataBr, dataHoraBr, estaVencida, hojeIso, origensMovimento, tiposContaFinanceira } from '../format'
+import { agoraLocal, brl, dataBr, dataHoraBr, estaVencida, hojeIso, mascaraDocumento, origensMovimento, telefoneBr, tiposContaFinanceira } from '../format'
 import { exportarCsv, imprimir, Resumo, Tabela, type Coluna } from '../relatorio'
 import type { Conta, ContaFinanceira, Extrato, MovimentoFinanceiro, Pessoa, RelatorioCobranca } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
@@ -252,7 +252,7 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
 type LinhaCobranca = RelatorioCobranca['linhas'][number]
 const colunasCobranca: Coluna<LinhaCobranca>[] = [
   { rotulo: 'Cliente', valor: (l) => l.cliente, largura: 160 },
-  { rotulo: 'Contato', valor: (l) => [l.telefone, l.email].filter(Boolean).join(' · ') || null },
+  { rotulo: 'Contato', valor: (l) => [telefoneBr(l.telefone), l.email].filter(Boolean).join(' · ') || null },
   { rotulo: 'Descrição', valor: (l) => l.descricao, largura: 180 },
   { rotulo: 'Venda', valor: (l) => (l.pedidoNumero ? `#${l.pedidoNumero}` : null) },
   { rotulo: 'Vendedor', valor: (l) => l.vendedor },
@@ -265,7 +265,7 @@ const colunasCobranca: Coluna<LinhaCobranca>[] = [
 type ClienteCobranca = RelatorioCobranca['porCliente'][number]
 const colunasPorCliente: Coluna<ClienteCobranca>[] = [
   { rotulo: 'Cliente', valor: (g) => g.cliente, largura: 160 },
-  { rotulo: 'Contato', valor: (g) => g.telefone },
+  { rotulo: 'Contato', valor: (g) => telefoneBr(g.telefone) },
   { rotulo: 'Contas', valor: (g) => g.quantidade },
   { rotulo: 'Maior atraso (dias)', valor: (g) => g.maiorAtraso },
   { rotulo: 'Vencido', valor: (g) => g.vencido, tipo: 'dinheiro' },
@@ -883,7 +883,7 @@ function FormContaFinanceira(props: { conta: ContaFinanceira | null; onFechar: (
               <input value={f.numeroConta} onChange={(e) => setF({ ...f, numeroConta: e.target.value })} />
             </Campo>
             <Campo rotulo="CPF ou CNPJ do titular">
-              <input required value={f.documentoTitular} onChange={(e) => setF({ ...f, documentoTitular: e.target.value })} />
+              <input required inputMode="numeric" value={mascaraDocumento(f.documentoTitular)} onChange={(e) => setF({ ...f, documentoTitular: mascaraDocumento(e.target.value) })} />
             </Campo>
           </>
         )}

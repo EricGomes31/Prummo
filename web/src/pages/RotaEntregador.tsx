@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { lerEmBase64 } from '../api'
-import { brl, formasPagamento } from '../format'
+import { brl, formasPagamento, telefoneBr } from '../format'
 import type { RotaDoEntregador } from '../types'
 
 const situacoes: Record<string, string> = { PENDENTE: 'Aguardando', EM_ROTA: 'Em rota', ENTREGUE: 'Entregue', FALHOU: 'Não entregue' }
@@ -92,7 +92,7 @@ export function RotaEntregador() {
             </button>
             {aberta === e.id && (
               <section className="parada-detalhe">
-                <p><strong>Telefone:</strong> {e.telefone ?? 'Não informado'}</p>
+                <p><strong>Telefone:</strong> {telefoneBr(e.telefone) ?? 'Não informado'}</p>
                 <ul>
                   {e.itens.map((item, n) => (
                     <li key={n}>{item.quantidade} {item.unidade} · {item.produto}</li>
