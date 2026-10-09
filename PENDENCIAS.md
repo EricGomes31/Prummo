@@ -40,11 +40,44 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 ## Antes de desligar o SG Nexus
 
 - [ ] Rodar de novo os importadores (`api/scripts/importar-*.mjs`, com `--empresa=1`) para trazer o que for lançado no SG Nexus até a virada. Eles não duplicam o que já existe. Os pedidos importados mantêm o número do SG Nexus: se antes disso forem lançados pedidos no Prumo, eles ocupam os próximos números e a importação de um pedido do SG Nexus com o mesmo número para com aviso.
-- [ ] Comparação completa, tela por tela, entre o SG Nexus e o Prumo, para deixar o Prumo com todas as funções do SG Nexus, sem erros e melhor. Começada em 09/10/2026: levantamento somente leitura das 12 telas do SG Nexus (navegando logado, sem gravar nada) e inventário do Prumo a partir do código.
+- [x] Comparação completa, tela por tela, entre o SG Nexus e o Prumo. Feita em 09/10/2026: levantamento somente leitura das 12 telas do SG Nexus e inventário do Prumo; os relatórios e 59 prints ficaram em `levantamento-sgnexus/` (fora do Git, porque têm nomes de clientes). O que falta está na seção "O que o SG Nexus tem e o Prumo ainda não".
 - [x] Dois erros achados no inventário do Prumo. Corrigidos em 09/10/2026: a busca por número no relatório de vendas comparava com o id interno do pedido, e não com o número mostrado; quem tinha só a permissão de lançar no caixa não via o item Financeiro no menu.
 - [ ] Trocar a senha do usuário do SG Nexus (douglalves12@gmail.com): foi digitada em uma conversa.
 - [ ] Conferir se os horários importados estão certos. O SG Nexus não informa o fuso; foram tratados como horário de Brasília.
 - [ ] Confirmar com quem usa o SG Nexus as regras que foram definidas sem conseguir ver o servidor dele: bonificação e perda só baixam o estoque e ficam fora do faturamento; o crédito da devolução rateia os descontos do pedido e não inclui o frete; o crédito só baixa contas da própria pessoa elegível.
+
+## O que o SG Nexus tem e o Prumo ainda não
+
+Levantado em 09/10/2026 (detalhes em `levantamento-sgnexus/`). Em ordem de prioridade.
+
+Prioridade 1 (uso diário):
+- [ ] Campos de pessoa com busca (digitar para achar) no lugar das listas longas: cliente, vendedor, médico e paciente do pedido; filtros de cliente/fornecedor; venda faturada na devolução. O SG Nexus tem 230 clientes.
+- [ ] Produto no pedido escolhido digitando código, descrição ou EAN (Enter escolhe; serve para leitor de código de barras), como já é na entrada de estoque.
+- [ ] Lista de pedidos com busca (número, cliente, vendedor, médico, paciente) e período. Hoje a lista traz só os 300 mais recentes e não há como achar um pedido antigo fora dos relatórios; vale o mesmo para entradas (200) e contas (500).
+- [ ] "Finalizar venda" em um passo: salvar e faturar de uma vez, como no SG Nexus (lá todo pedido já nasce faturado).
+- [ ] Parcelas com vencimentos (e valores) escolhidos à mão no pedido a prazo e na entrada a prazo. Hoje o pedido só gera parcelas mensais e a entrada só aceita os prazos fixos.
+- [ ] Data da venda no pedido (hoje é sempre a data em que foi lançado).
+- [ ] Endereço de entrega alternativo no pedido, que segue para a entrega.
+- [ ] Rateio do frete e das outras despesas da entrada no custo dos produtos ("custo com rateio" do SG Nexus). Hoje o frete vai para as contas a pagar, mas não entra no custo.
+- [ ] Cartões e operadoras (já listado em "Funções do SG Nexus que ainda faltam"): o SG Nexus mostra R$ 3.094,94 pendentes nas operadoras, então está em uso.
+
+Prioridade 2:
+- [ ] Alterar pedido faturado com motivo obrigatório, uma conferência do impacto antes de salvar (total anterior, novo total, diferença) e o histórico de alterações visível no pedido.
+- [ ] Janela de baixa (receber/pagar) com os dados da venda (pedido, parcela, vendedor, médico, observações) e os anexos da conta. A API dos anexos já existe.
+- [ ] Detalhes da entrada de estoque (itens, custo, parcelas, documentos).
+- [ ] Relatório de movimentações do caixa e da conciliação (extrato por conta, conciliadas/pendentes) com Excel; exportar o extrato.
+- [ ] Dashboard comercial: clicar no dia para ver as vendas dele e abrir o pedido; rankings com 10 posições.
+- [ ] Relatório de cobrança com filtro de emissão, situação (inclusive pagas e canceladas) e visão por produto.
+- [ ] Ordenar as listas clicando no título da coluna (no SG Nexus vale para todas as tabelas).
+
+Prioridade 3:
+- [ ] Confirmação de senha ao criar usuário e ao alterar a senha.
+- [ ] Lista completa de bancos (código COMPE) com busca no cadastro de conta financeira.
+- [ ] Filtro de origem no extrato; busca nos créditos de clientes; colunas de origem e documento em contas a pagar; conta de pagamento no relatório de vendas; campo "preço com desconto" no item do pedido.
+- [ ] Avaliar a leitura automática de comprovante PIX anexado ao pedido, que o SG Nexus faz.
+- [ ] Decidir sobre o link público de atualização cadastral: o SG Nexus tem um link único para todos (a pessoa digita os dados e o sistema acha o cadastro); o Prumo gera um link por pessoa, que é mais seguro.
+
+O Prumo já faz melhor: cancelamento de pedido; histórico de estoque; lista e estorno de entradas e devoluções; edição na logística; transferência e lançamento avulso no caixa; sete formas de resolver uma linha na conciliação (o SG Nexus só baixa ou vincula); paginação; Esc e aviso ao descartar janelas; endereço próprio para cada tela. Erros do SG Nexus que o Prumo não tem: perda aparecendo como venda, entrega duplicada para o mesmo pedido, endereço alternativo apagado ao digitar o produto, botão que não avisa quando falha.
 
 ## Funções do SG Nexus que ainda faltam
 
