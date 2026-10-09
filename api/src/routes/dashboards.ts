@@ -129,7 +129,7 @@ export async function rotasDashboards(app: FastifyInstance) {
     // Cada baixa, total ou parcial, é um movimento; as estornadas ficam de fora.
     const baixas = { estornado: false, data: { gte: p.inicioHistorico, lt: p.fim } }
     const somaSaldo = { _sum: { valor: true, valorPago: true } } as const
-    const [recebidas, pagas, aReceber, aPagar, vencidoReceber, vencidoPagar] = await Promise.all([
+    const [recebidas, pagas, aReceber, aPagar, vencidoReceber, vencidoPagar, despesas] = await Promise.all([
       prisma.movimentoFinanceiro.findMany({
         where: { ...baixas, origem: 'RECEBIMENTO' },
         select: { valor: true, data: true, contaReceber: { select: { pedido: { select: { formaPagamento: true } } } } },
@@ -139,14 +139,22 @@ export async function rotasDashboards(app: FastifyInstance) {
       prisma.contaPagar.aggregate({ where: { status: 'ABERTA', vencimento: { gte: p.inicio, lt: p.fim } }, ...somaSaldo }),
       prisma.contaReceber.aggregate({ where: { status: 'ABERTA', vencimento: { lt: hoje } }, ...somaSaldo }),
       prisma.contaPagar.aggregate({ where: { status: 'ABERTA', vencimento: { lt: hoje } }, ...somaSaldo }),
+      // Despesas contam pela competência, paga ou não.
+      prisma.despesa.findMany({
+        where: { status: 'ATIVA', dataCompetencia: { gte: p.inicioHistorico, lt: p.fim } },
+        select: { valor: true, elemento: true, dataCompetencia: true },
+        orderBy: { id: 'asc' },
+      }),
     ])
     // Em aberto é o saldo: o valor da conta menos o que já foi baixado em parte.
     const saldo = (a: { _sum: { valor: number | null; valorPago: number | null } }) => (a._sum.valor ?? 0) - (a._sum.valorPago ?? 0)
 
-    const porMes = new Map(p.meses.map((m) => [m, { mes: m, recebido: 0, pago: 0 }]))
+    const porMes = new Map(p.meses.map((m) => [m, { mes: m, recebido: 0, pago: 0, despesas: 0 }]))
     for (const c of recebidas) porMes.get(chaveMes(c.data))!.recebido += c.valor
     for (const c of pagas) porMes.get(chaveMes(c.data))!.pago += c.valor
+    for (const d of despesas) porMes.get(chaveMes(d.dataCompetencia))!.despesas += d.valor
     const atual = porMes.get(p.chave)!
+    const despesasDoMes = despesas.filter((d) => d.dataCompetencia >= p.inicio)
 
     return {
       mes: p.chave,
@@ -158,8 +166,13 @@ export async function rotasDashboards(app: FastifyInstance) {
         aPagar: saldo(aPagar),
         vencidoReceber: saldo(vencidoReceber),
         vencidoPagar: saldo(vencidoPagar),
+        despesas: atual.despesas,
       },
       meses: [...porMes.values()],
+      despesasPorElemento: ranking(
+        despesasDoMes.map((d) => ({ chave: d.elemento.toLowerCase(), nome: d.elemento, valor: d.valor })),
+        10,
+      ),
       formas: ranking(
         recebidas
           .filter((c) => c.data >= p.inicio)

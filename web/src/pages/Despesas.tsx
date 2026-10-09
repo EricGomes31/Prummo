@@ -4,10 +4,29 @@ import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { brl, dataBr, formasPagamentoDespesa, hojeIso } from '../format'
-import type { Despesa, ListaDespesas, Pessoa } from '../types'
+import { exportarCsv, type Coluna } from '../relatorio'
+import type { ContaFinanceira, Despesa, ListaDespesas, Pessoa } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo } from '../ui'
 
 type Parcela = { vencimento: string; valor: number }
+
+const colunasExportacao: Coluna<Despesa>[] = [
+  { rotulo: 'Nº', valor: (d) => d.id },
+  { rotulo: 'Fornecedor', valor: (d) => d.fornecedor.nome },
+  { rotulo: 'Elemento', valor: (d) => d.elemento },
+  { rotulo: 'Descrição', valor: (d) => d.descricao },
+  { rotulo: 'Documento', valor: (d) => d.numeroDocumento },
+  { rotulo: 'Emissão', valor: (d) => d.dataEmissao, tipo: 'data' },
+  { rotulo: 'Competência', valor: (d) => d.dataCompetencia, tipo: 'data' },
+  { rotulo: 'Caixa', valor: (d) => d.dataCaixa, tipo: 'data' },
+  { rotulo: 'Condição', valor: (d) => (d.condicaoPagamento === 'A_PRAZO' ? `A prazo, ${d.contasPagar.length}x` : 'À vista') },
+  { rotulo: 'Forma', valor: (d) => formasPagamentoDespesa[d.formaPagamento] ?? d.formaPagamento },
+  { rotulo: 'Situação', valor: (d) => (d.status === 'CANCELADA' ? 'Cancelada' : 'Ativa') },
+  { rotulo: 'Valor', valor: (d) => d.valor, tipo: 'dinheiro' },
+  { rotulo: 'Pago', valor: (d) => d.valorPago, tipo: 'dinheiro' },
+  { rotulo: 'Usuário', valor: (d) => d.usuario?.nome ?? null },
+  { rotulo: 'Observação', valor: (d) => d.observacao },
+]
 
 // Data daqui a `meses` meses, no formato dos campos de data.
 function daquiA(meses: number) {
@@ -29,8 +48,8 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
   const consulta = new URLSearchParams(Object.entries(f).filter(([, valor]) => valor))
   const despesas = useDados<ListaDespesas>(`/despesas?${consulta}`)
   const elementos = useDados<string[]>('/despesas/elementos')
-  const pessoas = useDados<Pessoa[]>(lanca ? '/pessoas' : null).dados ?? []
-  const fornecedores = pessoas.filter((p) => p.fornecedor || p.prestador)
+  const pessoas = useDados<Pessoa[]>(lanca ? '/pessoas' : null)
+  const fornecedores = (pessoas.dados ?? []).filter((p) => p.fornecedor || p.prestador)
   const [editando, setEditando] = useState<Despesa | 'nova' | null>(null)
   const [documentosDe, setDocumentosDe] = useState<Despesa | null>(null)
   const acao = useAcao()
@@ -57,6 +76,9 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
       <Cabecalho titulo="Despesas" descricao="Registre as despesas; as contas a pagar são geradas automaticamente.">
         <button type="button" className="botao" onClick={atualizar}>
           Atualizar
+        </button>
+        <button type="button" className="botao" disabled={linhas.length === 0} onClick={() => exportarCsv('despesas', colunasExportacao, linhas)}>
+          Exportar para Excel
         </button>
         {lanca && (
           <button type="button" className="botao botao-primario" onClick={() => setEditando('nova')}>
@@ -185,6 +207,7 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
         <FormDespesa
           despesa={editando === 'nova' ? null : editando}
           fornecedores={fornecedores}
+          onFornecedorNovo={pessoas.recarregar}
           elementos={elementos.dados ?? []}
           onFechar={() => setEditando(null)}
           onSalvo={() => {
@@ -202,8 +225,25 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
   )
 }
 
-function FormDespesa(props: { despesa: Despesa | null; fornecedores: Pessoa[]; elementos: string[]; onFechar: () => void; onSalvo: () => void }) {
+function FormDespesa(props: {
+  despesa: Despesa | null
+  fornecedores: Pessoa[]
+  onFornecedorNovo: () => void
+  elementos: string[]
+  onFechar: () => void
+  onSalvo: () => void
+}) {
   const { despesa } = props
+  const { pode } = useSessao()
+  // Pagar já no lançamento exige a permissão de pagar contas; a conta financeira sai daqui.
+  const podePagar = pode('CONTAS_PAGAR_BAIXAR')
+  const contas = (useDados<ContaFinanceira[]>(!despesa && podePagar ? '/contas-financeiras' : null).dados ?? []).filter((c) => c.ativa)
+  const [pagarAgora, setPagarAgora] = useState(false)
+  const [contaFinanceiraId, setContaFinanceiraId] = useState(0)
+  const [cadastrando, setCadastrando] = useState(false)
+  // O fornecedor recém-cadastrado aparece na lista antes de ela recarregar.
+  const [novos, setNovos] = useState<Pessoa[]>([])
+  const fornecedores = [...props.fornecedores, ...novos.filter((n) => !props.fornecedores.some((p) => p.id === n.id))]
   const [f, setF] = useState({
     fornecedorId: despesa?.fornecedor.id ?? 0,
     elemento: despesa?.elemento ?? '',
@@ -229,7 +269,16 @@ function FormDespesa(props: { despesa: Despesa | null; fornecedores: Pessoa[]; e
     e.preventDefault()
     executar(async () => {
       if (despesa) await api(`/despesas/${despesa.id}`, { method: 'PUT', body: f })
-      else await api('/despesas', { body: { ...f, valor, condicaoPagamento: condicao, parcelas: condicao === 'A_PRAZO' ? parcelas : [] } })
+      else
+        await api('/despesas', {
+          body: {
+            ...f,
+            valor,
+            condicaoPagamento: condicao,
+            parcelas: condicao === 'A_PRAZO' ? parcelas : [],
+            pagamento: condicao === 'A_VISTA' && pagarAgora ? { contaFinanceiraId, data: f.dataEmissao } : null,
+          },
+        })
       props.onSalvo()
     })
   }
@@ -240,7 +289,7 @@ function FormDespesa(props: { despesa: Despesa | null; fornecedores: Pessoa[]; e
         <Campo rotulo="Fornecedor ou prestador" largura={2}>
           <select required autoFocus value={f.fornecedorId || ''} onChange={(e) => setF({ ...f, fornecedorId: Number(e.target.value) })}>
             <option value="">Selecione…</option>
-            {props.fornecedores
+            {fornecedores
               .filter((p) => p.ativo || p.id === f.fornecedorId)
               .map((p) => (
                 <option key={p.id} value={p.id}>
@@ -248,7 +297,13 @@ function FormDespesa(props: { despesa: Despesa | null; fornecedores: Pessoa[]; e
                 </option>
               ))}
           </select>
-          {props.fornecedores.length === 0 && <small className="texto-suave">Marque "Fornecedor" ou "Prestador de serviço" no cadastro da pessoa para ela aparecer aqui.</small>}
+          {pode('PESSOAS_CADASTRAR') ? (
+            <button type="button" className="botao botao-texto" onClick={() => setCadastrando(true)}>
+              + Cadastrar fornecedor
+            </button>
+          ) : (
+            fornecedores.length === 0 && <small className="texto-suave">Marque "Fornecedor" ou "Prestador de serviço" no cadastro da pessoa para ela aparecer aqui.</small>
+          )}
         </Campo>
         <Campo rotulo="Elemento">
           <input required list="elementos-despesa" value={f.elemento} onChange={(e) => setF({ ...f, elemento: e.target.value })} placeholder="Ex.: Aluguel, energia, frete" />
@@ -308,8 +363,34 @@ function FormDespesa(props: { despesa: Despesa | null; fornecedores: Pessoa[]; e
                 <input type="number" min={1} max={60} value={parcelas.length || ''} onChange={(e) => setParcelas(valor > 0 ? dividir(valor, Math.min(60, Math.max(1, Number(e.target.value) || 1))) : [])} />
               </Campo>
             )}
+            {condicao === 'A_VISTA' && podePagar && (
+              <>
+                <Campo rotulo="Pagamento">
+                  <select value={pagarAgora ? 'AGORA' : 'DEPOIS'} onChange={(e) => setPagarAgora(e.target.value === 'AGORA')}>
+                    <option value="DEPOIS">Pagar depois, em "A pagar"</option>
+                    <option value="AGORA">Já pago, na data de emissão</option>
+                  </select>
+                </Campo>
+                {pagarAgora && (
+                  <Campo rotulo="Saiu da conta">
+                    <select required value={contaFinanceiraId || ''} onChange={(e) => setContaFinanceiraId(Number(e.target.value))}>
+                      <option value="">Selecione…</option>
+                      {contas.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </Campo>
+                )}
+              </>
+            )}
             {condicao === 'A_VISTA' && (
-              <p className="texto-suave col-3">Gera uma conta a pagar com vencimento na data de emissão. O pagamento é registrado em Financeiro, na aba "A pagar".</p>
+              <p className="texto-suave col-3">
+                {pagarAgora
+                  ? 'Gera a conta a pagar já paga, com a saída na conta escolhida e na data de emissão.'
+                  : 'Gera uma conta a pagar com vencimento na data de emissão. O pagamento é registrado em Financeiro, na aba "A pagar".'}
+              </p>
             )}
             {condicao === 'A_PRAZO' && parcelas.length > 0 && (
               <div className="col-3">
@@ -350,6 +431,67 @@ function FormDespesa(props: { despesa: Despesa | null; fornecedores: Pessoa[]; e
           </button>
           <button className="botao botao-primario" disabled={ocupado || (!despesa && (valor <= 0 || (condicao === 'A_PRAZO' && somaParcelas !== valor)))}>
             {despesa ? 'Salvar' : 'Lançar despesa'}
+          </button>
+        </div>
+      </form>
+      {cadastrando && (
+        <NovoFornecedor
+          onFechar={() => setCadastrando(false)}
+          onSalvo={(pessoa) => {
+            setNovos([...novos, pessoa])
+            setF((atual) => ({ ...atual, fornecedorId: pessoa.id }))
+            setCadastrando(false)
+            props.onFornecedorNovo()
+          }}
+        />
+      )}
+    </Modal>
+  )
+}
+
+// Cadastro rápido de fornecedor ou prestador, sem sair do lançamento. O cadastro completo fica em Pessoas.
+function NovoFornecedor(props: { onFechar: () => void; onSalvo: (pessoa: Pessoa) => void }) {
+  const [f, setF] = useState({ nome: '', documento: '', telefone: '', email: '', tipo: 'fornecedor' as 'fornecedor' | 'prestador' })
+  const { erro, ocupado, executar } = useAcao()
+
+  function enviar(e: FormEvent) {
+    e.preventDefault()
+    // O formulário fica dentro de outro; o envio não pode chegar ao lançamento da despesa.
+    e.stopPropagation()
+    executar(async () => {
+      const { tipo, ...dados } = f
+      props.onSalvo(await api<Pessoa>('/pessoas', { body: { ...dados, [tipo]: true } }))
+    })
+  }
+
+  return (
+    <Modal titulo="Cadastrar fornecedor" onFechar={props.onFechar}>
+      <form onSubmit={enviar} className="form">
+        <Campo rotulo="Nome ou razão social" largura={3}>
+          <input required autoFocus value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
+        </Campo>
+        <Campo rotulo="Tipo">
+          <select value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value as 'fornecedor' | 'prestador' })}>
+            <option value="fornecedor">Fornecedor</option>
+            <option value="prestador">Prestador de serviço</option>
+          </select>
+        </Campo>
+        <Campo rotulo="CPF ou CNPJ">
+          <input value={f.documento} onChange={(e) => setF({ ...f, documento: e.target.value })} />
+        </Campo>
+        <Campo rotulo="Telefone">
+          <input value={f.telefone} onChange={(e) => setF({ ...f, telefone: e.target.value })} />
+        </Campo>
+        <Campo rotulo="E-mail" largura={3}>
+          <input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+        </Campo>
+        <Erro mensagem={erro} />
+        <div className="form-pe">
+          <button type="button" className="botao" onClick={props.onFechar}>
+            Cancelar
+          </button>
+          <button className="botao botao-primario" disabled={ocupado}>
+            Cadastrar
           </button>
         </div>
       </form>

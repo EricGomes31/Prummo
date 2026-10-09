@@ -137,6 +137,7 @@ function Financeiro({ d }: { d: DashboardFinanceiro }) {
         <Indicador rotulo="A pagar no mês" valor={brl(d.kpis.aPagar)} nota="em aberto, com vencimento no mês" />
         <Indicador rotulo="Vencido a receber" valor={brl(d.kpis.vencidoReceber)} tom={d.kpis.vencidoReceber > 0 ? 'ruim' : undefined} nota="até hoje" />
         <Indicador rotulo="Vencido a pagar" valor={brl(d.kpis.vencidoPagar)} tom={d.kpis.vencidoPagar > 0 ? 'ruim' : undefined} nota="até hoje" />
+        <Indicador rotulo="Despesas do mês" valor={brl(d.kpis.despesas)} nota="pela competência, pagas ou não" />
       </section>
 
       <Cartao titulo="Recebido e pago · últimos 6 meses">
@@ -151,6 +152,24 @@ function Financeiro({ d }: { d: DashboardFinanceiro }) {
           colunas={['Mês', 'Recebido', 'Pago', 'Saldo']}
           linhas={d.meses.map((m) => [mesPorExtenso(m.mes), brl(m.recebido), brl(m.pago), brl(m.recebido - m.pago)])}
         />
+      </Cartao>
+
+      <Cartao titulo="Despesas por competência · últimos 6 meses">
+        <Colunas
+          series={[{ nome: 'Despesas', cor: COR.secundaria }]}
+          valorNoTopo
+          pontos={d.meses.map((m) => ({
+            rotulo: mesCurto(m.mes),
+            titulo: mesPorExtenso(m.mes),
+            valores: [m.despesas],
+            cores: [m.mes === d.mes ? COR.secundaria : COR.apagada],
+          }))}
+        />
+        <TabelaDados colunas={['Mês', 'Despesas']} linhas={d.meses.map((m) => [mesPorExtenso(m.mes), brl(m.despesas)])} />
+      </Cartao>
+
+      <Cartao estreito titulo={`Despesas por elemento · ${mesPorExtenso(d.mes)}`}>
+        <Ranking itens={d.despesasPorElemento} cor={COR.secundaria} textoVazio="Nenhuma despesa com competência no mês." />
       </Cartao>
 
       <Cartao estreito titulo={`Recebido por forma de pagamento · ${mesPorExtenso(d.mes)}`}>

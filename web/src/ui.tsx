@@ -1,10 +1,11 @@
-import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { brl, centavosParaTexto, inteiro, paraCentavos, qtd, saldoBase, unidadesDe } from './format'
 import { Icone } from './icones'
 import type { ItemEdicao, Produto } from './types'
 
-// Quantas janelas estão abertas: a rolagem da página só volta quando a última fecha.
-let janelasAbertas = 0
+// Janelas abertas, da mais antiga para a mais nova. A rolagem da página só volta quando a última fecha,
+// e o Esc fecha só a de cima (uma janela pode abrir outra, como o cadastro rápido dentro de um lançamento).
+const janelasAbertas: object[] = []
 
 export function Cabecalho({ titulo, descricao, children }: { titulo: string; descricao?: string; children?: ReactNode }) {
   return (
@@ -20,19 +21,21 @@ export function Cabecalho({ titulo, descricao, children }: { titulo: string; des
 
 export function Modal(props: { titulo: string; onFechar: () => void; largo?: boolean; children: ReactNode }) {
   const { onFechar } = props
+  const esta = useRef({})
   useEffect(() => {
-    const aoTeclar = (e: KeyboardEvent) => e.key === 'Escape' && onFechar()
+    const aoTeclar = (e: KeyboardEvent) => e.key === 'Escape' && janelasAbertas.at(-1) === esta.current && onFechar()
     window.addEventListener('keydown', aoTeclar)
     return () => window.removeEventListener('keydown', aoTeclar)
   }, [onFechar])
 
   // Com a janela aberta, a página por trás não rola.
   useEffect(() => {
-    janelasAbertas++
+    const propria = esta.current
+    janelasAbertas.push(propria)
     document.body.style.overflow = 'hidden'
     return () => {
-      janelasAbertas--
-      if (janelasAbertas === 0) document.body.style.overflow = ''
+      janelasAbertas.splice(janelasAbertas.indexOf(propria), 1)
+      if (janelasAbertas.length === 0) document.body.style.overflow = ''
     }
   }, [])
 

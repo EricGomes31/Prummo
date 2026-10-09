@@ -441,15 +441,18 @@ model PedidoItem {
 
 // Devolução de itens de uma venda faturada: devolve o estoque e gera um crédito para o cliente.
 model Devolucao {
-  id           Int      @id @default(autoincrement())
-  empresaId    Int      @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
+  id           Int       @id @default(autoincrement())
+  empresaId    Int       @default(dbgenerated("(current_setting('prumo.empresa'::text))::integer"))
   pedidoId     Int
-  pedido       Pedido   @relation(fields: [pedidoId], references: [id])
+  pedido       Pedido    @relation(fields: [pedidoId], references: [id])
   observacao   String?
   valorCredito Int // soma do valor líquido dos itens devolvidos
+  // Estorno: os itens voltam a sair do estoque e o crédito é cancelado. Só com o crédito ainda intacto.
+  estornada    Boolean   @default(false)
+  estornadaEm  DateTime?
   usuarioId    Int?
-  usuario      Usuario? @relation(fields: [usuarioId], references: [id])
-  criadoEm     DateTime @default(now())
+  usuario      Usuario?  @relation(fields: [usuarioId], references: [id])
+  criadoEm     DateTime  @default(now())
 
   itens   DevolucaoItem[]
   credito Credito?

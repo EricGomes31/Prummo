@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { AppError, dataIso, idParam, prisma, texto } from '../lib.js'
+import { registrarBaixa } from './financeiro.js'
 
 export const FORMAS_PAGAMENTO_DESPESA = ['DINHEIRO', 'PIX', 'TRANSFERENCIA', 'BOLETO', 'CARTAO_DEBITO', 'CARTAO_CREDITO', 'OUTRO'] as const
 
@@ -25,8 +26,13 @@ const lancamento = cadastro
       .array(z.object({ vencimento: dataIso, valor: z.number().int().positive('Informe o valor de todas as parcelas') }))
       .max(60)
       .default([]),
+    // À vista, a despesa pode ser paga já no lançamento, saindo da conta financeira escolhida.
+    pagamento: z
+      .object({ contaFinanceiraId: z.number().int().positive('Selecione a conta financeira'), data: dataIso.optional() })
+      .nullish(),
   })
   .superRefine((d, ctx) => {
+    if (d.pagamento && d.condicaoPagamento !== 'A_VISTA') ctx.addIssue({ code: 'custom', message: 'Só a despesa à vista é paga no lançamento.' })
     if (d.condicaoPagamento !== 'A_PRAZO') return
     if (d.parcelas.length === 0) ctx.addIssue({ code: 'custom', message: 'Informe pelo menos uma parcela.' })
     else if (d.parcelas.reduce((s, p) => s + p.valor, 0) !== d.valor) {
@@ -94,14 +100,18 @@ export async function rotasDespesas(app: FastifyInstance) {
   )
 
   // Lançar a despesa gera as contas a pagar: uma, na data de emissão, se for à vista; uma por parcela, se for a prazo.
+  // Com `pagamento`, a conta da despesa à vista já nasce paga.
   app.post('/despesas', async (req, reply) => {
-    const { parcelas, ...dados } = lancamento.parse(req.body)
+    const { parcelas, pagamento, ...dados } = lancamento.parse(req.body)
+    if (pagamento && !req.usuario.permissoes.includes('CONTAS_PAGAR_BAIXAR')) {
+      throw new AppError(403, 'Seu perfil de acesso não permite registrar pagamentos. Lance a despesa sem pagar.')
+    }
     await conferirFornecedor(dados.fornecedorId)
     const titulos = dados.condicaoPagamento === 'A_PRAZO' ? parcelas : [{ vencimento: dados.dataEmissao, valor: dados.valor }]
     const despesa = await prisma.$transaction(async (tx) => {
       const criada = await tx.despesa.create({ data: { ...dados, usuarioId: req.usuario.id } })
       for (const [n, titulo] of titulos.entries()) {
-        await tx.contaPagar.create({
+        const conta = await tx.contaPagar.create({
           data: {
             pessoaId: dados.fornecedorId,
             despesaId: criada.id,
@@ -110,6 +120,13 @@ export async function rotasDespesas(app: FastifyInstance) {
             vencimento: titulo.vencimento,
           },
         })
+        if (pagamento) {
+          await registrarBaixa(tx, 'contas-pagar', conta.id, {
+            contaFinanceiraId: pagamento.contaFinanceiraId,
+            data: pagamento.data ?? new Date(),
+            usuarioId: req.usuario.id,
+          })
+        }
       }
       return tx.despesa.findUniqueOrThrow({ where: { id: criada.id }, include: comDetalhes })
     })

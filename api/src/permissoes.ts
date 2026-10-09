@@ -197,7 +197,7 @@ const REGRAS: Record<string, Permissao[]> = {
   'POST /despesas': ['DESPESAS_LANCAR'],
   'PUT /despesas/:id': ['DESPESAS_LANCAR'],
   'POST /despesas/:id/cancelar': ['DESPESAS_LANCAR'],
-  'GET /contas-financeiras': ['CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR', 'CONTAS_RECEBER_BAIXAR', 'CONTAS_PAGAR_BAIXAR', 'OFX_IMPORTAR', 'CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR'],
+  'GET /contas-financeiras': ['CAIXA_VISUALIZAR', 'CAIXA_MOVIMENTAR', 'CONTAS_RECEBER_BAIXAR', 'CONTAS_PAGAR_BAIXAR', 'OFX_IMPORTAR', 'CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR', 'DESPESAS_LANCAR'],
   'POST /ofx/ler': ['OFX_IMPORTAR'],
   'POST /ofx/importar': ['OFX_IMPORTAR'],
   'GET /conciliacao/pendentes': ['CONCILIACAO_VISUALIZAR', 'CONCILIACAO_CONFIRMAR'],
@@ -215,6 +215,7 @@ const REGRAS: Record<string, Permissao[]> = {
 
   'GET /relatorios/vendas': ['RELATORIOS_VISUALIZAR'],
   'GET /relatorios/financeiro': ['RELATORIOS_VISUALIZAR'],
+  'GET /relatorios/despesas': ['RELATORIOS_VISUALIZAR'],
 
   'GET /usuarios': ['USUARIOS_GERENCIAR'],
   'POST /usuarios': ['USUARIOS_GERENCIAR'],

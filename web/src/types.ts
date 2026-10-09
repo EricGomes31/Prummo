@@ -396,8 +396,30 @@ export type RelatorioVendas = {
     frete: number
     observacao: string | null
     total: number
+    devolvido: number
   }[]
-  resumo: { quantidade: number; cancelados: number; total: number; ticketMedio: number }
+  resumo: { quantidade: number; cancelados: number; total: number; ticketMedio: number; devolvido: number }
+}
+
+type GrupoDespesas = { nome: string; quantidade: number; total: number; pago: number }
+
+export type RelatorioDespesas = {
+  linhas: {
+    id: number
+    competencia: string
+    emissao: string
+    elemento: string
+    descricao: string
+    fornecedor: string
+    numeroDocumento: string | null
+    condicaoPagamento: 'A_VISTA' | 'A_PRAZO'
+    formaPagamento: string
+    valor: number
+    pago: number
+  }[]
+  porElemento: GrupoDespesas[]
+  porCompetencia: GrupoDespesas[] // nome = "AAAA-MM"
+  resumo: { quantidade: number; total: number; pago: number; aPagar: number }
 }
 
 export type RelatorioFinanceiro = {
@@ -465,9 +487,11 @@ export type DashboardFinanceiro = {
     aPagar: number
     vencidoReceber: number
     vencidoPagar: number
+    despesas: number // pela competência
   }
-  meses: { mes: string; recebido: number; pago: number }[]
+  meses: { mes: string; recebido: number; pago: number; despesas: number }[]
   formas: ItemRanking[]
+  despesasPorElemento: ItemRanking[]
 }
 
 export type PedidoParaEntrega = { id: number; total: number; faturadoEm: string | null; cliente: Pessoa }
