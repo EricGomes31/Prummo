@@ -1,0 +1,9 @@
+# Caddy na VPS (/etc/caddy/Caddyfile): HTTPS automático (Let's Encrypt) e repasse para o Prumo.
+prummo.tech {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
+
+www.prummo.tech {
+	redir https://prummo.tech{uri} permanent
+}
