@@ -160,6 +160,24 @@ export type Conta = {
   pedido?: { id: number; numero: number; vendedor: PessoaRef | null; medico: PessoaRef | null; paciente: PessoaRef | null } | null
 }
 
+// Uma conta com a origem dela, para a janela de baixa.
+export type ContaComOrigem = Conta & {
+  criadoEm: string
+  pedido?: {
+    id: number
+    numero: number
+    data: string
+    natureza: NaturezaPedido
+    formaPagamento: string | null
+    observacao: string | null
+    vendedor: PessoaRef | null
+    medico: PessoaRef | null
+    paciente: PessoaRef | null
+  } | null
+  entrada?: { id: number; data: string; numeroDocumento: string | null; natureza: string } | null
+  despesa?: { id: number; elemento: string; descricao: string; numeroDocumento: string | null; dataEmissao: string; observacao: string | null } | null
+}
+
 // Item de uma venda com o que ainda pode ser devolvido e o valor líquido de cada unidade.
 export type SaldoDevolucao = {
   pedidoItemId: number

@@ -227,6 +227,32 @@ export async function rotasFinanceiro(app: FastifyInstance) {
       return reply.status(201).send(conta)
     })
 
+    // Uma conta com a origem dela, para a janela de baixa: a venda (a receber) ou a entrada de estoque ou a
+    // despesa (a pagar), com as pessoas, o documento e as observações.
+    app.get(`/${caminho}/:id`, async (req) => {
+      const { id } = idParam.parse(req.params)
+      const conta = receber
+        ? await prisma.contaReceber.findUnique({
+            where: { id },
+            include: {
+              pessoa,
+              pedido: {
+                select: { id: true, numero: true, data: true, natureza: true, formaPagamento: true, observacao: true, vendedor: pessoa, medico: pessoa, paciente: pessoa },
+              },
+            },
+          })
+        : await prisma.contaPagar.findUnique({
+            where: { id },
+            include: {
+              pessoa,
+              entrada: { select: { id: true, data: true, numeroDocumento: true, natureza: true } },
+              despesa: { select: { id: true, elemento: true, descricao: true, numeroDocumento: true, dataEmissao: true, observacao: true } },
+            },
+          })
+      if (!conta) throw new AppError(404, 'Conta não encontrada.')
+      return conta
+    })
+
     // Histórico de baixas e estornos da conta, do mais recente para o mais antigo.
     app.get(`/${caminho}/:id/baixas`, async (req) => {
       const { id } = idParam.parse(req.params)

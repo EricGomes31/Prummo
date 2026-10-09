@@ -2,14 +2,15 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { BANCOS } from '../bancos'
-import { agoraLocal, brl, dataBr, dataHoraBr, estaVencida, hojeIso, mascaraDocumento, origensMovimento, telefoneBr, tiposContaFinanceira } from '../format'
+import { agoraLocal, brl, dataBr, dataHoraBr, estaVencida, formasPagamento, hojeIso, mascaraDocumento, naturezasPedido, origensMovimento, telefoneBr, tiposContaFinanceira } from '../format'
 import { exportarCsv, imprimir, Resumo, Tabela, type Coluna } from '../relatorio'
-import type { Conta, ContaFinanceira, Extrato, MovimentoFinanceiro, Pessoa, RelatorioCobranca } from '../types'
+import type { Conta, ContaFinanceira, Extrato, MovimentoFinanceiro, Pessoa, RelatorioCobranca, ContaComOrigem } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { Conciliacao } from './Conciliacao'
 import { Despesas } from './Despesas'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
+import { Documentos } from '../Documentos'
 
 const abas = {
   'contas-receber': { rotulo: 'A receber', baixar: 'Receber', baixa: 'Recebimento', pessoa: 'Cliente', classificacao: 'cliente' },
@@ -361,6 +362,48 @@ function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
 }
 
 // Recebe ou paga a conta, no todo ou em parte, e mostra o histórico de baixas e estornos.
+// Bloco com a origem da conta: pedido, entrada ou despesa, com pessoas, documento e observações.
+function OrigemDaConta({ conta }: { conta: ContaComOrigem }) {
+  const linhas: [string, string | null | undefined][] = conta.pedido
+    ? [
+        ['Venda', `Pedido nº ${conta.pedido.numero} de ${dataBr(conta.pedido.data)}${conta.pedido.natureza !== 'VENDA' ? ` (${naturezasPedido[conta.pedido.natureza]})` : ''}`],
+        ['Pagamento', conta.pedido.formaPagamento ? (formasPagamento[conta.pedido.formaPagamento] ?? conta.pedido.formaPagamento) : null],
+        ['Vendedor', conta.pedido.vendedor?.nome],
+        ['Médico', conta.pedido.medico?.nome],
+        ['Paciente', conta.pedido.paciente?.nome],
+        ['Observação da venda', conta.pedido.observacao],
+      ]
+    : conta.entrada
+      ? [
+          ['Entrada de estoque', `nº ${conta.entrada.id} de ${dataBr(conta.entrada.data)}`],
+          ['Documento', conta.entrada.numeroDocumento],
+        ]
+      : conta.despesa
+        ? [
+            ['Despesa', `nº ${conta.despesa.id} · ${conta.despesa.elemento}: ${conta.despesa.descricao}`],
+            ['Emissão', dataBr(conta.despesa.dataEmissao)],
+            ['Documento', conta.despesa.numeroDocumento],
+            ['Observação', conta.despesa.observacao],
+          ]
+        : [['Origem', 'Lançamento manual']]
+  return (
+    <dl className="origem-conta">
+      {linhas
+        .filter(([, valor]) => valor)
+        .map(([rotulo, valor]) => (
+          <div key={rotulo}>
+            <dt>{rotulo}</dt>
+            <dd>{valor}</dd>
+          </div>
+        ))}
+      <div>
+        <dt>Lançada em</dt>
+        <dd>{dataBr(conta.criadoEm)}</dd>
+      </div>
+    </dl>
+  )
+}
+
 function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
   const config = abas[props.aba]
   const [conta, setConta] = useState(props.conta)
@@ -369,6 +412,8 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
   const podeBaixar = conta.status === 'ABERTA' && pode(props.aba === 'contas-receber' ? 'CONTAS_RECEBER_BAIXAR' : 'CONTAS_PAGAR_BAIXAR')
   const contasFinanceiras = (useDados<ContaFinanceira[]>(podeBaixar ? '/contas-financeiras' : null).dados ?? []).filter((c) => c.ativa)
   const historico = useDados<MovimentoFinanceiro[]>(`/${props.aba}/${conta.id}/baixas`)
+  // De onde a conta veio: a venda (a receber) ou a entrada de estoque ou a despesa (a pagar).
+  const origem = useDados<ContaComOrigem>(`/${props.aba}/${conta.id}`).dados
   const [contaFinanceiraId, setContaFinanceiraId] = useState(0)
   const [valor, setValor] = useState(saldoDe(props.conta))
   const [quando, setQuando] = useState(agoraLocal())
@@ -397,6 +442,7 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
         {conta.pessoa?.nome ?? `Sem ${config.pessoa.toLowerCase()}`} · vencimento {dataBr(conta.vencimento)} · valor {brl(conta.valor)} · saldo{' '}
         <strong>{brl(aberta ? saldoDe(conta) : 0)}</strong>
       </p>
+      {origem && <OrigemDaConta conta={origem} />}
       {podeBaixar && (
         <form onSubmit={enviar} className="form">
           <Campo rotulo="Conta financeira" largura={3}>
@@ -432,6 +478,9 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
           </div>
         </form>
       )}
+
+      <h3>Documentos da conta</h3>
+      <Documentos origem={props.aba === 'contas-receber' ? 'CONTA_RECEBER' : 'CONTA_PAGAR'} origemId={conta.id} />
 
       <h3>Histórico</h3>
       <EstadoLista carregando={historico.carregando} erro={historico.erro} vazia={(historico.dados ?? []).length === 0} textoVazio="Nenhuma baixa registrada." />
