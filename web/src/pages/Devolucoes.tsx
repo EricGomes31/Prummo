@@ -6,6 +6,7 @@ import { brl, dataBr, inteiro } from '../format'
 import { Icone, type NomeIcone } from '../icones'
 import type { Conta, Credito, Devolucao, Pedido, Pessoa, SaldoDevolucao } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Escolha, opcoesDePessoas } from '../escolha'
 
 const SeloCredito = ({ status }: { status: Credito['status'] }) =>
   status === 'DISPONIVEL' ? (
@@ -266,14 +267,14 @@ function RegistrarDevolucao({ onFechar, onRegistrada }: { onFechar: () => void; 
     <Modal titulo="Nova devolução" onFechar={onFechar} largo>
       <form onSubmit={enviar} className="form">
         <Campo rotulo="Venda faturada" largura={3}>
-          <select required value={pedidoId || ''} onChange={(e) => escolherVenda(Number(e.target.value))} autoFocus>
-            <option value="">{pedidos.carregando ? 'Carregando vendas…' : vendas.length === 0 ? 'Nenhuma venda faturada' : 'Selecione…'}</option>
-            {vendas.map((p) => (
-              <option key={p.id} value={p.id}>
-                Pedido nº {p.numero} · {p.cliente.nome} · {brl(p.total)}
-              </option>
-            ))}
-          </select>
+          <Escolha
+            required
+            autoFocus
+            opcoes={vendas.map((p) => ({ id: p.id, rotulo: `Pedido nº ${p.numero} · ${p.cliente.nome}`, detalhe: brl(p.total), busca: String(p.numero) }))}
+            valor={pedidoId}
+            onChange={escolherVenda}
+            placeholder={pedidos.carregando ? 'Carregando vendas…' : vendas.length === 0 ? 'Nenhuma venda faturada' : 'Digite o número do pedido ou o cliente…'}
+          />
         </Campo>
 
         {pedidoId === 0 && (
@@ -360,14 +361,7 @@ function CreditoAvulso(props: { onFechar: () => void; onSalvo: () => void }) {
     <Modal titulo="Crédito avulso" onFechar={props.onFechar}>
       <form onSubmit={enviar} className="form">
         <Campo rotulo="Pessoa" largura={2}>
-          <select required autoFocus value={pessoaId || ''} onChange={(e) => setPessoaId(Number(e.target.value))}>
-            <option value="">Selecione…</option>
-            {pessoas.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </select>
+          <Escolha required autoFocus opcoes={opcoesDePessoas(pessoas)} valor={pessoaId} onChange={setPessoaId} />
         </Campo>
         <Campo rotulo="Valor (R$)">
           <Dinheiro required valor={valor} onChange={setValor} />

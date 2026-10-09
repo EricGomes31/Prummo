@@ -9,6 +9,7 @@ import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginaca
 import { Conciliacao } from './Conciliacao'
 import { Despesas } from './Despesas'
 import { CampoData } from '../calendario'
+import { Escolha, opcoesDePessoas } from '../escolha'
 
 const abas = {
   'contas-receber': { rotulo: 'A receber', baixar: 'Receber', baixa: 'Recebimento', pessoa: 'Cliente', classificacao: 'cliente' },
@@ -55,16 +56,12 @@ export function Financeiro() {
 function FiltroPessoa(props: { rotulo: string; pessoas: Pessoa[]; classificacao: keyof Pessoa; valor: string; onChange: (v: string) => void }) {
   return (
     <Campo rotulo={props.rotulo}>
-      <select value={props.valor} onChange={(e) => props.onChange(e.target.value)}>
-        <option value="">Todos</option>
-        {props.pessoas
-          .filter((p) => p[props.classificacao] || String(p.id) === props.valor)
-          .map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nome}
-            </option>
-          ))}
-      </select>
+      <Escolha
+        opcoes={opcoesDePessoas(props.pessoas.filter((p) => p[props.classificacao] || String(p.id) === props.valor))}
+        valor={Number(props.valor) || 0}
+        onChange={(id) => props.onChange(id ? String(id) : '')}
+        nenhum="Todos"
+      />
     </Campo>
   )
 }
@@ -498,14 +495,7 @@ function FormConta(props: { aba: AbaContas; onFechar: () => void; onSalvo: () =>
           <input required autoFocus value={descricao} onChange={(e) => setDescricao(e.target.value)} />
         </Campo>
         <Campo rotulo={`${config.pessoa} (opcional)`} largura={3}>
-          <select value={pessoaId} onChange={(e) => setPessoaId(Number(e.target.value))}>
-            <option value={0}>—</option>
-            {pessoas.filter((p) => p.ativo).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </select>
+          <Escolha opcoes={opcoesDePessoas(pessoas.filter((p) => p.ativo))} valor={pessoaId} onChange={setPessoaId} nenhum="Nenhum" />
         </Campo>
         <Campo rotulo="Valor (R$)">
           <Dinheiro required valor={valor} onChange={setValor} />

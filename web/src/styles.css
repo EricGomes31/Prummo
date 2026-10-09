@@ -310,6 +310,21 @@ input[type='file']:disabled::file-selector-button { opacity: 0.5; cursor: defaul
 input:disabled, select:disabled { background-color: var(--fundo); color: var(--suave); border-color: var(--borda); }
 input.curto { width: 96px; text-align: right; }
 
+/* Escolha com busca (escolha.tsx): campo de texto com a lista de opções embaixo. */
+.escolha { position: relative; min-width: 0; }
+.escolha > input { padding-right: 36px; text-overflow: ellipsis; }
+.escolha-seta { position: absolute; right: 12px; top: 50%; width: 7px; height: 7px; margin-top: -6px; border: solid var(--suave); border-width: 0 1.6px 1.6px 0; transform: rotate(45deg); pointer-events: none; }
+.escolha-limpar { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 6px; background: none; color: var(--suave); cursor: pointer; }
+.escolha-limpar svg { width: 15px; height: 15px; }
+.escolha-limpar:hover { background: var(--fundo); color: var(--tinta); }
+.escolha-lista { position: fixed; z-index: 55; list-style: none; margin: 0; padding: 4px; max-height: min(320px, 45vh); overflow-y: auto; background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; box-shadow: var(--sombra-2); animation: descer 0.12s var(--curva); }
+.escolha-lista li { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.escolha-lista li[aria-selected='true'] { background: var(--fundo); }
+.escolha-lista li small { color: var(--suave); font-size: 0.8rem; }
+.escolha-lista li.escolha-atual > span { font-weight: 600; }
+.escolha-lista li.escolha-vazia { cursor: default; color: var(--suave); font-size: 0.88rem; }
+.escolha-lista li.escolha-vazia[aria-selected] { background: none; }
+
 /* Campo de data: o calendário do navegador dá lugar ao do sistema (calendario.tsx). No celular
    fica o do aparelho, e o nosso botão some. */
 .data-campo { position: relative; min-width: 0; }

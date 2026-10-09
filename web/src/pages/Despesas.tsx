@@ -8,6 +8,7 @@ import { exportarCsv, type Coluna } from '../relatorio'
 import type { ContaFinanceira, Despesa, ListaDespesas, Pessoa } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
+import { Escolha, opcoesDePessoas } from '../escolha'
 
 type Parcela = { vencimento: string; valor: number }
 
@@ -98,14 +99,7 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
           <CampoData type="date" value={f.fim} min={f.inicio || undefined} onChange={(e) => setF({ ...f, fim: e.target.value })} />
         </Campo>
         <Campo rotulo="Fornecedor">
-          <select value={f.fornecedorId} onChange={(e) => setF({ ...f, fornecedorId: e.target.value })}>
-            <option value="">Todos</option>
-            {fornecedoresDaLista.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </select>
+          <Escolha opcoes={opcoesDePessoas(fornecedoresDaLista)} valor={Number(f.fornecedorId) || 0} onChange={(id) => setF({ ...f, fornecedorId: id ? String(id) : '' })} nenhum="Todos" />
         </Campo>
         <Campo rotulo="Elemento">
           <select value={f.elemento} onChange={(e) => setF({ ...f, elemento: e.target.value })}>
@@ -290,16 +284,7 @@ function FormDespesa(props: {
     <Modal titulo={despesa ? `Corrigir despesa nº ${despesa.id}` : 'Lançar despesa'} onFechar={props.onFechar} largo>
       <form onSubmit={enviar} className="form">
         <Campo rotulo="Fornecedor ou prestador" largura={2}>
-          <select required autoFocus value={f.fornecedorId || ''} onChange={(e) => setF({ ...f, fornecedorId: Number(e.target.value) })}>
-            <option value="">Selecione…</option>
-            {fornecedores
-              .filter((p) => p.ativo || p.id === f.fornecedorId)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome}
-                </option>
-              ))}
-          </select>
+          <Escolha required autoFocus opcoes={opcoesDePessoas(fornecedores.filter((p) => p.ativo || p.id === f.fornecedorId))} valor={f.fornecedorId} onChange={(id) => setF({ ...f, fornecedorId: id })} />
           {pode('PESSOAS_CADASTRAR') ? (
             <button type="button" className="botao botao-texto" style={{ alignSelf: 'flex-start' }} onClick={() => setCadastrando(true)}>
               + Cadastrar fornecedor

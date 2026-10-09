@@ -6,6 +6,7 @@ import { brl, dataBr, formasPagamento, hojeIso, inteiro, motivosPerda, naturezas
 import type { Classificacao, Credito, ItemEdicao, NaturezaPedido, Pedido, Pessoa, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
+import { Escolha, opcoesDePessoas } from '../escolha'
 
 export function Pedidos() {
   const [status, setStatus] = useState('')
@@ -248,14 +249,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
 
   const seletorPessoa = (rotulo: string, classificacao: Classificacao, valor: number, onChange: (id: number) => void) => (
     <Campo rotulo={`${rotulo} (opcional)`}>
-      <select value={valor || ''} onChange={(e) => onChange(Number(e.target.value))}>
-        <option value="">—</option>
-        {comClassificacao(classificacao, valor).map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.nome}
-          </option>
-        ))}
-      </select>
+      <Escolha opcoes={opcoesDePessoas(comClassificacao(classificacao, valor))} valor={valor} onChange={onChange} nenhum="Nenhum" />
     </Campo>
   )
 
@@ -263,14 +257,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
     <Modal titulo={pedido ? `Pedido nº ${pedido.numero}` : 'Novo pedido'} onFechar={props.onFechar} largo>
       <form onSubmit={enviar} className="form">
         <Campo rotulo="Cliente" largura={2}>
-          <select required value={clienteId || ''} onChange={(e) => setClienteId(Number(e.target.value))}>
-            <option value="">Selecione…</option>
-            {comClassificacao('cliente', clienteId).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </select>
+          <Escolha required opcoes={opcoesDePessoas(comClassificacao('cliente', clienteId))} valor={clienteId} onChange={setClienteId} placeholder="Digite o nome, documento ou telefone…" />
         </Campo>
         <Campo rotulo="Natureza da operação">
           <select value={natureza} disabled={faturado} onChange={(e) => escolherNatureza(e.target.value as NaturezaPedido)}>

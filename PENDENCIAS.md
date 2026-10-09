@@ -51,7 +51,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 Levantado em 09/10/2026 (detalhes em `levantamento-sgnexus/`). Em ordem de prioridade.
 
 Prioridade 1 (uso diário):
-- [ ] Campos de pessoa com busca (digitar para achar) no lugar das listas longas: cliente, vendedor, médico e paciente do pedido; filtros de cliente/fornecedor; venda faturada na devolução. O SG Nexus tem 230 clientes.
+- [x] Campos de pessoa com busca no lugar das listas longas. Feito em 09/10/2026: componente `web/src/escolha.tsx` (digita parte do nome, documento, celular ou e-mail, sem diferenciar acentos; setas, Enter e Esc; obrigatório não passa sem escolher). Usado no cliente, vendedor, médico e paciente do pedido; fornecedor da entrada e da despesa; filtros de cliente, fornecedor, vendedor, médico e paciente do financeiro e da cobrança; pessoa do novo lançamento e do crédito avulso; venda da devolução; pedido da nova entrega; cliente do depósito a maior na conciliação.
 - [ ] Produto no pedido escolhido digitando código, descrição ou EAN (Enter escolhe; serve para leitor de código de barras), como já é na entrada de estoque.
 - [ ] Lista de pedidos com busca (número, cliente, vendedor, médico, paciente) e período. Hoje a lista traz só os 300 mais recentes e não há como achar um pedido antigo fora dos relatórios; vale o mesmo para entradas (200) e contas (500).
 - [ ] "Finalizar venda" em um passo: salvar e faturar de uma vez, como no SG Nexus (lá todo pedido já nasce faturado).

@@ -7,6 +7,7 @@ import type { Entrada, ItemEdicao, Pessoa, Produto } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, totalItens, usePaginacao } from '../ui'
 import { Icone } from '../icones'
 import { CampoData } from '../calendario'
+import { Escolha, opcoesDePessoas } from '../escolha'
 
 const naturezas = { COMPRA_REVENDA: 'Compra para revenda', BONIFICACAO: 'Bonificação' } as const
 type Natureza = keyof typeof naturezas
@@ -154,14 +155,7 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
     <Modal titulo="Nova entrada de estoque" onFechar={props.onFechar} largo>
       <form onSubmit={enviar} className="form" id="form-entrada">
         <Campo rotulo="Fornecedor" largura={3}>
-          <select required value={f.fornecedorId || ''} onChange={(e) => setF({ ...f, fornecedorId: Number(e.target.value) })}>
-            <option value="">Selecione o fornecedor</option>
-            {fornecedores.filter((p) => p.ativo).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </select>
+          <Escolha required opcoes={opcoesDePessoas(fornecedores.filter((p) => p.ativo))} valor={f.fornecedorId} onChange={(id) => setF({ ...f, fornecedorId: id })} placeholder="Digite o nome ou o CNPJ do fornecedor…" />
         </Campo>
         <Campo rotulo="Natureza da operação">
           <select value={f.natureza} onChange={(e) => setF({ ...f, natureza: e.target.value as Natureza })}>

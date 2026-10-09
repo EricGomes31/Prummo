@@ -6,6 +6,7 @@ import { brl, dataBr } from '../format'
 import type { ArquivoOfx, Conta, ContaFinanceira, LinhaExtrato, Pessoa, SugestaoConciliacao } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { Icone } from '../icones'
+import { Escolha, opcoesDePessoas } from '../escolha'
 
 const resolucoes: Record<string, string> = {
   BAIXA: 'Baixa de título',
@@ -532,20 +533,14 @@ function Resolver(props: { linha: LinhaExtrato; onFechar: () => void; onResolvid
           <h3>Depósito a maior</h3>
           <div className="form">
             <Campo rotulo="Cliente">
-              <select
-                value={clienteId || ''}
-                onChange={(e) => {
-                  setClienteId(Number(e.target.value))
+              <Escolha
+                opcoes={opcoesDePessoas(clientes)}
+                valor={clienteId}
+                onChange={(id) => {
+                  setClienteId(id)
                   setContaDoClienteId(0)
                 }}
-              >
-                <option value="">Selecione…</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
+              />
             </Campo>
             <Campo rotulo="Conta a quitar (opcional)" largura={2}>
               <select value={contaDoClienteId || ''} onChange={(e) => setContaDoClienteId(Number(e.target.value))} disabled={!clienteId}>

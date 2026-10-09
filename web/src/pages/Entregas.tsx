@@ -6,6 +6,7 @@ import type { Endereco, Entrega, PedidoParaEntrega } from '../types'
 import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { HistoricoDaEntrega, Motoristas, numeroOuNulo, Rotas, Veiculos } from './Logistica'
 import { CampoData } from '../calendario'
+import { Escolha, opcoesDePessoas } from '../escolha'
 
 type Entregador = { id: number; nome: string }
 
@@ -308,14 +309,13 @@ function FormEntrega(props: { entrega: Entrega | null; entregadores: Entregador[
       <form onSubmit={enviar} className="form">
         {!entrega && (
           <Campo rotulo="Pedido faturado" largura={3}>
-            <select required value={pedidoId || ''} onChange={(e) => escolherPedido(Number(e.target.value))}>
-              <option value="">{pedidos.carregando ? 'Carregando…' : 'Selecione…'}</option>
-              {disponiveis.map((p) => (
-                <option key={p.id} value={p.id}>
-                  #{p.numero} · {p.cliente.nome} · {brl(p.total)}
-                </option>
-              ))}
-            </select>
+            <Escolha
+              required
+              opcoes={disponiveis.map((p) => ({ id: p.id, rotulo: `#${p.numero} · ${p.cliente.nome}`, detalhe: brl(p.total), busca: String(p.numero) }))}
+              valor={pedidoId}
+              onChange={escolherPedido}
+              placeholder={pedidos.carregando ? 'Carregando…' : 'Digite o número do pedido ou o cliente…'}
+            />
             {!pedidos.carregando && disponiveis.length === 0 && (
               <small className="texto-suave">Não há pedidos faturados aguardando entrega.</small>
             )}
