@@ -129,7 +129,17 @@ export function Pedidos() {
         {paginas.controle}
       </section>
 
-      {editando && <FormPedido pedido={editando === 'novo' ? null : editando} onFechar={() => setEditando(null)} onSalvo={fecharTudo} />}
+      {editando && (
+        <FormPedido
+          pedido={editando === 'novo' ? null : editando}
+          onFechar={() => setEditando(null)}
+          onSalvo={(salvo, faturar) => {
+            fecharTudo()
+            // "Salvar e faturar": o pedido gravado segue direto para a janela de faturamento.
+            if (faturar && salvo) setFaturando(salvo)
+          }}
+        />
+      )}
       {faturando && <Faturar pedido={faturando} onFechar={() => setFaturando(null)} onSalvo={fecharTudo} />}
       {vendo && (
         <Detalhes
@@ -146,7 +156,7 @@ export function Pedidos() {
   )
 }
 
-function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalvo: () => void }) {
+function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalvo: (salvo?: Pedido, faturar?: boolean) => void }) {
   const { pedido } = props
   const { pode } = useSessao()
   const produtos = useDados<Produto[]>('/produtos').dados ?? []
@@ -165,6 +175,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   const [primeiroVencimento, setPrimeiroVencimento] = useState(pedido?.primeiroVencimento?.slice(0, 10) ?? '')
   // Pedido faturado: alterar itens, valores ou pagamento refaz o faturamento.
   const faturado = pedido?.status === 'FATURADO'
+  const podeFaturar = !faturado && pode('PEDIDOS_FATURAR')
   const [itens, setItens] = useState<ItemEdicao[]>(
     pedido
       ? pedido.itens.map((i) => ({
@@ -239,6 +250,8 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
 
   function enviar(e: FormEvent) {
     e.preventDefault()
+    // Qual botão enviou: "Salvar e faturar" leva o pedido salvo direto ao faturamento.
+    const faturarDepois = (e.nativeEvent as SubmitEvent).submitter?.getAttribute('data-faturar') === 'sim'
     executar(async () => {
       const corpo = {
         clienteId,
@@ -263,8 +276,8 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
         })),
       }
       const caminho = !pedido ? '/pedidos' : faturado ? `/pedidos/${pedido.id}/faturado` : `/pedidos/${pedido.id}`
-      await api(caminho, { method: pedido ? 'PUT' : 'POST', body: corpo })
-      props.onSalvo()
+      const salvo = await api<Pedido>(caminho, { method: pedido ? 'PUT' : 'POST', body: corpo })
+      props.onSalvo(salvo, faturarDepois)
     })
   }
 
@@ -414,9 +427,15 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
           <button type="button" className="botao" onClick={props.onFechar}>
             Fechar
           </button>
-          <button className="botao botao-primario" disabled={ocupado}>
-            Salvar pedido
+          {/* Com permissão de faturar, o caminho mais comum (salvar e já faturar) é o botão principal. */}
+          <button className={`botao ${podeFaturar ? '' : 'botao-primario'}`} disabled={ocupado}>
+            {podeFaturar ? 'Só salvar' : 'Salvar pedido'}
           </button>
+          {podeFaturar && (
+            <button className="botao botao-primario" data-faturar="sim" disabled={ocupado}>
+              {venda ? 'Salvar e faturar' : 'Salvar e confirmar'}
+            </button>
+          )}
         </div>
       </form>
     </Modal>
