@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import type { Perfil, PerfilAcesso, PerfilPadrao, Perfis, Usuario } from '../types'
-import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 
 type Rascunho = { id?: number; nome: string; email: string; perfil: Perfil; perfilId: number | null; ativo: boolean; senha: string }
 type RascunhoPerfil = { id?: number; nome: string; descricao: string; permissoes: string[]; dashboards: string[]; ativo: boolean }
@@ -20,7 +20,13 @@ export function Usuarios() {
   const [editandoPerfil, setEditandoPerfil] = useState<RascunhoPerfil | null>(null)
   const [vendoPerfil, setVendoPerfil] = useState<PerfilPadrao | null>(null)
   const lista = usuarios.dados ?? []
-  const paginas = usePaginacao(lista)
+  const { ordenados: ordenados, titulo: titulo } = useOrdenacao(lista, {
+    nome: (u) => u.nome,
+    email: (u) => u.email,
+    perfil: (u) => u.perfilNome,
+    situacao: (u) => (u.ativo ? 'Ativo' : 'Inativo'),
+  })
+  const paginas = usePaginacao(ordenados)
 
   if (!gerencia) return <Navigate to="/" replace />
 
@@ -63,10 +69,10 @@ export function Usuarios() {
             <table>
               <thead>
                 <tr>
-                  <th>Nome</th>
-                  <th>E-mail</th>
-                  <th>Perfil</th>
-                  <th>Situação</th>
+                  {titulo('nome', 'Nome')}
+                  {titulo('email', 'E-mail')}
+                  {titulo('perfil', 'Perfil')}
+                  {titulo('situacao', 'Situação')}
                   <th />
                 </tr>
               </thead>

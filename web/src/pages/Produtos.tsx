@@ -3,7 +3,7 @@ import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { brl, dataBr, inteiro, qtd, saldoBase, unidades } from '../format'
 import type { Movimento, Produto } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 import { Icone } from '../icones'
 
 type Rascunho = Omit<Produto, 'id' | 'saldo' | 'divisor'> & { id?: number }
@@ -18,7 +18,15 @@ export function Produtos() {
   const [editando, setEditando] = useState<Rascunho | null>(null)
   const [estoqueDe, setEstoqueDe] = useState<Produto | null>(null)
   const produtos = dados ?? []
-  const paginas = usePaginacao(produtos)
+  const { ordenados, titulo } = useOrdenacao(produtos, {
+    sku: (p) => p.sku,
+    nome: (p) => p.nome,
+    unidade: (p) => p.unidade,
+    custo: (p) => p.precoCusto,
+    venda: (p) => p.precoVenda,
+    saldo: (p) => (p.controlaEstoque ? saldoBase(p) : null),
+  })
+  const paginas = usePaginacao(ordenados)
   const { pode } = useSessao()
 
   return (
@@ -41,12 +49,12 @@ export function Produtos() {
           <table>
             <thead>
               <tr>
-                <th>Código</th>
-                <th>Descrição</th>
-                <th>Unidade</th>
-                <th className="num">Custo atual</th>
-                <th className="num">Venda</th>
-                <th className="num">Saldo</th>
+                {titulo('sku', 'Código')}
+                {titulo('nome', 'Descrição')}
+                {titulo('unidade', 'Unidade')}
+                {titulo('custo', 'Custo atual', 'num')}
+                {titulo('venda', 'Venda', 'num')}
+                {titulo('saldo', 'Saldo', 'num')}
                 <th />
               </tr>
             </thead>

@@ -5,7 +5,7 @@ import { BANCOS } from '../bancos'
 import { agoraLocal, brl, dataBr, dataHoraBr, estaVencida, formasPagamento, hojeIso, mascaraDocumento, naturezasPedido, origensMovimento, telefoneBr, tiposContaFinanceira } from '../format'
 import { exportarCsv, imprimir, Resumo, Tabela, type Coluna } from '../relatorio'
 import type { Conta, ContaFinanceira, Extrato, MovimentoFinanceiro, Pessoa, RelatorioCobranca, ContaComOrigem } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 import { Conciliacao } from './Conciliacao'
 import { Despesas } from './Despesas'
 import { CampoData } from '../calendario'
@@ -79,7 +79,16 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
   const [maisFiltros, setMaisFiltros] = useState(false)
   const acao = useAcao()
   const contas = dados ?? []
-  const paginas = usePaginacao(contas)
+  const { ordenados, titulo } = useOrdenacao(contas, {
+    vencimento: (c) => c.vencimento,
+    descricao: (c) => c.descricao,
+    pessoa: (c) => c.pessoa?.nome,
+    venda: (c) => c.pedido?.numero,
+    situacao: (c) => (estaVencida(c) ? 'VENCIDA' : c.status),
+    valor: (c) => c.valor,
+    saldo: (c) => (c.status === 'ABERTA' ? saldoDe(c) : null),
+  })
+  const paginas = usePaginacao(ordenados)
   const config = abas[aba]
   const baixa = useSessao().pode(receber ? 'CONTAS_RECEBER_BAIXAR' : 'CONTAS_PAGAR_BAIXAR')
   const total = contas.filter((c) => c.status === 'ABERTA').reduce((soma, c) => soma + saldoDe(c), 0)
@@ -163,13 +172,13 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
           <table>
             <thead>
               <tr>
-                <th>Vencimento</th>
-                <th>Descrição</th>
-                <th>{config.pessoa}</th>
-                {receber && <th>Venda</th>}
-                <th>Situação</th>
-                <th className="num">Valor</th>
-                <th className="num">Saldo</th>
+                {titulo('vencimento', 'Vencimento')}
+                {titulo('descricao', 'Descrição')}
+                {titulo('pessoa', config.pessoa)}
+                {receber && titulo('venda', 'Venda')}
+                {titulo('situacao', 'Situação')}
+                {titulo('valor', 'Valor', 'num')}
+                {titulo('saldo', 'Saldo', 'num')}
                 <th />
               </tr>
             </thead>

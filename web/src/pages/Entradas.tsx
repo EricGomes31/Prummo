@@ -4,7 +4,7 @@ import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { brl, dataBr, hojeIso, inteiro, unidadesDe } from '../format'
 import type { Entrada, ItemEdicao, Pessoa, Produto, EntradaDetalhada } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, totalItens, useAtrasado, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, totalItens, useAtrasado, useOrdenacao, usePaginacao } from '../ui'
 import { Icone } from '../icones'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
@@ -42,7 +42,16 @@ export function Entradas() {
   const [lancando, setLancando] = useState(false)
   const [vendo, setVendo] = useState<Entrada | null>(null)
   const entradas = dados ?? []
-  const paginas = usePaginacao(entradas)
+  const { ordenados, titulo } = useOrdenacao(entradas, {
+    numero: (e) => e.id,
+    data: (e) => e.data,
+    fornecedor: (e) => e.fornecedor?.nome,
+    natureza: (e) => naturezas[e.natureza],
+    documento: (e) => e.numeroDocumento,
+    pagamento: (e) => rotuloCondicao(e.condicaoPagamento),
+    total: (e) => e.total,
+  })
+  const paginas = usePaginacao(ordenados)
   const { pode } = useSessao()
 
   return (
@@ -85,14 +94,14 @@ export function Entradas() {
           <table>
             <thead>
               <tr>
-                <th>Nº</th>
-                <th>Data</th>
-                <th>Fornecedor</th>
-                <th>Natureza</th>
-                <th>Documento</th>
-                <th>Pagamento</th>
+                {titulo('numero', 'Nº')}
+                {titulo('data', 'Data')}
+                {titulo('fornecedor', 'Fornecedor')}
+                {titulo('natureza', 'Natureza')}
+                {titulo('documento', 'Documento')}
+                {titulo('pagamento', 'Pagamento')}
                 <th>Itens</th>
-                <th className="num">Total</th>
+                {titulo('total', 'Total', 'num')}
                 <th />
               </tr>
             </thead>

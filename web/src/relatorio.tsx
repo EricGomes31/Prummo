@@ -2,6 +2,7 @@
 // listas que podem ser exportadas.
 import { useMemo, useState, type ReactNode } from 'react'
 import { brl, centavosParaTexto, dataBr, hojeIso } from './format'
+import { compararValores } from './ui'
 
 // Uma coluna sabe o valor usado para ordenar e exportar e, se preciso, como se mostrar na tela.
 export type Coluna<L> = {
@@ -71,16 +72,7 @@ export function Tabela<L>(props: { colunas: Coluna<L>[]; linhas: L[]; chave: (li
   const ordenadas = useMemo(() => {
     if (!ordem) return props.linhas
     const coluna = props.colunas[ordem.indice]
-    const sentido = ordem.crescente ? 1 : -1
-    return [...props.linhas].sort((a, b) => {
-      const va = coluna.valor(a)
-      const vb = coluna.valor(b)
-      if (va === vb) return 0
-      if (va === null || va === '') return 1 // vazios sempre no fim
-      if (vb === null || vb === '') return -1
-      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * sentido
-      return String(va).localeCompare(String(vb), 'pt-BR', { numeric: true }) * sentido
-    })
+    return [...props.linhas].sort((a, b) => compararValores(coluna.valor(a), coluna.valor(b), ordem.crescente))
   }, [props.linhas, props.colunas, ordem])
 
   return (

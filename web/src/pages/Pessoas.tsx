@@ -3,7 +3,7 @@ import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { documentoBr, mascarar, telefoneBr } from '../format'
 import type { Classificacao, Pessoa } from '../types'
-import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 
 type Rascunho = Omit<Pessoa, 'id'> & { id?: number }
 
@@ -31,7 +31,14 @@ export function Pessoas() {
   const { dados, erro, carregando, recarregar } = useDados<Pessoa[]>(`/pessoas?${consulta}`)
   const [editando, setEditando] = useState<Rascunho | null>(null)
   const pessoas = dados ?? []
-  const paginas = usePaginacao(pessoas)
+  const { ordenados, titulo } = useOrdenacao(pessoas, {
+    nome: (p) => p.nome,
+    classificacao: (p) => chaves.filter((chave) => p[chave]).map((chave) => classificacoes[chave]).join(', '),
+    documento: (p) => p.documento,
+    contato: (p) => p.celular || p.telefone || p.email,
+    cidade: (p) => [p.cidade, p.uf].filter(Boolean).join('/'),
+  })
+  const paginas = usePaginacao(ordenados)
   const { pode } = useSessao()
 
   return (
@@ -62,11 +69,11 @@ export function Pessoas() {
           <table>
             <thead>
               <tr>
-                <th>Nome</th>
-                <th>Classificação</th>
-                <th>Documento</th>
-                <th>Contato</th>
-                <th>Cidade</th>
+                {titulo('nome', 'Nome')}
+                {titulo('classificacao', 'Classificação')}
+                {titulo('documento', 'Documento')}
+                {titulo('contato', 'Contato')}
+                {titulo('cidade', 'Cidade')}
                 <th />
               </tr>
             </thead>

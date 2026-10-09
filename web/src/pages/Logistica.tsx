@@ -5,7 +5,7 @@ import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { dataBr, hojeIso, mascarar, qtd, telefoneBr } from '../format'
 import type { Entrega, HistoricoEntrega, Motorista, Rota, Veiculo } from '../types'
-import { Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Campo, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
 
 // Campos numéricos opcionais ficam como texto no formulário e viram número ou vazio ao enviar.
@@ -286,7 +286,14 @@ export function Motoristas() {
   const { dados, erro, carregando, recarregar } = useDados<Motorista[]>('/motoristas')
   const [editando, setEditando] = useState<Partial<Motorista> | null>(null)
   const lista = dados ?? []
-  const paginas = usePaginacao(lista)
+  const { ordenados: ordenados, titulo: titulo } = useOrdenacao(lista, {
+    nome: (m) => m.nome,
+    telefone: (m) => m.telefone,
+    cnh: (m) => m.cnh,
+    validade: (m) => m.validadeCnh,
+    situacao: (m) => (m.ativo ? 'Ativo' : 'Inativo'),
+  })
+  const paginas = usePaginacao(ordenados)
   const gerencia = useSessao().pode('LOGISTICA_GERENCIAR')
 
   return (
@@ -304,11 +311,11 @@ export function Motoristas() {
           <table>
             <thead>
               <tr>
-                <th>Nome</th>
-                <th>Telefone</th>
-                <th>CNH</th>
-                <th>Validade da CNH</th>
-                <th>Situação</th>
+                {titulo('nome', 'Nome')}
+                {titulo('telefone', 'Telefone')}
+                {titulo('cnh', 'CNH')}
+                {titulo('validade', 'Validade da CNH')}
+                {titulo('situacao', 'Situação')}
                 <th />
               </tr>
             </thead>
@@ -361,7 +368,13 @@ export function Veiculos() {
   const { dados, erro, carregando, recarregar } = useDados<Veiculo[]>('/veiculos')
   const [editando, setEditando] = useState<Partial<Veiculo> | null>(null)
   const lista = dados ?? []
-  const paginas = usePaginacao(lista)
+  const { ordenados: ordenados, titulo: titulo } = useOrdenacao(lista, {
+    placa: (v) => v.placa,
+    descricao: (v) => v.descricao,
+    capacidade: (v) => v.capacidadeKg,
+    situacao: (v) => (v.ativo ? 'Ativo' : 'Inativo'),
+  })
+  const paginas = usePaginacao(ordenados)
   const gerencia = useSessao().pode('LOGISTICA_GERENCIAR')
 
   return (
@@ -379,10 +392,10 @@ export function Veiculos() {
           <table>
             <thead>
               <tr>
-                <th>Placa</th>
-                <th>Descrição</th>
-                <th className="num">Capacidade</th>
-                <th>Situação</th>
+                {titulo('placa', 'Placa')}
+                {titulo('descricao', 'Descrição')}
+                {titulo('capacidade', 'Capacidade', 'num')}
+                {titulo('situacao', 'Situação')}
                 <th />
               </tr>
             </thead>

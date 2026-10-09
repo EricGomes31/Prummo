@@ -5,7 +5,7 @@ import { avisar } from '../avisos'
 import { brl, dataBr, inteiro } from '../format'
 import { Icone, type NomeIcone } from '../icones'
 import type { Conta, Credito, Devolucao, Pedido, Pessoa, SaldoDevolucao } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 import { Escolha, opcoesDePessoas } from '../escolha'
 
 const SeloCredito = ({ status }: { status: Credito['status'] }) =>
@@ -39,8 +39,25 @@ export function Devolucoes() {
   const listaCreditos = status ? todosCreditos.filter((c) => c.status === status) : todosCreditos
   const listaDevolucoes = devolucoes.dados ?? []
   const validas = listaDevolucoes.filter((d) => !d.estornada)
-  const paginaCreditos = usePaginacao(listaCreditos)
-  const paginaDevolucoes = usePaginacao(listaDevolucoes)
+  const { ordenados: creditosOrdenados, titulo: tituloCredito } = useOrdenacao(listaCreditos, {
+    credito: (c) => c.id,
+    cliente: (c) => c.pessoa.nome,
+    origem: (c) => origemDoCredito(c),
+    data: (c) => c.criadoEm,
+    original: (c) => c.valorOriginal,
+    disponivel: (c) => c.saldo,
+    situacao: (c) => c.status,
+  })
+  const paginaCreditos = usePaginacao(creditosOrdenados)
+  const { ordenados: devolucoesOrdenadas, titulo: tituloDevolucao } = useOrdenacao(listaDevolucoes, {
+    numero: (d) => d.id,
+    data: (d) => d.criadoEm,
+    venda: (d) => d.pedido.numero,
+    cliente: (d) => d.pedido.cliente.nome,
+    usuario: (d) => d.usuario?.nome,
+    credito: (d) => d.valorCredito,
+  })
+  const paginaDevolucoes = usePaginacao(devolucoesOrdenadas)
   const disponiveis = todosCreditos.filter((c) => c.status === 'DISPONIVEL')
 
   function atualizar() {
@@ -105,13 +122,13 @@ export function Devolucoes() {
           <table>
             <thead>
               <tr>
-                <th>Crédito</th>
-                <th>Cliente</th>
-                <th>Origem</th>
-                <th>Data</th>
-                <th className="num">Original</th>
-                <th className="num">Disponível</th>
-                <th>Situação</th>
+                {tituloCredito('credito', 'Crédito')}
+                {tituloCredito('cliente', 'Cliente')}
+                {tituloCredito('origem', 'Origem')}
+                {tituloCredito('data', 'Data')}
+                {tituloCredito('original', 'Original', 'num')}
+                {tituloCredito('disponivel', 'Disponível', 'num')}
+                {tituloCredito('situacao', 'Situação')}
                 <th />
               </tr>
             </thead>
@@ -149,14 +166,14 @@ export function Devolucoes() {
               <table>
                 <thead>
                   <tr>
-                    <th>Nº</th>
-                    <th>Data</th>
-                    <th>Venda</th>
-                    <th>Cliente</th>
+                    {tituloDevolucao('numero', 'Nº')}
+                    {tituloDevolucao('data', 'Data')}
+                    {tituloDevolucao('venda', 'Venda')}
+                    {tituloDevolucao('cliente', 'Cliente')}
                     <th>Itens devolvidos</th>
                     <th>Observação</th>
-                    <th>Usuário</th>
-                    <th className="num">Crédito gerado</th>
+                    {tituloDevolucao('usuario', 'Usuário')}
+                    {tituloDevolucao('credito', 'Crédito gerado', 'num')}
                     <th />
                   </tr>
                 </thead>

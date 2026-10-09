@@ -4,7 +4,7 @@ import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { dataBr, documentoBr, mascaraDocumento } from '../format'
 import type { Empresa } from '../types'
-import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 
 type Rascunho = { id?: number; nome: string; documento: string; ativa: boolean; admNome: string; admEmail: string; admSenha: string }
 
@@ -16,7 +16,14 @@ export function Empresas() {
   const empresas = useDados<Empresa[]>(usuario?.sistema ? '/sistema/empresas' : null)
   const [editando, setEditando] = useState<Rascunho | null>(null)
   const lista = empresas.dados ?? []
-  const paginas = usePaginacao(lista)
+  const { ordenados: ordenados, titulo: titulo } = useOrdenacao(lista, {
+    empresa: (e) => e.nome,
+    documento: (e) => e.documento,
+    usuarios: (e) => e.usuarios,
+    criada: (e) => e.criadoEm,
+    situacao: (e) => (e.ativa ? 'Ativa' : 'Inativa'),
+  })
+  const paginas = usePaginacao(ordenados)
 
   if (!usuario?.sistema) return <Navigate to="/" replace />
 
@@ -34,11 +41,11 @@ export function Empresas() {
           <table>
             <thead>
               <tr>
-                <th>Empresa</th>
-                <th>CNPJ ou CPF</th>
-                <th className="num">Usuários</th>
-                <th>Criada em</th>
-                <th>Situação</th>
+                {titulo('empresa', 'Empresa')}
+                {titulo('documento', 'CNPJ ou CPF')}
+                {titulo('usuarios', 'Usuários', 'num')}
+                {titulo('criada', 'Criada em')}
+                {titulo('situacao', 'Situação')}
                 <th />
               </tr>
             </thead>

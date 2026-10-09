@@ -5,7 +5,7 @@ import { Documentos } from '../Documentos'
 import { consultarCep } from '../cep'
 import { brl, cepBr, dataBr, formasPagamento, hojeIso, inteiro, mascaraCep, motivosPerda, naturezasPedido, unidadesDe } from '../format'
 import type { Classificacao, Credito, EnderecoEntrega, ItemEdicao, NaturezaPedido, Pedido, Pessoa, PreviaAlteracao, Produto, Promocao } from '../types'
-import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, useAtrasado, usePaginacao } from '../ui'
+import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, useAtrasado, useOrdenacao, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
 import { dividirParcelas, somaParcelas, TabelaParcelas, type Parcela } from '../parcelas'
@@ -37,7 +37,18 @@ export function Pedidos() {
   const [vendo, setVendo] = useState<Pedido | null>(abrir ? ({ id: abrir } as Pedido) : null)
   const [faturando, setFaturando] = useState<Pedido | null>(null)
   const pedidos = dados ?? []
-  const paginas = usePaginacao(pedidos)
+  const { ordenados, titulo } = useOrdenacao(pedidos, {
+    numero: (p) => p.numero,
+    natureza: (p) => naturezasPedido[p.natureza] ?? p.natureza,
+    data: (p) => p.data,
+    cliente: (p) => p.cliente.nome,
+    vendedor: (p) => p.vendedor?.nome,
+    medico: (p) => p.medico?.nome,
+    paciente: (p) => p.paciente?.nome,
+    situacao: (p) => p.status,
+    total: (p) => p.total,
+  })
+  const paginas = usePaginacao(ordenados)
   const { pode } = useSessao()
 
   const fecharTudo = () => {
@@ -93,15 +104,15 @@ export function Pedidos() {
           <table>
             <thead>
               <tr>
-                <th>Nº</th>
-                <th>Natureza</th>
-                <th>Data</th>
-                <th>Cliente</th>
-                <th>Vendedor</th>
-                <th>Médico</th>
-                <th>Paciente</th>
-                <th>Situação</th>
-                <th className="num">Total</th>
+                {titulo('numero', 'Nº')}
+                {titulo('natureza', 'Natureza')}
+                {titulo('data', 'Data')}
+                {titulo('cliente', 'Cliente')}
+                {titulo('vendedor', 'Vendedor')}
+                {titulo('medico', 'Médico')}
+                {titulo('paciente', 'Paciente')}
+                {titulo('situacao', 'Situação')}
+                {titulo('total', 'Total', 'num')}
                 <th />
               </tr>
             </thead>

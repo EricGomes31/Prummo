@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode, type SyntheticEvent } from 'react'
 import { brl, centavosParaTexto, inteiro, paraCentavos, qtd, saldoBase, unidadesDe } from './format'
 import { Escolha, opcoesDeProdutos } from './escolha'
 import { Icone } from './icones'
@@ -157,6 +157,44 @@ export function EstadoLista(props: { carregando: boolean; erro: string; vazia: b
     )
   }
   return null
+}
+
+// Ordem de dois valores de uma coluna: números pelo valor, texto em ordem alfabética do português (com
+// números dentro do texto em ordem numérica). Vazios ficam sempre no fim, nos dois sentidos.
+export type ValorOrdenavel = string | number | null | undefined
+export function compararValores(va: ValorOrdenavel, vb: ValorOrdenavel, crescente: boolean) {
+  if (va === vb) return 0
+  if (va === null || va === undefined || va === '') return 1
+  if (vb === null || vb === undefined || vb === '') return -1
+  const sentido = crescente ? 1 : -1
+  if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * sentido
+  return String(va).localeCompare(String(vb), 'pt-BR', { numeric: true }) * sentido
+}
+
+// Ordenação de uma lista pelo título da coluna. `chaves` diz o valor de cada coluna ordenável; `titulo`
+// monta o cabeçalho clicável (primeiro clique crescente, o seguinte decrescente). Ordene antes de paginar,
+// para a ordem valer para a lista inteira.
+export function useOrdenacao<T>(itens: T[], chaves: Record<string, (item: T) => ValorOrdenavel>) {
+  const [ordem, setOrdem] = useState<{ chave: string; crescente: boolean } | null>(null)
+  const ordenados = useMemo(() => {
+    const valor = ordem && chaves[ordem.chave]
+    if (!ordem || !valor) return itens
+    return [...itens].sort((a, b) => compararValores(valor(a), valor(b), ordem.crescente))
+    // As funções de `chaves` são recriadas a cada desenho; o que muda a ordem são os itens e a coluna.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itens, ordem])
+
+  function titulo(chave: string, rotulo: string, className?: string) {
+    const ativa = ordem?.chave === chave
+    return (
+      <th className={className} aria-sort={ativa ? (ordem.crescente ? 'ascending' : 'descending') : 'none'}>
+        <button type="button" className="ordenar" onClick={() => setOrdem({ chave, crescente: ativa ? !ordem.crescente : true })}>
+          {rotulo} <span aria-hidden="true">{ativa ? (ordem.crescente ? '↑' : '↓') : '↕'}</span>
+        </button>
+      </th>
+    )
+  }
+  return { ordenados, titulo }
 }
 
 // Divide uma lista em páginas. Devolve as linhas da página atual e o rodapé com os controles,

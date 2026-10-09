@@ -6,7 +6,7 @@ import { Documentos } from '../Documentos'
 import { brl, dataBr, formasPagamentoDespesa, hojeIso, mascaraDocumento, mascaraTelefone } from '../format'
 import { exportarCsv, type Coluna } from '../relatorio'
 import type { ContaFinanceira, Despesa, ListaDespesas, Pessoa } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
 
@@ -56,7 +56,19 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
   const [documentosDe, setDocumentosDe] = useState<Despesa | null>(null)
   const acao = useAcao()
   const linhas = despesas.dados?.linhas ?? []
-  const paginas = usePaginacao(linhas)
+  const { ordenados, titulo } = useOrdenacao(linhas, {
+    fornecedor: (d) => d.fornecedor.nome,
+    elemento: (d) => d.elemento,
+    descricao: (d) => d.descricao,
+    documento: (d) => d.numeroDocumento,
+    competencia: (d) => d.dataCompetencia,
+    caixa: (d) => d.dataCaixa,
+    condicao: (d) => d.condicaoPagamento,
+    forma: (d) => formasPagamentoDespesa[d.formaPagamento] ?? d.formaPagamento,
+    valor: (d) => d.valor,
+    usuario: (d) => d.usuario?.nome,
+  })
+  const paginas = usePaginacao(ordenados)
   const resumo = despesas.dados?.resumo
   // No filtro entram os fornecedores que aparecem na lista, para não depender do cadastro de pessoas.
   const fornecedoresDaLista = [...new Map(linhas.map((d) => [d.fornecedor.id, d.fornecedor])).values()]
@@ -147,16 +159,16 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
           <table>
             <thead>
               <tr>
-                <th>Fornecedor</th>
-                <th>Elemento</th>
-                <th>Descrição</th>
-                <th>Documento</th>
-                <th>Competência</th>
-                <th>Caixa</th>
-                <th>Condição</th>
-                <th>Forma</th>
-                <th className="num">Valor</th>
-                <th>Usuário</th>
+                {titulo('fornecedor', 'Fornecedor')}
+                {titulo('elemento', 'Elemento')}
+                {titulo('descricao', 'Descrição')}
+                {titulo('documento', 'Documento')}
+                {titulo('competencia', 'Competência')}
+                {titulo('caixa', 'Caixa')}
+                {titulo('condicao', 'Condição')}
+                {titulo('forma', 'Forma')}
+                {titulo('valor', 'Valor', 'num')}
+                {titulo('usuario', 'Usuário')}
                 <th />
               </tr>
             </thead>

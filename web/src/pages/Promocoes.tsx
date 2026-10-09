@@ -3,7 +3,7 @@ import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { brl, dataBr, hojeIso, inteiro } from '../format'
 import type { ItemPromocao, Modalidade, Produto, Promocao } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 import { Icone } from '../icones'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDeProdutos } from '../escolha'
@@ -79,7 +79,13 @@ export function Promocoes() {
   const { dados, erro, carregando, recarregar } = useDados<Promocao[]>('/promocoes')
   const [editando, setEditando] = useState<Rascunho | null>(null)
   const campanhas = dados ?? []
-  const paginas = usePaginacao(campanhas)
+  const { ordenados: ordenados, titulo: titulo } = useOrdenacao(campanhas, {
+    campanha: (c) => c.nome,
+    modalidade: (c) => modalidades[c.modalidade]?.rotulo ?? c.modalidade,
+    vigencia: (c) => c.inicio,
+    situacao: (c) => situacao(c).texto,
+  })
+  const paginas = usePaginacao(ordenados)
 
   return (
     <>
@@ -107,12 +113,12 @@ export function Promocoes() {
           <table>
             <thead>
               <tr>
-                <th>Campanha</th>
-                <th>Modalidade</th>
-                <th>Vigência</th>
+                {titulo('campanha', 'Campanha')}
+                {titulo('modalidade', 'Modalidade')}
+                {titulo('vigencia', 'Vigência')}
                 <th>Regra</th>
                 <th>Produtos</th>
-                <th>Situação</th>
+                {titulo('situacao', 'Situação')}
                 <th />
               </tr>
             </thead>

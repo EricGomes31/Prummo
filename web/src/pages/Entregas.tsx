@@ -3,7 +3,7 @@ import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { brl, dataBr, hojeIso, mascarar } from '../format'
 import type { Endereco, Entrega, PedidoParaEntrega } from '../types'
-import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
+import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 import { HistoricoDaEntrega, Motoristas, numeroOuNulo, Rotas, Veiculos } from './Logistica'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
@@ -57,7 +57,14 @@ export function Entregas() {
   const [aba, setAba] = useState<Aba>('entregas')
   const acao = useAcao()
   const entregas = dados ?? []
-  const paginas = usePaginacao(entregas)
+  const { ordenados: ordenados, titulo: titulo } = useOrdenacao(entregas, {
+    previsao: (e) => e.dataPrevista,
+    pedido: (e) => e.pedido.numero,
+    destino: (e) => e.destinatario,
+    entregador: (e) => e.entregador?.nome,
+    situacao: (e) => e.status,
+  })
+  const paginas = usePaginacao(ordenados)
 
   function direto(entrega: Entrega, operacao: 'sair' | 'cancelar') {
     if (operacao === 'cancelar' && !window.confirm(`Cancelar a entrega do pedido nº ${entrega.pedido.numero}?`)) return
@@ -136,11 +143,11 @@ export function Entregas() {
           <table>
             <thead>
               <tr>
-                <th>Previsão</th>
-                <th>Pedido</th>
-                <th>Destino</th>
-                <th>Entregador</th>
-                <th>Situação</th>
+                {titulo('previsao', 'Previsão')}
+                {titulo('pedido', 'Pedido')}
+                {titulo('destino', 'Destino')}
+                {titulo('entregador', 'Entregador')}
+                {titulo('situacao', 'Situação')}
                 <th />
               </tr>
             </thead>
