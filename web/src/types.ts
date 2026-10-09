@@ -103,6 +103,12 @@ export type Entrada = {
   itens: { id: number; produtoId: number; unidade: string | null; quantidade: number; custoUnitario: number; produto: ProdutoRef }[]
 }
 
+// Detalhe de uma entrada: os itens com o custo já com o frete rateado e as contas a pagar dela.
+export type EntradaDetalhada = Omit<Entrada, 'itens'> & {
+  itens: (Entrada['itens'][number] & { custoComRateio: number })[]
+  contasPagar: Conta[]
+}
+
 export type StatusPedido = 'ABERTO' | 'FATURADO' | 'CANCELADO'
 
 export type NaturezaPedido = 'VENDA' | 'BONIFICACAO' | 'PERDA'

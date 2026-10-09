@@ -200,6 +200,9 @@ export async function rotasEntradas(app: FastifyInstance) {
       include: { ...comDetalhes, contasPagar: { orderBy: { vencimento: 'asc' } } },
     })
     if (!entrada) throw new AppError(404, 'Entrada não encontrada.')
-    return entrada
+    // Custo de cada item com a parte do frete e das outras despesas, como entrou no custo do produto.
+    const totalItens = entrada.itens.reduce((s, i) => s + i.quantidade * i.custoUnitario, 0)
+    const rateio = fatorDeRateio({ ...entrada, totalItens, compra: entrada.natureza === 'COMPRA_REVENDA' })
+    return { ...entrada, itens: entrada.itens.map((i) => ({ ...i, custoComRateio: Math.round(i.custoUnitario * rateio) })) }
   })
 }

@@ -25,6 +25,7 @@ conferir('total inclui frete e despesas', e.total === 14001)
 const detalhe = (await chamar('GET', `/entradas/${e.id}`)).json
 const parcelas = detalhe.contasPagar
 conferir('3 parcelas somam o total', parcelas.length === 3 && parcelas.reduce((s, c) => s + c.valor, 0) === 14001 && parcelas[0].valor === 4667, parcelas.map((c) => c.valor).join('+'))
+conferir('detalhe traz o custo com o frete rateado', detalhe.itens.find((i) => i.produtoId === A.id).custoComRateio === 2693 && detalhe.itens.find((i) => i.produtoId === B.id).custoComRateio === 323, JSON.stringify(detalhe.itens.map((i) => i.custoComRateio)))
 conferir('vencimentos pelos prazos em dias', parcelas.map((c) => c.vencimento.slice(0, 10)).join(',') === '2026-11-30,2026-12-30,2027-01-29', parcelas.map((c) => c.vencimento.slice(0, 10)).join(','))
 conferir('parcelas ficam no fornecedor', (await chamar('GET', '/contas-pagar')).json.filter((c) => c.pessoa?.id === forn.id).length === 3)
 let prods = (await chamar('GET', '/produtos')).json

@@ -3,8 +3,8 @@ import { anexar, api, TAMANHO_MAXIMO_ANEXO, TIPOS_DE_ANEXO, useAcao, useDados } 
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { brl, dataBr, hojeIso, inteiro, unidadesDe } from '../format'
-import type { Entrada, ItemEdicao, Pessoa, Produto } from '../types'
-import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, totalItens, useAtrasado, usePaginacao } from '../ui'
+import type { Entrada, ItemEdicao, Pessoa, Produto, EntradaDetalhada } from '../types'
+import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, totalItens, useAtrasado, usePaginacao } from '../ui'
 import { Icone } from '../icones'
 import { CampoData } from '../calendario'
 import { Escolha, opcoesDePessoas } from '../escolha'
@@ -40,7 +40,7 @@ export function Entradas() {
   const { dados, erro, carregando, recarregar } = useDados<Entrada[]>(`/entradas${consulta ? `?${consulta}` : ''}`)
   const filtrando = !!consulta
   const [lancando, setLancando] = useState(false)
-  const [documentosDe, setDocumentosDe] = useState<Entrada | null>(null)
+  const [vendo, setVendo] = useState<Entrada | null>(null)
   const entradas = dados ?? []
   const paginas = usePaginacao(entradas)
   const { pode } = useSessao()
@@ -116,9 +116,10 @@ export function Entradas() {
                     )}
                   </td>
                   <td className="num">
-                    <button type="button" className="botao botao-texto" onClick={() => setDocumentosDe(e)}>
-                      Documentos{e.documentos > 0 && ` (${e.documentos})`}
+                    <button type="button" className="botao botao-texto" onClick={() => setVendo(e)}>
+                      Detalhes
                     </button>
+                    {e.documentos > 0 && <small className="bloco texto-suave">{e.documentos} documento(s)</small>}
                   </td>
                 </tr>
               ))}
@@ -128,11 +129,7 @@ export function Entradas() {
         {paginas.controle}
       </section>
 
-      {documentosDe && (
-        <Modal titulo={`Documentos da entrada nº ${documentosDe.id}`} onFechar={() => setDocumentosDe(null)} largo>
-          <Documentos origem="ENTRADA_ESTOQUE" origemId={documentosDe.id} onAlterado={recarregar} />
-        </Modal>
-      )}
+      {vendo && <DetalhesEntrada id={vendo.id} onFechar={() => setVendo(null)} onAlterado={recarregar} />}
       {lancando && (
         <FormEntrada
           onFechar={() => setLancando(false)}
@@ -326,6 +323,117 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
           Registrar entrada
         </button>
       </div>
+    </Modal>
+  )
+}
+
+// A entrada inteira: dados, itens com o custo rateado, totais, parcelas a pagar e documentos.
+function DetalhesEntrada(props: { id: number; onFechar: () => void; onAlterado: () => void }) {
+  const { dados: e, erro, carregando } = useDados<EntradaDetalhada>(`/entradas/${props.id}`)
+  const somaItens = e ? e.itens.reduce((s, i) => s + i.quantidade * i.custoUnitario, 0) : 0
+  const rateia = !!e && e.natureza === 'COMPRA_REVENDA' && e.frete + e.outrasDespesas > 0
+
+  return (
+    <Modal titulo={`Entrada de estoque nº ${props.id}`} onFechar={props.onFechar} largo>
+      <EstadoLista carregando={carregando} erro={erro} vazia={!e} textoVazio="" />
+      {e && (
+        <>
+          <dl className="origem-conta">
+            <div>
+              <dt>Fornecedor</dt>
+              <dd>{e.fornecedor?.nome ?? '—'}</dd>
+            </div>
+            <div>
+              <dt>Data</dt>
+              <dd>{dataBr(e.data)}</dd>
+            </div>
+            <div>
+              <dt>Natureza</dt>
+              <dd>{naturezas[e.natureza]}</dd>
+            </div>
+            <div>
+              <dt>Pagamento</dt>
+              <dd>{rotuloCondicao(e.condicaoPagamento)}</dd>
+            </div>
+            <div>
+              <dt>Documento</dt>
+              <dd>{e.numeroDocumento ?? '—'}</dd>
+            </div>
+            {e.cfop && (
+              <div>
+                <dt>CFOP</dt>
+                <dd>{e.cfop}</dd>
+              </div>
+            )}
+          </dl>
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th className="num">Quantidade</th>
+                <th className="num">Custo informado</th>
+                {rateia && <th className="num">Custo com frete</th>}
+                <th className="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {e.itens.map((i) => (
+                <tr key={i.id}>
+                  <td>
+                    {i.produto.nome}
+                    <small className="bloco texto-suave">{i.produto.sku}</small>
+                  </td>
+                  <td className="num">
+                    {i.quantidade} {i.unidade ?? i.produto.unidade}
+                  </td>
+                  <td className="num">{brl(i.custoUnitario)}</td>
+                  {rateia && <td className="num">{brl(i.custoComRateio)}</td>}
+                  <td className="num">{brl(i.quantidade * i.custoUnitario)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <dl className="totais">
+            <dt>Itens</dt>
+            <dd>{brl(somaItens)}</dd>
+            <dt>Frete</dt>
+            <dd>{brl(e.frete)}</dd>
+            <dt>Outras despesas</dt>
+            <dd>{brl(e.outrasDespesas)}</dd>
+            <dt className="totais-final">Total da entrada</dt>
+            <dd className="totais-final">{brl(e.total)}</dd>
+          </dl>
+          {rateia && <p className="texto-suave">O frete e as outras despesas entram no custo de cada produto, na proporção do valor dele na entrada.</p>}
+
+          {e.contasPagar.length > 0 && (
+            <>
+              <h3>Parcelas a pagar</h3>
+              <table>
+                <tbody>
+                  {e.contasPagar.map((c) => (
+                    <tr key={c.id}>
+                      <td>{c.descricao}</td>
+                      <td>{dataBr(c.vencimento)}</td>
+                      <td>
+                        <Selo valor={c.status} />
+                      </td>
+                      <td className="num">{brl(c.valor)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          <h3>Documentos</h3>
+          <Documentos origem="ENTRADA_ESTOQUE" origemId={e.id} onAlterado={props.onAlterado} />
+          <div className="form-pe">
+            <button type="button" className="botao" onClick={props.onFechar}>
+              Fechar
+            </button>
+          </div>
+        </>
+      )}
     </Modal>
   )
 }
