@@ -44,6 +44,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 - [x] Comparação completa, tela por tela, entre o SG Nexus e o Prumo. Feita em 09/10/2026: levantamento somente leitura das 12 telas do SG Nexus e inventário do Prumo; os relatórios e 59 prints ficaram em `levantamento-sgnexus/` (fora do Git, porque têm nomes de clientes). O que falta está na seção "O que o SG Nexus tem e o Prumo ainda não".
 - [x] Dois erros achados no inventário do Prumo. Corrigidos em 09/10/2026: a busca por número no relatório de vendas comparava com o id interno do pedido, e não com o número mostrado; quem tinha só a permissão de lançar no caixa não via o item Financeiro no menu.
 - [ ] Trocar a senha do usuário do SG Nexus (douglalves12@gmail.com): foi digitada em uma conversa.
+- [ ] Rodada de uso real: quem usa o SG Nexus segue o "Roteiro de teste do Prumo" (https://claude.ai/code/artifact/8a833b25-9bb4-4e7a-b817-6e8d298400c1, criado em 09/10/2026: 8 tarefas do dia a dia e a tabela de problemas) e anota o que estranhar; depois, corrigir o que aparecer.
 - [ ] Conferir se os horários importados estão certos. O SG Nexus não informa o fuso; foram tratados como horário de Brasília.
 - [ ] Confirmar com quem usa o SG Nexus as regras que foram definidas sem conseguir ver o servidor dele: bonificação e perda só baixam o estoque e ficam fora do faturamento; o crédito da devolução rateia os descontos do pedido e não inclui o frete; o crédito só baixa contas da própria pessoa elegível.
 
