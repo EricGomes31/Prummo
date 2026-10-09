@@ -1,10 +1,12 @@
 # Pendências do Prumo
 
-Lista do que ficou para depois, levantada durante a migração do SG Nexus e a publicação. Atualizada em 08/10/2026. O que já foi feito e como retomar o trabalho estão em `ANDAMENTO.md`.
+Lista do que ficou para depois, levantada durante a migração do SG Nexus e a publicação. Atualizada em 09/10/2026. O que já foi feito e como retomar o trabalho estão em `ANDAMENTO.md`.
 
 ## Urgente (segurança e acesso)
 
-- [ ] Aplicar no banco real a passagem para várias empresas (código pronto e testado em 08/10/2026, ainda não publicado). Ordem: `node --env-file=.env scripts/copiar-banco.mjs` (já feita uma cópia em `backups/2026-10-08-2242`), `npx prisma db execute --file prisma/migracoes/2026-10-08-empresas.sql --schema prisma/schema.prisma`, `npm run db:push`, e logo em seguida `railway up`. Entre o `db:push` e a publicação, o site antigo não consegue gravar.
+- [ ] Aplicar no banco real a passagem para várias empresas e as funções novas de 09/10/2026 (código pronto e testado, ainda não publicado). Na pasta `api`, nesta ordem: `node --env-file=.env scripts/copiar-banco.mjs` (cópia de segurança nova), `npx prisma db execute --file prisma/migracoes/2026-10-08-empresas.sql --schema prisma/schema.prisma`, `npm run db:push`, `npx prisma db execute --file prisma/migracoes/2026-10-09-funcoes.sql --schema prisma/schema.prisma`, e logo em seguida `railway up` na raiz. Entre o `db:push` e a publicação, o site antigo não consegue gravar.
+- [ ] Depois de publicar, dar as permissões novas aos perfis personalizados que precisarem: alterar pedido faturado, lançar crédito avulso e lançar no caixa (avulso e transferência). Administrador e operador de fábrica já têm.
+- [ ] Informar o CPF ou CNPJ do titular nas contas em banco já cadastradas: agora é obrigatório para salvar uma conta que não seja o caixa.
 - [ ] Adaptar os importadores (`api/scripts/importar-*.mjs`) para informar a empresa. Depois da passagem para várias empresas, gravação sem empresa é recusada pelo banco.
 - [ ] Numeração dos pedidos por empresa. Hoje o número do pedido é o id, comum a todas as empresas: a segunda empresa não começa no pedido nº 1.
 
@@ -42,46 +44,14 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 
 ## Funções do SG Nexus que ainda faltam
 
-### Pedidos e vendas
+Feitas em 09/10/2026, com testes e conferência de tela (detalhes no `ANDAMENTO.md`): condição de pagamento no pedido, anexos da venda, alteração de pedido faturado, campanha bloqueando o desconto só nos produtos dela; despesa paga no lançamento, fornecedor cadastrado sem sair, Excel, despesas no dashboard e no relatório; conciliação desfeita, vários títulos numa linha e transferência entre contas; relatório de cobrança; filtros das contas a receber; lançamento avulso e transferência no caixa; lista de bancos, titular obrigatório, saldo inicial negativo e hora na baixa; crédito usado no faturamento, estorno do uso e da devolução, crédito avulso; devoluções abatendo o faturamento (decidido em 09/10/2026); documentos da entrega; limite de tentativas e aviso de abertura no link do entregador; link para o cliente atualizar o cadastro; dashboards por ano e por todo o período.
 
-- [ ] Condição de pagamento já no pedido: link de cartão, maquininha e a prazo com parcelas escolhidas. Hoje a forma de pagamento é definida ao faturar.
-- [ ] Anexos da venda. A API já aceita; falta o botão na tela.
-- [ ] Edição de pedido já faturado.
-- [ ] Campanha bloquear o desconto manual só nos produtos participantes. Hoje o pedido com campanha não aceita nenhum desconto manual.
+Ficaram para depois, por decisão de 09/10/2026:
 
-### Financeiro
-
-- [ ] Despesas: pagar já no lançamento, escolhendo a conta financeira. Hoje a despesa à vista gera a conta e o pagamento é registrado depois, em "A pagar".
-- [ ] Despesas: cadastrar o fornecedor sem sair do lançamento e exportar a lista para Excel.
-- [ ] Despesas nos dashboards e relatórios, por elemento e por competência.
 - [ ] Cartões e operadoras: liquidações, taxas e prazo de recebimento.
-- [ ] Conciliação: desfazer uma linha conciliada. Hoje só a linha ignorada reabre; a baixa se desfaz pelo estorno da conta, e a linha do extrato continua marcada como conciliada.
-- [ ] Conciliação: uma linha do extrato pagar vários títulos de uma vez (por exemplo, um depósito para duas vendas).
-- [ ] Conciliação: transferência entre contas próprias. Hoje as duas pontas são ignoradas ou lançadas como avulsas.
-- [ ] Conciliação: testar com extratos reais dos bancos usados. O leitor de OFX foi testado só com arquivos de exemplo.
-- [ ] Relatório de cobrança, com exportação e impressão em PDF.
-- [ ] Filtros das contas a receber por cliente, paciente, médico, vendedor e período.
-- [ ] Lançamento avulso direto no extrato, sem passar pela conciliação, e transferências entre contas.
-- [ ] Caixa e bancos: lista de bancos para escolher a instituição, CPF ou CNPJ do titular obrigatório, saldo inicial negativo e hora na data da baixa.
-
-### Devoluções e créditos
-
-- [ ] Usar o crédito já na venda, ao faturar. Hoje ele só baixa contas a receber já lançadas.
-- [ ] Estornar o uso de um crédito e estornar uma devolução.
-- [ ] Crédito avulso, lançado à mão. Hoje o crédito nasce de uma devolução ou de um depósito a maior na conciliação.
-- [ ] Decidir se a devolução deve reduzir o faturamento nos dashboards e relatórios. Hoje a venda continua contando pelo valor cheio.
-
-### Logística
-
-- [ ] Documentos da entrega (comprovante, foto). O histórico das situações já existe.
-- [ ] Buscar as coordenadas a partir do endereço. Hoje latitude e longitude são digitadas.
-- [ ] Limitar tentativas no link do entregador e avisar quando o link for aberto.
-- [ ] Rota considerar vias, trânsito e horário de recebimento. "Organizar paradas" usa só a distância em linha reta.
-
-### Outros
-
-- [ ] Link público para o cliente atualizar os próprios dados.
-- [ ] Filtro "todos os meses" e "todos os anos" nos dashboards.
+- [ ] Conciliação: testar com extratos reais dos bancos usados. O leitor de OFX foi testado só com arquivos de exemplo. Precisa dos arquivos OFX dos bancos.
+- [ ] Buscar as coordenadas a partir do endereço. Hoje latitude e longitude são digitadas. Falta escolher o serviço (OpenStreetMap, gratuito, ou Google Maps, pago).
+- [ ] Rota considerar vias, trânsito e horário de recebimento. "Organizar paradas" usa só a distância em linha reta. Depende do mesmo serviço de mapas.
 
 ## Acabamento
 
