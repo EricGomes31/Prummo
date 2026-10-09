@@ -25,6 +25,18 @@ npm install
 npm run dev
 ```
 
+### Banco de desenvolvimento
+
+No dia a dia a API local usa um PostgreSQL nesta máquina, não o banco real: o `api/.env` aponta para ele (`127.0.0.1:5433`) e os endereços do banco real ficam só no `api/.env.producao` (fora do Git).
+
+```powershell
+cd api
+npm run banco          # sobe o banco local e atualiza as tabelas; deixe o terminal aberto
+npm run banco:copiar   # em outro terminal: copia o banco real (só leitura) e carrega no local
+```
+
+O `banco:copiar` grava a cópia em `backups/` e apaga o que houver no banco local antes de carregar. O script de carga se recusa a escrever em qualquer banco que não seja desta máquina. Scripts que devem mexer no banco real (cópia de segurança, migrações, importadores) recebem `--env-file=.env.producao` de propósito.
+
 Abra http://localhost:5173 e entre com `admin@prumo.local`. A senha inicial foi gerada pelo setup e está em `api/.env`, na variável `SEED_ADMIN_PASSWORD`. Troque-a em "Alterar senha" no primeiro acesso.
 
 ## Testes

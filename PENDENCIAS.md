@@ -29,7 +29,7 @@ Lista do que ficou para depois, levantada durante a migração do SG Nexus e a p
 - [ ] Decidir a hospedagem definitiva. Hoje está no Railway (Virgínia) com banco no Supabase (São Paulo), e cada tela leva cerca de 380 ms. Opções: VPS Hostinger KVM 1 em São Paulo (a mais rápida) ou recriar o banco do Supabase em East US.
 - [ ] Assinar o plano Hobby do Railway (US$ 5/mês) quando os créditos de teste acabarem, se o sistema continuar lá.
 - [ ] Apontar um subdomínio de `labsinfinity.com.br` (por exemplo `prumo.labsinfinity.com.br`) para o sistema, na Cloudflare.
-- [ ] Separar o banco de desenvolvimento do banco de produção. Hoje são o mesmo, e toda mudança de estrutura e todo teste manual caem nos dados reais.
+- [x] Feito em 09/10/2026: separar o banco de desenvolvimento do banco de produção. O `api/.env` agora aponta para um PostgreSQL nesta máquina (`npm run banco`, porta 5433, dados em `api/.banco-local`, fora do Git); o banco real ficou só no `api/.env.producao` (fora do Git). `npm run banco:copiar` tira uma cópia do banco real (só leitura) e carrega no local; o script de carga recusa qualquer banco que não seja local. Cópia carregada (262 linhas), API local conferida contra ele e as 32 suítes passaram. Instruções no README e no ANDAMENTO.
 - [ ] Avaliar o plano pago do Supabase. O gratuito pausa o projeto após cerca de uma semana sem uso e não tem backup automático.
 - [x] Migrar o `railway.json` para o formato novo do Railway. Feito e aplicado em 09/10/2026: `.railway/railway.ts`.
 - [x] Colocar o projeto no Git. Feito em 08/10/2026: repositório privado `github.com/labsinfinitys-svg/Prumo`, branch `main`.

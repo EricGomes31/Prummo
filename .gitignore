@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+.env.*
 *.db
 *.db-journal
 *.bak
@@ -12,3 +13,6 @@ backups/
 
 # Levantamento do SG Nexus (tem nomes de clientes; fica só nesta máquina)
 levantamento-sgnexus/
+
+# Banco local de desenvolvimento (npm run banco)
+api/.banco-local/

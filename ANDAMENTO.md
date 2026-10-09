@@ -37,7 +37,7 @@ O Prumo está publicado e funcionando, com os dados do SG Nexus importados. Dos 
 | Entregas pendentes | 2 | `api/scripts/importar-vendas.mjs` |
 | Motoristas e veículo | 2 e 1 | `api/scripts/importar-logistica.mjs` |
 
-Os importadores podem ser rodados de novo sem duplicar. Desde 09/10/2026 eles gravam na empresa informada e rodam pelo tsx: `npx tsx --env-file=.env scripts/importar-<x>.mjs --empresa=<id> ...` (sem `--empresa`, listam as empresas e param). Os arquivos JSON baixados ficaram em uma pasta temporária e não existem mais; para baixar de novo, use `api/scripts/sgnexus/baixar.mjs`, que explica no cabeçalho como abrir o Chrome e fazer o login.
+Os importadores podem ser rodados de novo sem duplicar. Desde 09/10/2026 eles gravam na empresa informada e rodam pelo tsx: `npx tsx --env-file=.env.producao scripts/importar-<x>.mjs --empresa=<id> ...` (sem `--empresa`, listam as empresas e param). Os arquivos JSON baixados ficaram em uma pasta temporária e não existem mais; para baixar de novo, use `api/scripts/sgnexus/baixar.mjs`, que explica no cabeçalho como abrir o Chrome e fazer o login.
 
 ### Módulos acrescentados ao Prumo
 
@@ -115,12 +115,17 @@ O PostgreSQL descartável se recusa a rodar num terminal aberto como administrad
 ## Como retomar
 
 ```powershell
-# API (porta 3333) e frontend (porta 5173), em dois terminais
+# Banco local (porta 5433), API (porta 3333) e frontend (porta 5173), em três terminais
+cd api; npm run banco      # para trazer os dados reais de novo: npm run banco:copiar
 cd api; npm run dev
 cd web; npm run dev
 
-# Depois de mudar o api/prisma/schema.prisma (atenção: altera o banco real)
-cd api; npx prisma db push --skip-generate; npx prisma generate; npm run db:rls
+# Depois de mudar o api/prisma/schema.prisma
+cd api; npx prisma generate      # o banco local se atualiza sozinho ao reiniciar o npm run banco
+# No banco real: cópia de segurança, migração SQL e conferência, sempre com o .env.producao
+cd api; node --env-file=.env.producao scripts/copiar-banco.mjs
+cd api; node --env-file=.env.producao node_modules/prisma/build/index.js db execute --file prisma/migracoes/<arquivo>.sql --schema prisma/schema.prisma
+# Depois, o RLS e as travas de empresa: o mesmo comando com prisma/rls.sql e com prisma/empresas.sql
 
 # Conferir antes de publicar
 cd api; npm run typecheck; npm test

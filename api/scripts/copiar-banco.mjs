@@ -1,5 +1,5 @@
-// Cópia de segurança de todas as tabelas do banco do .env, em JSON, sem depender do esquema do Prisma.
-// Uso: node --env-file=.env scripts/copiar-banco.mjs [pasta]   (padrão: ../backups/AAAA-MM-DD-HHMM)
+// Cópia de segurança de todas as tabelas do banco do arquivo informado (o real: .env.producao), em JSON, sem depender do esquema do Prisma.
+// Uso: node --env-file=.env.producao scripts/copiar-banco.mjs [pasta]   (padrão: ../backups/AAAA-MM-DD-HHMM)
 // A pasta de cópias fica fora do Git (.gitignore): contém dados reais.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
