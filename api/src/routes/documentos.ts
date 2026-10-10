@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { mkdir, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { AppError, idParam, prisma } from '../lib.js'
 
@@ -35,6 +35,24 @@ const ORIGENS: Record<string, (id: number) => Promise<unknown>> = {
   CONTA_RECEBER: (id) => prisma.contaReceber.findUnique({ where: { id }, select: { id: true } }),
   DESPESA: (id) => prisma.despesa.findUnique({ where: { id }, select: { id: true } }),
   ENTREGA: (id) => prisma.entrega.findUnique({ where: { id }, select: { id: true } }),
+}
+
+// Quem pode ver e quem pode anexar ou apagar os anexos de cada origem: as mesmas permissões da tela de
+// onde o anexo vem. Sem isso, qualquer usuário logado via e apagava anexos do financeiro pelo número.
+const ACESSO: Record<string, { ver: string[]; gravar: string[] }> = {
+  ENTRADA_ESTOQUE: { ver: ['ESTOQUE_VISUALIZAR'], gravar: ['ESTOQUE_ENTRADA'] },
+  PEDIDO: { ver: ['PEDIDOS_VISUALIZAR'], gravar: ['PEDIDOS_CADASTRAR', 'PEDIDOS_FATURAR', 'PEDIDOS_ALTERAR_FATURADO'] },
+  CONTA_PAGAR: { ver: ['CONTAS_PAGAR_VISUALIZAR'], gravar: ['CONTAS_PAGAR_BAIXAR'] },
+  CONTA_RECEBER: { ver: ['CONTAS_RECEBER_VISUALIZAR'], gravar: ['CONTAS_RECEBER_BAIXAR'] },
+  DESPESA: { ver: ['DESPESAS_VISUALIZAR'], gravar: ['DESPESAS_LANCAR'] },
+  ENTREGA: { ver: ['LOGISTICA_VISUALIZAR'], gravar: ['LOGISTICA_GERENCIAR'] },
+}
+
+function exigirAcesso(req: FastifyRequest, origem: string, acao: 'ver' | 'gravar') {
+  const exigidas = ACESSO[origem]?.[acao] ?? []
+  if (!exigidas.some((p) => req.usuario.permissoes.includes(p))) {
+    throw new AppError(403, 'Seu perfil de acesso não permite esta operação.')
+  }
 }
 
 const dono = z.object({
@@ -78,12 +96,14 @@ export async function gravarDocumento(origem: string, origemId: number, dados: z
 export async function rotasDocumentos(app: FastifyInstance) {
   app.get('/documentos/:origem/:origemId', async (req) => {
     const { origem, origemId } = dono.parse(req.params)
+    exigirAcesso(req, origem, 'ver')
     return prisma.documento.findMany({ where: { origem, origemId }, select: publico, orderBy: { id: 'asc' } })
   })
 
   // O arquivo vem em base64 dentro do JSON; o limite do corpo cobre o tamanho máximo mais a codificação.
   app.post('/documentos/:origem/:origemId', { bodyLimit: LIMITE_DO_CORPO }, async (req, reply) => {
     const { origem, origemId } = dono.parse(req.params)
+    exigirAcesso(req, origem, 'gravar')
     const dados = arquivoEnviado.parse(req.body)
     if (!(await ORIGENS[origem](origemId))) throw new AppError(404, 'Registro de origem não encontrado.')
     return reply.status(201).send(await gravarDocumento(origem, origemId, dados))
@@ -93,6 +113,7 @@ export async function rotasDocumentos(app: FastifyInstance) {
     const { id } = idParam.parse(req.params)
     const documento = await prisma.documento.findUnique({ where: { id } })
     if (!documento) throw new AppError(404, 'Documento não encontrado.')
+    exigirAcesso(req, documento.origem, 'ver')
     return reply
       .header('Content-Type', TIPOS[extensao(documento.nome)] ?? 'application/octet-stream')
       // Sempre como download, para o navegador nunca abrir o anexo como página do sistema.
@@ -103,6 +124,9 @@ export async function rotasDocumentos(app: FastifyInstance) {
 
   app.delete('/documentos/arquivo/:id', async (req, reply) => {
     const { id } = idParam.parse(req.params)
+    const existente = await prisma.documento.findUnique({ where: { id } })
+    if (!existente) throw new AppError(404, 'Documento não encontrado.')
+    exigirAcesso(req, existente.origem, 'gravar')
     const documento = await prisma.documento.delete({ where: { id } })
     await unlink(path.join(PASTA, documento.arquivo)).catch(() => {})
     return reply.status(204).send()

@@ -37,4 +37,22 @@ conferir('remove anexo', (await chamar('DELETE', `/documentos/arquivo/${caminho.
 conferir('remover de novo -> 404', (await chamar('DELETE', `/documentos/arquivo/${caminho.json.id}`)).status === 404)
 conferir('anexo de outra origem não se mistura', (await chamar('GET', `/documentos/PEDIDO/${entrada.id}`)).json.length === 0)
 
+// Os anexos seguem as permissões da tela de onde vêm: um perfil só de pedidos não vê nem apaga a nota
+// da entrada de estoque, mas anexa e vê os do pedido.
+const admin = sessao.token
+const perfil = (await chamar('POST', '/perfis', { nome: 'Só pedidos', permissoes: ['PEDIDOS_VISUALIZAR', 'PEDIDOS_CADASTRAR'], dashboards: [] })).json
+await chamar('POST', '/usuarios', { nome: 'Paula', email: 'paula@prumo.local', senha: 'senha-12345', perfilId: perfil.id })
+const cliente = (await chamar('POST', '/pessoas', { cliente: true, nome: 'Cliente doc' })).json
+const pedido = (await chamar('POST', '/pedidos', { clienteId: cliente.id, itens: [{ produtoId: prod.id, quantidade: 1, precoUnitario: 100 }] })).json
+sessao.token = (await chamar('POST', '/auth/login', { email: 'paula@prumo.local', senha: 'senha-12345' })).json.token
+conferir('sem permissão de estoque: não lista anexos da entrada -> 403', (await chamar('GET', url)).status === 403)
+conferir('sem permissão de estoque: não baixa a nota -> 403', (await chamar('GET', `/documentos/arquivo/${nota.json.id}`)).status === 403)
+conferir('sem permissão de estoque: não apaga a nota -> 403', (await chamar('DELETE', `/documentos/arquivo/${nota.json.id}`)).status === 403)
+conferir('sem permissão de estoque: não anexa na entrada -> 403', (await chamar('POST', url, { nome: 'b.pdf', conteudo: b64('x') })).status === 403)
+const doPedido = await chamar('POST', `/documentos/PEDIDO/${pedido.id}`, { nome: 'comprovante.pdf', conteudo: b64('pix') })
+conferir('com permissão de pedidos: anexa no pedido', doPedido.status === 201, JSON.stringify(doPedido.json))
+conferir('com permissão de pedidos: lista e baixa o anexo do pedido', (await chamar('GET', `/documentos/PEDIDO/${pedido.id}`)).json.length === 1 && (await chamar('GET', `/documentos/arquivo/${doPedido.json.id}`)).status === 200)
+sessao.token = admin
+conferir('a nota da entrada continua lá', (await chamar('GET', url)).json.length === 1)
+
 encerrar()
