@@ -1,6 +1,7 @@
 // Aba de despesas do financeiro: lançar a despesa gera as contas a pagar dela.
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { brl, dataBr, formasPagamentoDespesa, hojeIso, mascaraDocumento, mascaraTelefone } from '../format'
@@ -78,8 +79,8 @@ export function Despesas({ seletor }: { seletor: ReactNode }) {
     elementos.recarregar()
   }
 
-  function cancelar(d: Despesa) {
-    if (!window.confirm(`Cancelar a despesa nº ${d.id} (${d.descricao})? As contas a pagar dela também são canceladas.`)) return
+  async function cancelar(d: Despesa) {
+    if (!(await confirmar({ texto: `Cancelar a despesa nº ${d.id} (${d.descricao})? As contas a pagar dela também são canceladas.`, botao: 'Cancelar despesa', perigo: true }))) return
     acao.executar(async () => {
       await api(`/despesas/${d.id}/cancelar`, { method: 'POST' })
       atualizar()

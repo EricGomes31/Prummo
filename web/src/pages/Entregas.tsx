@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
 import { brl, dataBr, hojeIso, mascarar } from '../format'
 import type { Endereco, Entrega, PedidoParaEntrega } from '../types'
@@ -66,8 +67,8 @@ export function Entregas() {
   })
   const paginas = usePaginacao(ordenados)
 
-  function direto(entrega: Entrega, operacao: 'sair' | 'cancelar') {
-    if (operacao === 'cancelar' && !window.confirm(`Cancelar a entrega do pedido nº ${entrega.pedido.numero}?`)) return
+  async function direto(entrega: Entrega, operacao: 'sair' | 'cancelar') {
+    if (operacao === 'cancelar' && !(await confirmar({ texto: `Cancelar a entrega do pedido nº ${entrega.pedido.numero}?`, botao: 'Cancelar entrega', perigo: true }))) return
     acao.executar(async () => {
       await api(`/entregas/${entrega.id}/${operacao}`, { method: 'POST' })
       recarregar()

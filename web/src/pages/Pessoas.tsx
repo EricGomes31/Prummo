@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
 import { comEnderecoDoCep, useBuscaCep } from '../cep'
 import { documentoBr, mascarar, telefoneBr } from '../format'
@@ -198,8 +199,8 @@ function FormPessoa(props: { inicial: Rascunho; onFechar: () => void; onSalvo: (
     })
   }
 
-  function excluir() {
-    if (!p.id || !window.confirm(`Excluir o cadastro de "${p.nome}"? Esta ação não pode ser desfeita.`)) return
+  async function excluir() {
+    if (!p.id || !(await confirmar({ texto: `Excluir o cadastro de "${p.nome}"? Esta ação não pode ser desfeita.`, botao: 'Excluir', perigo: true }))) return
     executar(async () => {
       await api(`/pessoas/${p.id}`, { method: 'DELETE' })
       props.onSalvo()

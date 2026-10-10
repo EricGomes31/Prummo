@@ -105,6 +105,7 @@ Ficaram para depois, por decisão de 09/10/2026:
 
 ## Acabamento
 
+- [x] Achados da Tarefa 5 do roteiro (feita pelo Claude no banco local em 10/10/2026: receber, baixa parcial, estorno e cancelamento funcionaram). Corrigido em 10/10/2026: (1) o estorno passa a gravar a hora, como o recebimento; (2) as 14 confirmações do navegador (confirm/prompt) viraram uma janela do sistema (`web/src/confirmacao.tsx`), com o motivo do cancelamento do pedido num campo próprio; (3) a lista de contas se atualiza a cada baixa, com a janela de receber ainda aberta; (4) quantidade e preço do item do pedido ganharam nome para leitor de tela; (5) fechar uma janela depois de gravar (ex. a baixa) não pergunta mais se quer descartar. Conferido na tela e com as 32 suítes de teste.
 - [x] Trocar o CEP antes de salvar não atualizava rua e bairro (só preenchia os vazios). Corrigido em 10/10/2026 no cadastro de pessoas, na entrega em outro endereço do pedido e no link de atualização de cadastro: ao sair do campo com um CEP diferente, rua, bairro, cidade e UF vêm do CEP novo; passar pelo campo sem mudar o CEP não mexe no que foi digitado; CEP de cidade inteira (sem rua) mantém a rua digitada. Conferido na tela.
 - [x] Visual novo e telas responsivas. Feito em 08/10/2026: menu com ícones e grupos, gaveta no celular, tabelas largas em cartões, janelas em tela cheia com botões fixos.
 - [x] Reorganizar Devoluções e créditos. Feito em 08/10/2026: indicadores no topo, "Nova devolução" em janela, listas em painéis com título e paginação.

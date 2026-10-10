@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { anexar, api, baixar, TIPOS_DE_ANEXO, useAcao, useDados } from './api'
+import { confirmar } from './confirmacao'
 import { dataBr } from './format'
 import { Erro, EstadoLista } from './ui'
 
@@ -34,8 +35,8 @@ export function Documentos(props: { origem: Origem; origemId: number; onAlterado
     })
   }
 
-  function remover(d: Documento) {
-    if (!window.confirm(`Remover "${d.nome}"?`)) return
+  async function remover(d: Documento) {
+    if (!(await confirmar({ texto: `Remover "${d.nome}"?`, botao: 'Remover', perigo: true }))) return
     acao.executar(async () => {
       await api(`/documentos/arquivo/${d.id}`, { method: 'DELETE' })
       depois()

@@ -20,6 +20,7 @@ import { AtualizarCadastro } from './pages/AtualizarCadastro'
 import { Usuarios } from './pages/Usuarios'
 import { Empresas } from './pages/Empresas'
 import { Avisos } from './avisos'
+import { Confirmacoes } from './confirmacao'
 import { useTabelasEmCartoes } from './tabelas'
 // A fonte vai junto no pacote do sistema, sem depender de serviço externo.
 import '@fontsource-variable/inter'
@@ -60,5 +61,6 @@ createRoot(document.getElementById('root')!).render(
         </Routes>
       </ProvedorSessao>
     </BrowserRouter>
+    <Confirmacoes />
   </StrictMode>,
 )

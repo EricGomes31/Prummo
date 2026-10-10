@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode, type SyntheticEvent } from 'react'
 import { brl, centavosParaTexto, inteiro, paraCentavos, qtd, saldoBase, unidadesDe } from './format'
 import { Escolha, opcoesDeProdutos } from './escolha'
+import { confirmar } from './confirmacao'
 import { Icone } from './icones'
 import type { ItemEdicao, Produto } from './types'
 
@@ -31,8 +32,12 @@ export function Modal(props: { titulo: string; onFechar: () => void; largo?: boo
   const marcarAlterada = (e: SyntheticEvent) => {
     if ((e.target as HTMLElement).closest('form')) alterada.current = true
   }
-  const fechar = useCallback(() => {
-    if (alterada.current && !confirm('Descartar o que foi preenchido nesta janela?')) return
+  // Formulário enviado: o que foi digitado já foi gravado (ex. a baixa, que deixa a janela aberta).
+  const marcarEnviada = () => {
+    alterada.current = false
+  }
+  const fechar = useCallback(async () => {
+    if (alterada.current && !(await confirmar({ texto: 'Descartar o que foi preenchido nesta janela?', botao: 'Descartar', perigo: true }))) return
     onFechar()
   }, [onFechar])
   useEffect(() => {
@@ -82,7 +87,7 @@ export function Modal(props: { titulo: string; onFechar: () => void; largo?: boo
 
   return (
     <div className="modal-fundo" onMouseDown={(e) => e.target === e.currentTarget && fechar()}>
-      <div ref={caixa} tabIndex={-1} className={`modal ${props.largo ? 'modal-largo' : ''}`} role="dialog" aria-modal="true" aria-label={props.titulo} onInputCapture={marcarAlterada} onChangeCapture={marcarAlterada}>
+      <div ref={caixa} tabIndex={-1} className={`modal ${props.largo ? 'modal-largo' : ''}`} role="dialog" aria-modal="true" aria-label={props.titulo} onInputCapture={marcarAlterada} onChangeCapture={marcarAlterada} onSubmitCapture={marcarEnviada}>
         <div className="modal-topo">
           <h2>{props.titulo}</h2>
           <button type="button" className="botao-icone" onClick={fechar} aria-label="Fechar">
@@ -362,6 +367,7 @@ export function EditorItens(props: {
                     min={1}
                     required
                     className="curto"
+                    aria-label="Quantidade"
                     value={item.quantidade || ''}
                     onChange={(e) => trocar(i, { quantidade: inteiro(e.target.value) })}
                   />
@@ -370,6 +376,7 @@ export function EditorItens(props: {
                   <td className="num">
                     <Dinheiro
                       className="curto"
+                      aria-label={props.rotuloValor}
                       valor={item.valor}
                       onChange={(valor) => trocar(i, { valor, desconto: Math.min(item.desconto ?? 0, valor) })}
                     />

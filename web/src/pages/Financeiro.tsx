@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
 import { BANCOS } from '../bancos'
 import { agoraLocal, brl, dataBr, dataHoraBr, estaVencida, formasPagamento, hojeIso, mascaraDocumento, naturezasPedido, origensMovimento, telefoneBr, tiposContaFinanceira } from '../format'
@@ -95,10 +96,10 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
   const vencido = contas.filter(estaVencida).reduce((soma, c) => soma + saldoDe(c), 0)
   const filtrando = [f.pessoaId, f.vendedorId, f.medicoId, f.pacienteId, f.inicio, f.fim].some(Boolean)
 
-  function operar(conta: Conta, operacao: 'estornar' | 'cancelar') {
+  async function operar(conta: Conta, operacao: 'estornar' | 'cancelar') {
     const pergunta =
       operacao === 'cancelar' ? `Cancelar "${conta.descricao}"?` : `Estornar a última baixa de "${conta.descricao}"? O valor volta para o saldo da conta.`
-    if (!window.confirm(pergunta)) return
+    if (!(await confirmar({ texto: pergunta, botao: operacao === 'cancelar' ? 'Cancelar conta' : 'Estornar baixa', perigo: true }))) return
     acao.executar(async () => {
       await api(`/${aba}/${conta.id}/${operacao}`, { method: 'POST' })
       recarregar()
@@ -254,6 +255,7 @@ function Contas({ aba, seletor }: { aba: AbaContas; seletor: ReactNode }) {
         <Baixa
           aba={aba}
           conta={baixando}
+          onBaixada={recarregar}
           onFechar={() => {
             setBaixando(null)
             recarregar()
@@ -466,7 +468,7 @@ function OrigemDaConta({ conta }: { conta: ContaComOrigem }) {
   )
 }
 
-function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
+function Baixa(props: { aba: AbaContas; conta: Conta; onBaixada: () => void; onFechar: () => void }) {
   const config = abas[props.aba]
   const [conta, setConta] = useState(props.conta)
   // Quem só pode ver as contas abre aqui o histórico, sem o formulário de baixa.
@@ -495,6 +497,8 @@ function Baixa(props: { aba: AbaContas; conta: Conta; onFechar: () => void }) {
       setValor(saldoDe(atualizada))
       setObservacao('')
       historico.recarregar()
+      // A lista por trás da janela já mostra o saldo novo.
+      props.onBaixada()
     })
   }
 
@@ -667,12 +671,12 @@ function CaixaBancos({ seletor }: { seletor: ReactNode }) {
     extrato.recarregar()
   }
 
-  function estornar(m: MovimentoFinanceiro) {
+  async function estornar(m: MovimentoFinanceiro) {
     const pergunta =
       m.origem === 'TRANSFERENCIA'
         ? `Estornar a transferência de ${brl(m.valor)}? As duas pontas são estornadas.`
         : `Estornar "${m.historico}" (${brl(m.valor)})? O movimento contrário é lançado na conta.`
-    if (!window.confirm(pergunta)) return
+    if (!(await confirmar({ texto: pergunta, botao: 'Estornar', perigo: true }))) return
     acao.executar(async () => {
       await api(`/movimentos-financeiros/${m.id}/estornar`, { method: 'POST' })
       atualizar()

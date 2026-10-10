@@ -715,3 +715,10 @@ button.indicador:hover { border-color: var(--preto); }
   .conteudo { padding: 0; max-width: none; }
   .painel, .cartao, .indicador { box-shadow: none; }
 }
+
+/* Confirmações (confirmacao.tsx): acima de qualquer outra janela aberta. */
+.confirmacoes { position: relative; z-index: 50; }
+.confirmacao-texto { margin: 0 0 16px; line-height: 1.5; }
+.confirmacao-motivo { margin-bottom: 8px; }
+.botao-perigo-cheio { background: var(--ruim); border-color: var(--ruim); color: #fff; }
+.botao-perigo-cheio:hover:not(:disabled) { filter: brightness(0.92); }

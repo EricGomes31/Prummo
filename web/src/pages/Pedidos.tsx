@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { pedirMotivo } from '../confirmacao'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { comEnderecoDoCep, useBuscaCep } from '../cep'
@@ -343,9 +344,9 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
     })
   }
 
-  function cancelar() {
+  async function cancelar() {
     if (!pedido) return
-    const motivoCancelamento = window.prompt(`Cancelar o pedido nº ${pedido.numero}? Se quiser, informe o motivo:`)
+    const motivoCancelamento = await pedirMotivo({ titulo: `Cancelar o pedido nº ${pedido.numero}`, texto: 'O estoque volta e as parcelas em aberto são canceladas.', botao: 'Cancelar pedido', perigo: true })
     if (motivoCancelamento === null) return
     executar(async () => {
       await api(`/pedidos/${pedido.id}/cancelar`, { body: { motivo: motivoCancelamento || null } })
@@ -769,8 +770,8 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
   const { pode } = useSessao()
   const { erro, ocupado, executar } = useAcao()
 
-  function cancelar() {
-    const motivo = window.prompt('Cancelar este pedido? O estoque volta e as parcelas em aberto são canceladas. Se quiser, informe o motivo:')
+  async function cancelar() {
+    const motivo = await pedirMotivo({ titulo: 'Cancelar este pedido', texto: 'O estoque volta e as parcelas em aberto são canceladas.', botao: 'Cancelar pedido', perigo: true })
     if (motivo === null) return
     executar(async () => {
       await api(`/pedidos/${props.pedidoId}/cancelar`, { body: { motivo: motivo || null } })

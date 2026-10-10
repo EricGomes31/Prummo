@@ -127,6 +127,7 @@ export async function estornarMovimento(tx: Transacao, movimento: Movimento, usu
       tipo: movimento.tipo === 'ENTRADA' ? 'SAIDA' : 'ENTRADA',
       valor: movimento.valor,
       data: new Date(),
+      comHora: true,
       origem: 'ESTORNO',
       historico: `Estorno: ${movimento.historico}`.slice(0, 200),
       contaReceberId: movimento.contaReceberId,

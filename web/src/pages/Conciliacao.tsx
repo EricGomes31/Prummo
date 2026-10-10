@@ -1,6 +1,7 @@
 // Aba de conciliação do financeiro: importa o extrato do banco (OFX) e liga cada linha ao que a explica.
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { api, lerEmBase64, useAcao, useDados } from '../api'
+import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
 import { brl, dataBr } from '../format'
 import type { ArquivoOfx, Conta, ContaFinanceira, LinhaExtrato, Pessoa, SugestaoConciliacao } from '../types'
@@ -58,20 +59,20 @@ export function Conciliacao({ seletor }: { seletor: ReactNode }) {
     })
   }
 
-  function desfazer(linha: LinhaExtrato) {
+  async function desfazer(linha: LinhaExtrato) {
     const efeito =
       linha.resolucao === 'VINCULO'
         ? 'O movimento continua lançado; só deixa de estar ligado a esta linha.'
         : 'O que foi lançado pela conciliação é estornado (baixas, lançamento avulso, depósito, transferência) e o crédito gerado, se houver, é cancelado.'
-    if (!window.confirm(`Desfazer a conciliação de ${brl(linha.valor)} (${linha.descricao})? ${efeito} A linha volta a ficar pendente.`)) return
+    if (!(await confirmar({ texto: `Desfazer a conciliação de ${brl(linha.valor)} (${linha.descricao})? ${efeito} A linha volta a ficar pendente.`, botao: 'Desfazer conciliação', perigo: true }))) return
     executar(() => api(`/conciliacao/${linha.id}/desfazer`, { method: 'POST' }))
   }
 
   // A sugestão principal é aplicada com um clique; o depósito a maior pede a confirmação do cliente.
-  function aceitar(linha: LinhaExtrato, s: SugestaoConciliacao) {
+  async function aceitar(linha: LinhaExtrato, s: SugestaoConciliacao) {
     if (s.acao === 'CREDITO') return setResolvendo(linha)
     const pergunta = s.acao === 'VINCULO' ? `Vincular ${brl(linha.valor)} ao movimento já lançado? Nenhuma nova baixa será feita.` : `Baixar ${brl(linha.valor)} em "${s.descricao}"?`
-    if (!window.confirm(pergunta)) return
+    if (!(await confirmar({ texto: pergunta, botao: 'Confirmar' }))) return
     executar(() =>
       s.acao === 'VINCULO'
         ? api(`/conciliacao/${linha.id}/vincular`, { body: { movimentoId: s.movimentoId } })

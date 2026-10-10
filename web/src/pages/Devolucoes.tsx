@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
 import { avisar } from '../avisos'
 import { brl, dataBr, inteiro } from '../format'
@@ -65,8 +66,8 @@ export function Devolucoes() {
     devolucoes.recarregar()
   }
 
-  function estornar(d: Devolucao) {
-    if (!window.confirm(`Estornar a devolução nº ${d.id}? Os itens voltam a sair do estoque e o crédito de ${brl(d.valorCredito)} é cancelado.`)) return
+  async function estornar(d: Devolucao) {
+    if (!(await confirmar({ texto: `Estornar a devolução nº ${d.id}? Os itens voltam a sair do estoque e o crédito de ${brl(d.valorCredito)} é cancelado.`, botao: 'Estornar devolução', perigo: true }))) return
     acao.executar(async () => {
       await api(`/devolucoes/${d.id}/estornar`, { method: 'POST' })
       atualizar()
@@ -443,16 +444,16 @@ function UsarCredito(props: { credito: Credito; onFechar: () => void }) {
     })
   }
 
-  function estornarUso(uso: Credito['usos'][number]) {
-    if (!window.confirm(`Estornar o uso de ${brl(uso.valor)} em "${uso.contaReceber.descricao}"? O valor volta ao crédito e a conta volta a ter saldo.`)) return
+  async function estornarUso(uso: Credito['usos'][number]) {
+    if (!(await confirmar({ texto: `Estornar o uso de ${brl(uso.valor)} em "${uso.contaReceber.descricao}"? O valor volta ao crédito e a conta volta a ter saldo.`, botao: 'Estornar uso', perigo: true }))) return
     executar(async () => {
       setCredito(await api<Credito>(`/creditos/usos/${uso.id}/estornar`, { method: 'POST' }))
       abertas.recarregar()
     })
   }
 
-  function cancelar() {
-    if (!window.confirm(`Cancelar o crédito avulso nº ${credito.id} de ${brl(credito.valorOriginal)}?`)) return
+  async function cancelar() {
+    if (!(await confirmar({ texto: `Cancelar o crédito avulso nº ${credito.id} de ${brl(credito.valorOriginal)}?`, botao: 'Cancelar crédito', perigo: true }))) return
     executar(async () => setCredito(await api<Credito>(`/creditos/${credito.id}/cancelar`, { method: 'POST' })))
   }
 
