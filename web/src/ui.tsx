@@ -132,8 +132,11 @@ const tons: Record<string, string> = {
   FALHOU: 'ruim',
 }
 
+// "EM_ROTA" vira "Em rota": o texto da situação como aparece no selo e nas exportações.
+export const rotuloSituacao = (valor: string) => (valor.charAt(0) + valor.slice(1).toLowerCase()).replace(/_/g, ' ')
+
 export function Selo({ valor, tom }: { valor: string; tom?: string }) {
-  const texto = (valor.charAt(0) + valor.slice(1).toLowerCase()).replace(/_/g, ' ')
+  const texto = rotuloSituacao(valor)
   return <span className={`selo selo-${tom ?? tons[valor] ?? 'neutro'}`}>{texto}</span>
 }
 

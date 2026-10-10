@@ -141,11 +141,11 @@ export function RotaEntregador() {
                 {e.status === 'EM_ROTA' && (
                   <>
                     <label className="campo">
-                      <span>Quem recebeu</span>
+                      <span>Quem recebeu (para confirmar a entrega)</span>
                       <input value={recebedor} onChange={(ev) => setRecebedor(ev.target.value)} />
                     </label>
                     <label className="campo">
-                      <span>Observação ou motivo</span>
+                      <span>Observação ou motivo (obrigatório se não foi possível entregar)</span>
                       <input value={observacao} onChange={(ev) => setObservacao(ev.target.value)} />
                     </label>
                     <button type="button" className="botao botao-primario" disabled={ocupado || recebedor.trim().length < 2} onClick={() => void registrar(e.id, 'ENTREGUE')}>

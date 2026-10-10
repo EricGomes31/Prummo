@@ -228,7 +228,7 @@ function FormRota(props: { rota: Rota | null; motoristas: Motorista[]; veiculos:
   }
 
   return (
-    <Modal titulo={rota ? `Rota ${rota.nome}` : 'Nova rota'} onFechar={props.onFechar}>
+    <Modal titulo={rota ? `Rota ${rota.nome}` : 'Nova rota'} onFechar={props.onFechar} largo>
       <form onSubmit={enviar} className="form">
         <Campo rotulo="Nome da rota" largura={2}>
           <input required autoFocus value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />

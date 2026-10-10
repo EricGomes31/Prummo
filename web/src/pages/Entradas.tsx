@@ -31,7 +31,15 @@ const somarDias = (dia: string, dias: number) => {
   d.setDate(d.getDate() + dias)
   return d.toLocaleDateString('sv-SE')
 }
-const rotuloCondicao = (c: string | null) => (c === null ? '—' : (condicoes.find(([valor]) => valor === c)?.[1] ?? `${c} dias`))
+// Parcelas escolhidas à mão ficam gravadas em dias ("10/41"); com mais de uma, o texto diz isso em vez
+// de mostrar dias contados da data da entrada, que confundem. As datas aparecem nas parcelas.
+const rotuloCondicao = (c: string | null) => {
+  if (c === null) return '—'
+  const conhecida = condicoes.find(([valor]) => valor === c)?.[1]
+  if (conhecida) return conhecida
+  const prazos = c.split('/')
+  return prazos.length > 1 ? `${plural(prazos.length, 'parcela', 'parcelas')} em datas escolhidas` : `${c} dias`
+}
 
 export function Entradas() {
   const [filtro, setFiltro] = useState({ busca: '', inicio: '', fim: '' })

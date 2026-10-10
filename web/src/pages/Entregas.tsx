@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
+import { comEnderecoDoCep, useBuscaCep } from '../cep'
 import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
 import { brl, dataBr, hojeIso, mascarar, plural } from '../format'
@@ -276,6 +277,8 @@ function FormEntrega(props: { entrega: Entrega | null; entregadores: Entregador[
     value: mascarar(nome, f[nome] as string),
     onChange: (e: { target: { value: string } }) => setF({ ...f, [nome]: mascarar(nome, e.target.value) }),
   })
+  // Preenche o endereço a partir do CEP, como no cadastro de pessoas.
+  const buscaCep = useBuscaCep((achado) => setF((atual) => comEnderecoDoCep(atual, achado)))
 
   // Ao escolher o pedido, o destino começa com os dados do cadastro do cliente.
   function escolherPedido(id: number) {
@@ -353,7 +356,7 @@ function FormEntrega(props: { entrega: Entrega | null; entregadores: Entregador[
           <input {...texto('telefone')} />
         </Campo>
         <Campo rotulo="CEP">
-          <input {...texto('cep')} />
+          <input {...texto('cep')} {...buscaCep} />
         </Campo>
         <Campo rotulo="Logradouro">
           <input required {...texto('logradouro')} />

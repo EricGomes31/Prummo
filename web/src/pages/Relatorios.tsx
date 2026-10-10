@@ -3,20 +3,20 @@ import { useDados } from '../api'
 import { brl, dataHoraBr, formasPagamento, formasPagamentoDespesa, naturezasPedido, origensMovimento, plural } from '../format'
 import { exportarCsv, Resumo, Tabela, type Coluna } from '../relatorio'
 import type { ContaFinanceira, RelatorioCaixa, RelatorioDespesas, RelatorioFinanceiro, RelatorioVendas } from '../types'
-import { Cabecalho, Campo, EstadoLista, Selo } from '../ui'
+import { Cabecalho, Campo, EstadoLista, rotuloSituacao, Selo } from '../ui'
 import { CampoData } from '../calendario'
 
 type LinhaVenda = RelatorioVendas['linhas'][number]
 const colunasVendas: Coluna<LinhaVenda>[] = [
   { rotulo: 'Pedido', valor: (l) => l.numero, exibir: (l) => `#${l.numero}` },
   { rotulo: 'Data da venda', valor: (l) => l.data, tipo: 'data' },
-  { rotulo: 'Pagamento', valor: (l) => l.pagoEm, tipo: 'data' },
+  { rotulo: 'Pago em', valor: (l) => l.pagoEm, tipo: 'data' },
   { rotulo: 'Natureza', valor: (l) => naturezasPedido[l.natureza] ?? l.natureza },
   { rotulo: 'Cliente', valor: (l) => l.cliente, largura: 170 },
   { rotulo: 'Vendedor', valor: (l) => l.vendedor },
   { rotulo: 'Médico', valor: (l) => l.medico },
   { rotulo: 'Paciente', valor: (l) => l.paciente },
-  { rotulo: 'Situação', valor: (l) => l.status, exibir: (l) => <Selo valor={l.status} /> },
+  { rotulo: 'Situação', valor: (l) => rotuloSituacao(l.status), exibir: (l) => <Selo valor={l.status} /> },
   { rotulo: 'Forma de pagamento', valor: (l) => (l.formaPagamento ? (formasPagamento[l.formaPagamento] ?? l.formaPagamento) : null) },
   { rotulo: 'Frete', valor: (l) => l.frete, tipo: 'dinheiro' },
   { rotulo: 'Observação', valor: (l) => l.observacao, largura: 180 },
@@ -30,7 +30,7 @@ const colunasFinanceiro: Coluna<LinhaFinanceira>[] = [
   { rotulo: 'Liquidação', valor: (l) => l.pagoEm, tipo: 'data' },
   { rotulo: 'Descrição', valor: (l) => l.descricao },
   { rotulo: 'Cliente ou fornecedor', valor: (l) => l.pessoa },
-  { rotulo: 'Situação', valor: (l) => l.status, exibir: (l) => <Selo valor={l.status} /> },
+  { rotulo: 'Situação', valor: (l) => rotuloSituacao(l.status), exibir: (l) => <Selo valor={l.status} /> },
   { rotulo: 'Valor', valor: (l) => l.valor, tipo: 'dinheiro' },
   { rotulo: 'Baixado', valor: (l) => l.valorPago, tipo: 'dinheiro' },
   { rotulo: 'Saldo', valor: (l) => (l.status === 'CANCELADA' ? 0 : l.valor - l.valorPago), tipo: 'dinheiro' },
