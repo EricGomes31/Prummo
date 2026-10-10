@@ -1,7 +1,8 @@
-# Cópia de segurança diária do banco real, guardada como artefato desta execução (repositório privado).
-# Baixe em Actions > "Cópia diária do banco" > a execução do dia > Artifacts. Para restaurar no banco local:
-#   descompacte em backups/AAAA-MM-DD-HHMM e rode "node --env-file=.env scripts/carregar-copia.mjs <pasta>" em api/.
-# O endereço do banco vem do segredo BANCO_URL (Settings > Secrets and variables > Actions).
+# Cópia de segurança diária do Prumo, guardada FORA do servidor, como artefato deste repositório privado.
+# A VPS já faz a própria cópia às 02:30 (infra/vps/copia.sh, guarda 14 dias lá). Às 03:00 este job entra
+# na VPS com uma chave que só consegue rodar "prumo-copia --enviar" (restrita no authorized_keys) e guarda
+# o .tar.gz (banco em pg_dump + anexos) por 30 dias. Restaurar: ver o cabeçalho de infra/vps/copia.sh.
+# Segredo: VPS_CHAVE_COPIA (Settings > Secrets and variables > Actions).
 # Se falhar, o GitHub manda e-mail para quem alterou este arquivo por último.
 name: Cópia diária do banco
 
@@ -17,28 +18,26 @@ jobs:
   copia:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: api
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: api/package-lock.json
-      - run: npm ci
-      - run: npx prisma generate
-      - name: Copiar o banco
+      - name: Buscar a cópia na VPS
         env:
-          DIRECT_URL: ${{ secrets.BANCO_URL }}
+          CHAVE: ${{ secrets.VPS_CHAVE_COPIA }}
         run: |
-          test -n "$DIRECT_URL" || { echo "Falta o segredo BANCO_URL."; exit 1; }
-          echo "PASTA=$(date -u +%Y-%m-%d-%H%M)" >> "$GITHUB_ENV"
-          node scripts/copiar-banco.mjs "$RUNNER_TEMP/copia"
+          test -n "$CHAVE" || { echo "Falta o segredo VPS_CHAVE_COPIA."; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/copia && chmod 600 ~/.ssh/copia
+          # Identidade do servidor fixada: recusa outro servidor no mesmo endereço.
+          echo '179.236.68.14 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAbe5Lc+6DJOXExYvjNKLVSgKiPNXY6B/Td5X2X2SOR8' > ~/.ssh/known_hosts
+          NOME=$(TZ=America/Sao_Paulo date +%Y-%m-%d-%H%M)
+          mkdir copia
+          ssh -i ~/.ssh/copia -o BatchMode=yes root@179.236.68.14 > "copia/prumo-$NOME.tar.gz"
+          tar -tzf "copia/prumo-$NOME.tar.gz" | grep -q banco.dump || { echo "A cópia veio vazia ou incompleta."; exit 1; }
+          ls -l copia
+          echo "NOME=$NOME" >> "$GITHUB_ENV"
       - uses: actions/upload-artifact@v4
         with:
-          name: banco-${{ env.PASTA }}
-          path: ${{ runner.temp }}/copia
+          name: prumo-${{ env.NOME }}
+          path: copia
           retention-days: 30
           if-no-files-found: error
+          compression-level: 0
