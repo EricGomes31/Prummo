@@ -35,7 +35,9 @@ banco, LGPD/senhas). Auditoria completa é o padrão quando o pedido é vago ("v
 - Servidor: rode `bash .claude/skills/seguranca-prumo/scripts/auditar-servidor.sh` da raiz do projeto.
   Ele só lê (configuração do SSH, firewall, portas abertas, atualizações pendentes, certificado, cabeçalhos
   do site, cópias, papéis do banco, permissões dos arquivos de segredo) e não imprime segredos.
-- Código: leia os arquivos do mapa acima e procure os pontos das listas de verificação.
+- Código: leia os arquivos do mapa acima e procure os pontos das listas de verificação. Comece por
+  `node .claude/skills/seguranca-prumo/scripts/rotas-sem-regra.mjs` (rotas fora do mapa de permissões) e
+  `npm audit --omit=dev` em `api/` e `web/`.
 - Para cada área, siga a lista correspondente — leia só a que for usar:
   - `references/servidor.md` — VPS, SSH, firewall, HTTPS, atualizações, cópias
   - `references/sistema.md` — login, sessões, permissões, separação entre empresas, ataques web, anexos
