@@ -267,11 +267,11 @@ function Notificacoes({ chave }: { chave: string }) {
     if (!resumo) return []
     const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`
     return [
-      resumo.receber.vencidas > 0 && { tom: 'ruim', para: '/financeiro', titulo: plural(resumo.receber.vencidas, 'parcela a receber vencida', 'parcelas a receber vencidas'), nota: 'Financeiro · A receber' },
-      resumo.pagar.vencidas > 0 && { tom: 'ruim', para: '/financeiro', titulo: plural(resumo.pagar.vencidas, 'parcela a pagar vencida', 'parcelas a pagar vencidas'), nota: 'Financeiro · A pagar' },
-      resumo.entregas.falhas > 0 && { tom: 'alerta', para: '/entregas', titulo: plural(resumo.entregas.falhas, 'entrega com falha', 'entregas com falha'), nota: 'Logística · reprogramar' },
-      resumo.estoque.semEstoque > 0 && { tom: 'alerta', para: '/produtos', titulo: plural(resumo.estoque.semEstoque, 'produto sem estoque', 'produtos sem estoque'), nota: 'Produtos e estoque' },
-      resumo.entregas.pendentes > 0 && { tom: 'info', para: '/entregas', titulo: plural(resumo.entregas.pendentes, 'entrega pendente', 'entregas pendentes'), nota: 'Logística' },
+      !!resumo.receber?.vencidas && { tom: 'ruim', para: '/financeiro', titulo: plural(resumo.receber!.vencidas, 'parcela a receber vencida', 'parcelas a receber vencidas'), nota: 'Financeiro · A receber' },
+      !!resumo.pagar?.vencidas && { tom: 'ruim', para: '/financeiro', titulo: plural(resumo.pagar!.vencidas, 'parcela a pagar vencida', 'parcelas a pagar vencidas'), nota: 'Financeiro · A pagar' },
+      !!resumo.entregas?.falhas && { tom: 'alerta', para: '/entregas', titulo: plural(resumo.entregas!.falhas, 'entrega com falha', 'entregas com falha'), nota: 'Logística · reprogramar' },
+      !!resumo.estoque?.semEstoque && { tom: 'alerta', para: '/produtos', titulo: plural(resumo.estoque!.semEstoque, 'produto sem estoque', 'produtos sem estoque'), nota: 'Produtos e estoque' },
+      !!resumo.entregas?.pendentes && { tom: 'info', para: '/entregas', titulo: plural(resumo.entregas!.pendentes, 'entrega pendente', 'entregas pendentes'), nota: 'Logística' },
       // Avisos dos links públicos.
       ...resumo.avisos.linksAbertos.map((r) => ({
         tom: 'info',

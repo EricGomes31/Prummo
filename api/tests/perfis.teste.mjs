@@ -37,6 +37,10 @@ sessao.token = vania.token
 const status = async (metodo, caminho, corpo) => (await chamar(metodo, caminho, corpo)).status
 conferir('sessão traz só os acessos do perfil', vania.usuario.permissoes.length === 2 && vania.usuario.dashboards.join() === 'COMERCIAL' && vania.usuario.perfilNome === 'Vendas')
 conferir('vê pedidos', (await status('GET', '/pedidos')) === 200)
+const resumoVania = (await chamar('GET', '/dashboard/resumo')).json
+conferir('resumo do Início traz as vendas para quem vê pedidos', !!resumoVania.vendas && Array.isArray(resumoVania.ultimosPedidos), JSON.stringify(resumoVania).slice(0, 200))
+conferir('resumo do Início esconde o financeiro de quem não tem acesso', resumoVania.receber === null && resumoVania.pagar === null && resumoVania.saldoProjetado === null)
+conferir('resumo do Início esconde estoque e entregas sem a permissão', resumoVania.estoque === null && resumoVania.entregas === null && resumoVania.avisos.linksAbertos.length === 0)
 conferir('consulta pessoas e produtos para montar o pedido', (await status('GET', '/pessoas')) === 200 && (await status('GET', '/produtos')) === 200 && (await status('GET', '/promocoes')) === 200)
 const pedido = await chamar('POST', '/pedidos', { clienteId: cliente.id, itens: [{ produtoId: prod.id, quantidade: 1, precoUnitario: 1000 }] })
 conferir('cria pedido', pedido.status === 201)

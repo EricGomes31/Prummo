@@ -1,6 +1,21 @@
 # Caddy na VPS (/etc/caddy/Caddyfile): HTTPS automático (Let's Encrypt) e repasse para o Prumo.
 prummo.tech {
 	encode zstd gzip
+
+	# Proteções do navegador. A política de conteúdo (CSP) só deixa rodar scripts do próprio site e só
+	# deixa o site chamar a si mesmo e o ViaCEP (busca de endereço pelo CEP). Estilos inline ficam
+	# liberados porque o React e a janela de impressão dos relatórios usam. Ao incluir um serviço externo
+	# novo no site, acrescente o endereço aqui, senão o navegador bloqueia.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), payment=(), usb=(), geolocation=(self)"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://viacep.com.br; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		-Server
+	}
+
 	reverse_proxy 127.0.0.1:3000
 }
 

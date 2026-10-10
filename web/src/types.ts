@@ -635,22 +635,23 @@ export type EnderecoEntrega = {
   referencia: string | null
 }
 
+// Cada bloco vem null para quem não tem permissão de ver a área de onde ele sai.
 export type Resumo = {
-  entregas: { pendentes: number; emRota: number; falhas: number }
+  entregas: { pendentes: number; emRota: number; falhas: number } | null
   // Links públicos: rotas abertas pelo entregador (24 h) e cadastros atualizados pelo cliente (7 dias).
   avisos: {
     linksAbertos: { id: number; nome: string; linkAbertoEm: string }[]
     cadastrosAtualizados: { id: number; nome: string; cadastroAtualizadoEm: string }[]
   }
-  vendas: { quantidade: number; total: number; pedidosAbertos: number }
-  receber: { total: number; vencidas: number }
-  pagar: { total: number; vencidas: number }
-  saldoProjetado: number
+  vendas: { quantidade: number; total: number; pedidosAbertos: number } | null
+  receber: { total: number; vencidas: number } | null
+  pagar: { total: number; vencidas: number } | null
+  saldoProjetado: number | null
   estoque: {
     valor: number
     semEstoque: number
     criticos: { id: number; sku: string; nome: string; saldo: number; estoqueMinimo: number }[]
-  }
+  } | null
   ultimosPedidos: { id: number; numero: number; cliente: string; status: StatusPedido; total: number; criadoEm: string }[]
 }
 

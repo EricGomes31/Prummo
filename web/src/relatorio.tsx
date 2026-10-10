@@ -62,9 +62,12 @@ export function imprimir<L>(titulo: string, subtitulo: string, colunas: Coluna<L
 <table><thead><tr>${colunas.map((c) => `<th class="${c.tipo === 'dinheiro' ? 'num' : ''}">${escapar(c.rotulo)}</th>`).join('')}</tr></thead>
 <tbody>${linhas.map((l) => `<tr>${colunas.map((c) => `<td class="${c.tipo === 'dinheiro' ? 'num' : ''}">${escapar(valor(c, l))}</td>`).join('')}</tr>`).join('')}</tbody></table>
 ${totais.length ? `<div class="totais">${totais.map(([r, v]) => `<span>${escapar(r)}: <strong>${escapar(v)}</strong></span>`).join('')}</div>` : ''}
-<script>window.onload = () => window.print()</script>
 </body></html>`)
   janela.document.close()
+  // A impressão é chamada daqui, não por um <script> dentro da janela: a política de segurança do site
+  // (Content-Security-Policy) não deixa rodar scripts escritos na página.
+  janela.focus()
+  janela.print()
 }
 
 export function Tabela<L>(props: { colunas: Coluna<L>[]; linhas: L[]; chave: (linha: L) => string | number }) {

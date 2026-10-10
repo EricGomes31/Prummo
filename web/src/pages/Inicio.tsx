@@ -20,22 +20,36 @@ export function Inicio() {
       <EstadoLista carregando={carregando} erro={erro} vazia={!dados} textoVazio="" />
       {dados && (
         <>
+          {/* Só os indicadores das áreas que o perfil pode ver (os outros vêm vazios da API). */}
           <section className="indicadores em-3">
-            <Indicador icone="vendas" rotulo="Vendas faturadas" valor={brl(dados.vendas.total)}
-              nota={`${dados.vendas.quantidade} pedido(s) · ${dados.vendas.pedidosAbertos} em aberto`} />
-            <Indicador icone="receber" rotulo="A receber" valor={brl(dados.receber.total)}
-              nota={`${dados.receber.vencidas} parcela(s) vencida(s)`} alerta={dados.receber.vencidas > 0} />
-            <Indicador icone="pagar" rotulo="A pagar" valor={brl(dados.pagar.total)}
-              nota={`${dados.pagar.vencidas} parcela(s) vencida(s)`} alerta={dados.pagar.vencidas > 0} />
-            <Indicador icone="saldo" rotulo="Saldo projetado" valor={brl(dados.saldoProjetado)} nota="A receber menos a pagar"
-              tom={dados.saldoProjetado < 0 ? 'ruim' : 'bom'} />
-            <Indicador icone="produtos" rotulo="Estoque a custo" valor={brl(dados.estoque.valor)}
-              nota={`${dados.estoque.semEstoque} produto(s) sem estoque`} alerta={dados.estoque.semEstoque > 0} />
-            <Indicador icone="entregas" rotulo="Entregas a fazer" valor={String(dados.entregas.pendentes + dados.entregas.emRota + dados.entregas.falhas)}
-              nota={`${dados.entregas.emRota} em rota · ${dados.entregas.falhas} com falha`} alerta={dados.entregas.falhas > 0} />
+            {dados.vendas && (
+              <Indicador icone="vendas" rotulo="Vendas faturadas" valor={brl(dados.vendas.total)}
+                nota={`${dados.vendas.quantidade} pedido(s) · ${dados.vendas.pedidosAbertos} em aberto`} />
+            )}
+            {dados.receber && (
+              <Indicador icone="receber" rotulo="A receber" valor={brl(dados.receber.total)}
+                nota={`${dados.receber.vencidas} parcela(s) vencida(s)`} alerta={dados.receber.vencidas > 0} />
+            )}
+            {dados.pagar && (
+              <Indicador icone="pagar" rotulo="A pagar" valor={brl(dados.pagar.total)}
+                nota={`${dados.pagar.vencidas} parcela(s) vencida(s)`} alerta={dados.pagar.vencidas > 0} />
+            )}
+            {dados.saldoProjetado !== null && (
+              <Indicador icone="saldo" rotulo="Saldo projetado" valor={brl(dados.saldoProjetado)} nota="A receber menos a pagar"
+                tom={dados.saldoProjetado < 0 ? 'ruim' : 'bom'} />
+            )}
+            {dados.estoque && (
+              <Indicador icone="produtos" rotulo="Estoque a custo" valor={brl(dados.estoque.valor)}
+                nota={`${dados.estoque.semEstoque} produto(s) sem estoque`} alerta={dados.estoque.semEstoque > 0} />
+            )}
+            {dados.entregas && (
+              <Indicador icone="entregas" rotulo="Entregas a fazer" valor={String(dados.entregas.pendentes + dados.entregas.emRota + dados.entregas.falhas)}
+                nota={`${dados.entregas.emRota} em rota · ${dados.entregas.falhas} com falha`} alerta={dados.entregas.falhas > 0} />
+            )}
           </section>
 
           <div className="duas-colunas">
+            {dados.vendas && (
             <section className="painel">
               <div className="painel-topo">
                 <h2>Últimos pedidos</h2>
@@ -59,7 +73,9 @@ export function Inicio() {
                 </table>
               )}
             </section>
+            )}
 
+            {dados.estoque && (
             <section className="painel">
               <div className="painel-topo">
                 <h2>Estoque no mínimo ou abaixo</h2>
@@ -84,6 +100,7 @@ export function Inicio() {
                 </table>
               )}
             </section>
+            )}
           </div>
         </>
       )}
