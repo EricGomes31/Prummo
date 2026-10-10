@@ -25,7 +25,10 @@ jobs:
         run: |
           test -n "$CHAVE" || { echo "Falta o segredo VPS_CHAVE_COPIA."; exit 1; }
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$CHAVE" > ~/.ssh/copia && chmod 600 ~/.ssh/copia
+          # Colada pelo navegador, a chave pode vir com quebras de linha do Windows (\r), que o ssh recusa.
+          printf '%s\n' "$CHAVE" | tr -d '\r' > ~/.ssh/copia && chmod 600 ~/.ssh/copia
+          ssh-keygen -y -f ~/.ssh/copia > /dev/null || { echo "O segredo VPS_CHAVE_COPIA não é uma chave válida: cole de novo o arquivo inteiro."; exit 1; }
+          ssh-keygen -lf ~/.ssh/copia
           # Identidade do servidor fixada: recusa outro servidor no mesmo endereço.
           echo '179.236.68.14 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAbe5Lc+6DJOXExYvjNKLVSgKiPNXY6B/Td5X2X2SOR8' > ~/.ssh/known_hosts
           NOME=$(TZ=America/Sao_Paulo date +%Y-%m-%d-%H%M)
