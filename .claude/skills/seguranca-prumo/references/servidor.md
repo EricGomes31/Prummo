@@ -42,6 +42,6 @@ A maior parte já sai do `scripts/auditar-servidor.sh`. Para cada item: o que co
 ## Cópias de segurança
 - Timer `prumo-copia.timer` ativo; última cópia em `/var/backups/prumo` com menos de 26 h.
 - Cópia fora do servidor: última execução verde do workflow "Cópia diária do banco" no GitHub.
-- Restauração já testada? Se nunca foi, recomende (Médio) testar num banco local:
+- Restauração testada? Rode `ssh -i ~/.ssh/prumo_vps root@179.236.68.14 'bash -s' < .claude/skills/seguranca-prumo/scripts/testar-restauracao.sh` (banco temporário, compara contagens e apaga). Primeira vez: 10/10/2026, ok. Manualmente:
   baixar o `.tar.gz`, `pg_restore` num PostgreSQL de teste, conferir contagens.
 - `/var/backups/prumo` com `700`.
