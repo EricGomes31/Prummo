@@ -16,6 +16,9 @@ const dia = (s) => new Date(`${String(s).slice(0, 10)}T12:00:00`)
 // O SG Nexus mostra "à vista" como PIX nos relatórios.
 const FORMAS = { A_VISTA: 'PIX', LINK_CARTAO_CREDITO: 'CARTAO_CREDITO', CARTAO_MAQUININHA: 'CARTAO_CREDITO', CARTAO_CREDITO: 'CARTAO_CREDITO', CARTAO_DEBITO: 'CARTAO_DEBITO', PIX: 'PIX', DINHEIRO: 'DINHEIRO', BOLETO: 'BOLETO', TRANSFERENCIA: 'TRANSFERENCIA' }
 const SALDO_INICIAL = 'Saldo inicial importado do SG Nexus'
+// Siglas do SG Nexus que têm outro nome no Prumo (as mesmas do importar-produtos).
+const SIGLAS = { AMPOLA: 'AMP', FRASCO: 'FR', CAIXA: 'CX', UNIDADE: 'UN', PACOTE: 'PCT' }
+const sigla = (s) => SIGLAS[String(s).toUpperCase()] ?? String(s).toUpperCase()
 
 // Acha no Prumo a pessoa importada que corresponde ao cliente do SG Nexus.
 async function acharPessoa(c) {
@@ -59,10 +62,21 @@ await naEmpresa(async (argumentos, empresa) => {
 
     const itens = []
     for (const i of o.itens) {
-      if (Number(i.fatorEstoque) !== 1) throw new Error(`Pedido ${o.id}: item em unidade diferente da base não previsto.`)
-      const produto = await prisma.produto.findFirst({ where: { sku: i.produto.codigo } })
+      const produto = await prisma.produto.findFirst({ where: { sku: i.produto.codigo }, include: { unidades: true } })
       if (!produto) throw new Error(`Pedido ${o.id}: produto ${i.produto.codigo} não encontrado.`)
-      itens.push({ produto, quantidade: Number(i.quantidade), precoUnitario: centavos(i.precoUnitario), custoUnitario: centavos(i.custoMedioUnitario), desconto: centavos(i.descontoValorUnitario) })
+      // Venda em outra unidade (ex.: ampola de um produto controlado por caixa): o SG Nexus manda quanto
+      // 1 unidade dela vale na base (0,25 = 1/4); no Prumo o fator é quantas cabem em 1 base (4).
+      let unidade = produto.unidade
+      let fator = 1
+      if (Number(i.fatorEstoque) !== 1) {
+        const extra = produto.unidades.find((u) => u.sigla === sigla(i.unidadeNegociada))
+        if (!extra || Math.abs(extra.fator * Number(i.fatorEstoque) - 1) > 1e-9) {
+          throw new Error(`Pedido ${o.id}: unidade ${i.unidadeNegociada} do produto ${produto.sku} não confere com o cadastro.`)
+        }
+        unidade = extra.sigla
+        fator = extra.fator
+      }
+      itens.push({ produto, unidade, fator, quantidade: Number(i.quantidade), precoUnitario: centavos(i.precoUnitario), custoUnitario: centavos(i.custoMedioUnitario), desconto: centavos(i.descontoValorUnitario) })
     }
     const subtotal = itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0)
     const descontoItens = itens.reduce((s, i) => s + i.quantidade * i.desconto, 0)
@@ -110,8 +124,8 @@ await naEmpresa(async (argumentos, empresa) => {
               precoUnitario: i.precoUnitario,
               desconto: i.desconto,
               custoUnitario: i.custoUnitario,
-              unidade: i.produto.unidade,
-              fator: 1,
+              unidade: i.unidade,
+              fator: i.fator,
             })),
           },
         },
@@ -120,7 +134,7 @@ await naEmpresa(async (argumentos, empresa) => {
       // O saldo importado já desconta estas vendas. Para o histórico fechar (e o cancelamento devolver o
       // estoque), o saldo inicial sobe pela quantidade vendida e a saída do pedido o traz de volta.
       for (const i of itens.filter((x) => x.produto.controlaEstoque)) {
-        const partes = i.quantidade * i.produto.divisor
+        const partes = Math.round((i.quantidade * i.produto.divisor) / i.fator)
         if (descontar) {
           const { saldo } = await tx.produto.update({ where: { id: i.produto.id }, data: { saldo: { decrement: partes } } })
           await tx.movimentoEstoque.create({
