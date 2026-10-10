@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDados } from '../api'
 import { useSessao } from '../auth'
-import { brl, formasPagamento, hojeIso } from '../format'
+import { brl, formasPagamento, hojeIso, plural } from '../format'
 import { Colunas, Ranking } from '../graficos'
 import type { DashboardComercial, DashboardFinanceiro, PeriodoDashboard, VendaDoGrafico } from '../types'
 import { Cabecalho, EstadoLista, Modal } from '../ui'
@@ -141,7 +141,7 @@ function VendasDaColuna(props: { inicio: string; fim: string; titulo: string; on
       {vendas.length > 0 && (
         <>
           <p className="texto-suave">
-            {vendas.length} venda(s) · <strong>{brl(total)}</strong> (antes das devoluções)
+            {plural(vendas.length, 'venda', 'vendas')} · <strong>{brl(total)}</strong> (antes das devoluções)
           </p>
           <table>
             <thead>
@@ -207,7 +207,7 @@ function Comercial({ d }: { d: DashboardComercial }) {
             rotulo: rotuloCurto(x.chave),
             titulo: rotuloLongo(x.chave, porDia ? 'dia' : undefined),
             valores: [x.total],
-            nota: `${x.vendas} venda(s)`,
+            nota: plural(x.vendas, 'venda', 'vendas'),
           }))}
         />
         <TabelaDados
@@ -225,7 +225,7 @@ function Comercial({ d }: { d: DashboardComercial }) {
               rotulo: rotuloCurto(m.chave),
               titulo: rotuloLongo(m.chave),
               valores: [m.total],
-              nota: `${m.vendas} venda(s)${m.devolvido ? ` · ${brl(m.devolvido)} devolvidos` : ''}`,
+              nota: `${plural(m.vendas, 'venda', 'vendas')}${m.devolvido ? ` · ${brl(m.devolvido)} devolvidos` : ''}`,
               cores: [m.chave === d.periodo.chave ? COR.principal : COR.apagada],
             }))}
           />

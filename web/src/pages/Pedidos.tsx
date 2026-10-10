@@ -4,7 +4,7 @@ import { pedirMotivo } from '../confirmacao'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
 import { comEnderecoDoCep, useBuscaCep } from '../cep'
-import { brl, cepBr, dataBr, formasPagamento, hojeIso, inteiro, mascaraCep, motivosPerda, naturezasPedido, unidadesDe } from '../format'
+import { brl, cepBr, dataBr, formasPagamento, hojeIso, inteiro, mascaraCep, motivosPerda, naturezasPedido, unidadesDe, plural } from '../format'
 import type { Classificacao, Credito, EnderecoEntrega, ItemEdicao, NaturezaPedido, Pedido, Pessoa, PreviaAlteracao, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, useAtrasado, useOrdenacao, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
@@ -748,7 +748,7 @@ function Faturar(props: { pedido: Pedido; onFechar: () => void; onSalvo: () => v
         )}
         <p className="texto-suave col-3">
           {venda
-            ? `Faturar baixa o estoque dos itens e gera ${vencimentos ? `${vencimentos.length} parcela(s), nas datas escolhidas,` : `${parcelas} parcela(s) mensal(is)`} em contas a receber.${totalCreditos > 0 ? ` ${brl(totalCreditos)} de crédito abatem as parcelas, da primeira para a última.` : ''}`
+            ? `Faturar baixa o estoque dos itens e gera ${vencimentos ? `${plural(vencimentos.length, 'parcela', 'parcelas')}, nas datas escolhidas,` : plural(parcelas, 'parcela mensal', 'parcelas mensais')} em contas a receber.${totalCreditos > 0 ? ` ${brl(totalCreditos)} de crédito abatem as parcelas, da primeira para a última.` : ''}`
             : 'Confirmar baixa o estoque dos itens. Não são geradas contas a receber.'}
         </p>
         <Erro mensagem={erro} />
@@ -838,14 +838,17 @@ function Detalhes(props: { pedidoId: number; onFechar: () => void; onAlterado: (
               <h3>Parcelas</h3>
               <table>
                 <tbody>
-                  {pedido.contasReceber.map((c) => (
-                    <tr key={c.id}>
-                      <td>{c.descricao}</td>
-                      <td>{dataBr(c.vencimento)}</td>
-                      <td><Selo valor={c.status} /></td>
-                      <td className="num">{brl(c.valor)}</td>
-                    </tr>
-                  ))}
+                  {/* As canceladas (de uma alteração ou do cancelamento) vão para o fim, apagadas. */}
+                  {[...pedido.contasReceber]
+                    .sort((a, b) => Number(a.status === 'CANCELADA') - Number(b.status === 'CANCELADA'))
+                    .map((c) => (
+                      <tr key={c.id} className={c.status === 'CANCELADA' ? 'texto-suave' : undefined}>
+                        <td>{c.descricao}</td>
+                        <td>{dataBr(c.vencimento)}</td>
+                        <td><Selo valor={c.status} /></td>
+                        <td className="num">{brl(c.valor)}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </>

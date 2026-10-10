@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
-import { dataBr, hojeIso, mascarar, qtd, telefoneBr } from '../format'
+import { dataBr, hojeIso, mascarar, qtd, telefoneBr, plural } from '../format'
 import type { Entrega, HistoricoEntrega, Motorista, Rota, Veiculo } from '../types'
 import { Campo, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 import { CampoData } from '../calendario'
@@ -60,7 +60,7 @@ export function Rotas() {
             Nova rota
           </button>
         )}
-        <span className="resumo-filtro">{semRota.length} entrega(s) pendente(s) sem rota</span>
+        <span className="resumo-filtro">{plural(semRota.length, 'entrega pendente', 'entregas pendentes')} sem rota</span>
       </div>
       <Erro mensagem={acao.erro} />
       <EstadoLista carregando={rotas.carregando} erro={rotas.erro} vazia={lista.length === 0} textoVazio="Nenhuma rota cadastrada." />
@@ -160,7 +160,7 @@ export function Rotas() {
               {rota.linkAtivo && (
                 <small className={`bloco ${rota.linkAbertoEm ? 'texto-bom' : 'texto-suave'}`}>
                   {rota.linkAbertoEm
-                    ? `Aberto pelo entregador em ${new Date(rota.linkAbertoEm).toLocaleString('pt-BR')} · ${rota.linkAcessos} acesso(s), o último em ${new Date(rota.linkUltimoAcesso!).toLocaleString('pt-BR')}`
+                    ? `Aberto pelo entregador em ${new Date(rota.linkAbertoEm).toLocaleString('pt-BR')} · ${plural(rota.linkAcessos, 'acesso', 'acessos')}, o último em ${new Date(rota.linkUltimoAcesso!).toLocaleString('pt-BR')}`
                     : 'O entregador ainda não abriu o link'}
                 </small>
               )}

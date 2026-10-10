@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { anexar, api, TAMANHO_MAXIMO_ANEXO, TIPOS_DE_ANEXO, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
-import { brl, dataBr, hojeIso, inteiro, unidadesDe } from '../format'
+import { brl, dataBr, hojeIso, inteiro, unidadesDe, plural } from '../format'
 import type { Entrada, ItemEdicao, Pessoa, Produto, EntradaDetalhada } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, totalItens, useAtrasado, useOrdenacao, usePaginacao } from '../ui'
 import { Icone } from '../icones'
@@ -128,7 +128,7 @@ export function Entradas() {
                     <button type="button" className="botao botao-texto" onClick={() => setVendo(e)}>
                       Detalhes
                     </button>
-                    {e.documentos > 0 && <small className="bloco texto-suave">{e.documentos} documento(s)</small>}
+                    {e.documentos > 0 && <small className="bloco texto-suave">{plural(e.documentos, 'documento', 'documentos')}</small>}
                   </td>
                 </tr>
               ))}
@@ -255,7 +255,7 @@ function FormEntrada(props: { onFechar: () => void; onSalvo: () => void }) {
             <small className={grandes.length > 0 ? 'texto-ruim' : 'texto-suave'}>
               {grandes.length > 0
                 ? `Acima de 10 MB: ${grandes.map((a) => a.name).join(', ')}`
-                : `${arquivos.length} arquivo(s) serão anexados ao registrar a entrada.`}
+                : `${plural(arquivos.length, 'arquivo será anexado', 'arquivos serão anexados')} ao registrar a entrada.`}
             </small>
           )}
         </Campo>

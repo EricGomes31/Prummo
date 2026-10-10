@@ -25,7 +25,7 @@ conferir('salvar sem mudar nada não registra', (await historico(p.id)).length =
 
 await chamar('POST', `/pedidos/${p.id}/faturar`, {})
 h = await historico(p.id)
-conferir('faturar registra', h[0].tipo === 'FATURADO' && h[0].descricao.includes('1 parcela(s)'), h[0].descricao)
+conferir('faturar registra', h[0].tipo === 'FATURADO' && h[0].descricao.includes('1 parcela,'), h[0].descricao)
 
 // Alteração do faturado: motivo obrigatório e conferência antes.
 const novo = { ...corpo, clienteId: outro.id, itens: [{ produtoId: prod.id, quantidade: 3, precoUnitario: 1000 }, { produtoId: prod2.id, quantidade: 1, precoUnitario: 500 }], observacao: 'urgente' }

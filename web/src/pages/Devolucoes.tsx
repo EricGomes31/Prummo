@@ -3,7 +3,7 @@ import { api, useAcao, useDados } from '../api'
 import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
 import { avisar } from '../avisos'
-import { brl, dataBr, inteiro } from '../format'
+import { brl, dataBr, inteiro, plural } from '../format'
 import { Icone, type NomeIcone } from '../icones'
 import type { Conta, Credito, Devolucao, Pedido, Pessoa, SaldoDevolucao } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
@@ -98,7 +98,7 @@ export function Devolucoes() {
       {creditos.dados && (
         <section className="indicadores em-3">
           <Indicador icone="saldo" rotulo="Crédito disponível" valor={brl(disponiveis.reduce((s, c) => s + c.saldo, 0))}
-            nota={`${disponiveis.length} crédito(s) com saldo`} />
+            nota={`${plural(disponiveis.length, 'crédito', 'créditos')} com saldo`} />
           <Indicador icone="receber" rotulo="Crédito já usado"
             valor={brl(todosCreditos.filter((c) => c.status !== 'CANCELADO').reduce((s, c) => s + c.valorOriginal - c.saldo, 0))}
             nota="Baixado em contas a receber" />

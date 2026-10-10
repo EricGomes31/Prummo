@@ -26,6 +26,12 @@ export const comEmpresa = <T>(empresaId: number, fazer: () => Promise<T>) => con
 // Sem filtro de empresa. Só para o que precisa enxergar todas: login, sessão, link do entregador e a
 // administração das empresas. Gravações aqui precisam informar a empresa por conta própria.
 export const semEmpresa = <T>(fazer: () => Promise<T>) => contexto.run({ empresaId: null, livre: true }, fazer)
+// Empresa da requisição, para as consultas escritas à mão em SQL, que não passam pelo filtro automático.
+export function empresaDaRequisicao() {
+  const empresaId = contexto.getStore()?.empresaId
+  if (!empresaId) throw new Error('Consulta sem empresa definida.')
+  return empresaId
+}
 
 // A própria tabela de empresas não pertence a nenhuma.
 const SEM_DONO = new Set(['Empresa'])

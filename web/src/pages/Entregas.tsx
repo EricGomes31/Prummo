@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
-import { brl, dataBr, hojeIso, mascarar } from '../format'
+import { brl, dataBr, hojeIso, mascarar, plural } from '../format'
 import type { Endereco, Entrega, PedidoParaEntrega } from '../types'
 import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
 import { HistoricoDaEntrega, Motoristas, numeroOuNulo, Rotas, Veiculos } from './Logistica'
@@ -134,7 +134,7 @@ export function Entregas() {
             Todas as datas
           </button>
         )}
-        <span className="resumo-filtro">{entregas.length} entrega(s)</span>
+        <span className="resumo-filtro">{plural(entregas.length, 'entrega', 'entregas')}</span>
       </div>
 
       <Erro mensagem={acao.erro} />

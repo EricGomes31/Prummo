@@ -136,7 +136,7 @@ export async function rotasDevolucoes(app: FastifyInstance) {
         if (!item) throw new AppError(400, 'Um dos itens não pertence a esta venda.')
         const disponivel = item.quantidade - item.devolucoes.reduce((s, x) => s + x.quantidade, 0)
         if (d.quantidade > disponivel) {
-          throw new AppError(400, `"${item.produto.nome}": só ${disponivel} ${item.unidade ?? item.produto.unidade} ainda pode(m) ser devolvido(s).`)
+          throw new AppError(400, `"${item.produto.nome}": só ${disponivel} ${item.unidade ?? item.produto.unidade} ainda ${disponivel === 1 ? 'pode ser devolvido' : 'podem ser devolvidos'}.`)
         }
         const liquido = liquidoPorUnidade(pedido, item)
         return { item, quantidade: d.quantidade, valorUnitario: Math.round(liquido), credito: Math.round(d.quantidade * liquido) }

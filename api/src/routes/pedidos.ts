@@ -1,7 +1,8 @@
 import { Prisma } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { AppError, centavos, dataIso, dia, fimDeHoje, idParam, intervalo, prisma, quantidadeTexto, somarMeses, texto, type Transacao } from '../lib.js'
+import { AppError, centavos, dataIso, dia, fimDeHoje, idParam, intervalo, plural, prisma, quantidadeTexto, somarMeses, texto, type Transacao } from '../lib.js'
+import { pessoasPorNome } from '../busca.js'
 import { mudancas, registrar, retratar } from '../historicoPedido.js'
 import { calcularDescontoPromocao } from '../promocao.js'
 import { aplicarCredito } from './devolucoes.js'
@@ -354,6 +355,7 @@ export async function rotasPedidos(app: FastifyInstance) {
       .parse(req.query)
     // "123" ou "#123" acha o pedido de número 123; o texto procura nas pessoas e na observação.
     const numero = q.busca ? Number(q.busca.replace(/^#/, '')) : NaN
+    const pessoas = { in: await pessoasPorNome(q.busca) }
     const contem = { contains: q.busca, mode: 'insensitive' as const }
     return prisma.pedido.findMany({
       where: {
@@ -363,11 +365,10 @@ export async function rotasPedidos(app: FastifyInstance) {
           ? {
               OR: [
                 ...(Number.isInteger(numero) && numero > 0 ? [{ numero }] : []),
-                { cliente: { nome: contem } },
-                { cliente: { nomeFantasia: contem } },
-                { vendedor: { nome: contem } },
-                { medico: { nome: contem } },
-                { paciente: { nome: contem } },
+                { clienteId: pessoas },
+                { vendedorId: pessoas },
+                { medicoId: pessoas },
+                { pacienteId: pessoas },
                 { observacao: contem },
               ],
             }
@@ -601,7 +602,7 @@ export async function rotasPedidos(app: FastifyInstance) {
         pedidoId: id,
         tipo: 'FATURADO',
         descricao: condicaoVenda
-          ? `Faturado: ${condicaoVenda.parcelas} parcela(s), total ${reais(pedido.total)}.${usado ? ` ${reais(usado)} pagos com crédito do cliente.` : ''}`
+          ? `Faturado: ${plural(condicaoVenda.parcelas, 'parcela', 'parcelas')}, total ${reais(pedido.total)}.${usado ? ` ${reais(usado)} pagos com crédito do cliente.` : ''}`
           : 'Confirmado: estoque baixado, sem contas a receber.',
         totalNovo: pedido.total,
         usuarioId: req.usuario.id,

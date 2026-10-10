@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { AppError, centavos, dataIso, dia, idParam, intervalo, prisma, texto } from '../lib.js'
+import { pessoasPorNome, produtosPorTexto } from '../busca.js'
 import { resolverUnidade } from './produtos.js'
 
 export const NATUREZAS_ENTRADA = ['COMPRA_REVENDA', 'BONIFICACAO'] as const
@@ -72,6 +73,8 @@ export async function rotasEntradas(app: FastifyInstance) {
     const q = z.object({ busca: z.string().trim().optional(), inicio: dia.optional(), fim: dia.optional() }).parse(req.query)
     // "12" ou "#12" acha a entrada nº 12; o texto procura no fornecedor, no documento e nos produtos.
     const numero = q.busca ? Number(q.busca.replace(/^#/, '')) : NaN
+    const fornecedores = { in: await pessoasPorNome(q.busca) }
+    const produtos = { in: await produtosPorTexto(q.busca) }
     const contem = { contains: q.busca, mode: 'insensitive' as const }
     const where = {
       data: intervalo(q.inicio, q.fim),
@@ -79,10 +82,9 @@ export async function rotasEntradas(app: FastifyInstance) {
         ? {
             OR: [
               ...(Number.isInteger(numero) && numero > 0 ? [{ id: numero }] : []),
-              { fornecedor: { nome: contem } },
-              { fornecedor: { nomeFantasia: contem } },
+              { fornecedorId: fornecedores },
               { numeroDocumento: contem },
-              { itens: { some: { produto: { OR: [{ nome: contem }, { sku: contem }] } } } },
+              { itens: { some: { produtoId: produtos } } },
             ],
           }
         : {}),

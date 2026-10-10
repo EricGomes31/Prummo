@@ -3,7 +3,7 @@ import { api, useAcao, useDados } from '../api'
 import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
 import { BANCOS } from '../bancos'
-import { agoraLocal, brl, dataBr, dataHoraBr, estaVencida, formasPagamento, hojeIso, mascaraDocumento, naturezasPedido, origensMovimento, telefoneBr, tiposContaFinanceira } from '../format'
+import { agoraLocal, brl, dataBr, dataHoraBr, estaVencida, formasPagamento, hojeIso, mascaraDocumento, naturezasPedido, origensMovimento, telefoneBr, tiposContaFinanceira, plural } from '../format'
 import { exportarCsv, imprimir, Resumo, Tabela, type Coluna } from '../relatorio'
 import type { Conta, ContaFinanceira, Extrato, MovimentoFinanceiro, Pessoa, RelatorioCobranca, ContaComOrigem } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
@@ -365,7 +365,7 @@ function Cobranca(props: { pessoas: Pessoa[]; onFechar: () => void }) {
 
       {dados && (
         <section className="indicadores">
-          <Resumo rotulo="Clientes" valor={String(dados.resumo.clientes)} nota={`${dados.resumo.quantidade} conta(s)`} />
+          <Resumo rotulo="Clientes" valor={String(dados.resumo.clientes)} nota={plural(dados.resumo.quantidade, 'conta', 'contas')} />
           <Resumo rotulo="Vencido" valor={brl(dados.resumo.vencido)} />
           <Resumo rotulo="A vencer" valor={brl(dados.resumo.aVencer)} />
           <Resumo rotulo="Saldo total" valor={brl(dados.resumo.saldo)} />

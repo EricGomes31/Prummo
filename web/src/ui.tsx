@@ -343,6 +343,7 @@ export function EditorItens(props: {
                 <td>
                   {opcoes.length > 1 ? (
                     <select
+                      className="unidade-item"
                       aria-label="Unidade"
                       value={item.unidade}
                       onChange={(e) => {

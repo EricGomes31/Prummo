@@ -403,7 +403,7 @@ tr:last-child td { border-bottom: 0; }
 .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .linha-inativa td { color: var(--suave); }
 .tabela-relatorio th, .tabela-relatorio td { padding: 11px 12px; }
-.ordenar { font: inherit; letter-spacing: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; white-space: nowrap; }
+.ordenar { font: inherit; letter-spacing: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; white-space: nowrap; width: 100%; text-align: inherit; }
 .ordenar span { opacity: 0.4; }
 th[aria-sort='ascending'] .ordenar, th[aria-sort='descending'] .ordenar { color: var(--tinta); }
 th[aria-sort='ascending'] .ordenar span, th[aria-sort='descending'] .ordenar span { opacity: 1; }
@@ -722,3 +722,5 @@ button.indicador:hover { border-color: var(--preto); }
 .confirmacao-motivo { margin-bottom: 8px; }
 .botao-perigo-cheio { background: var(--ruim); border-color: var(--ruim); color: #fff; }
 .botao-perigo-cheio:hover:not(:disabled) { filter: brightness(0.92); }
+/* Unidade do item (CX, AMP…): larga o bastante para a sigla e a seta não invadirem a quantidade. */
+.unidade-item { min-width: 4.5rem; }

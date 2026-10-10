@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDados } from '../api'
-import { brl, dataHoraBr, formasPagamento, formasPagamentoDespesa, naturezasPedido, origensMovimento } from '../format'
+import { brl, dataHoraBr, formasPagamento, formasPagamentoDespesa, naturezasPedido, origensMovimento, plural } from '../format'
 import { exportarCsv, Resumo, Tabela, type Coluna } from '../relatorio'
 import type { ContaFinanceira, RelatorioCaixa, RelatorioDespesas, RelatorioFinanceiro, RelatorioVendas } from '../types'
 import { Cabecalho, Campo, EstadoLista, Selo } from '../ui'
@@ -233,7 +233,7 @@ export function Relatorios() {
       {vendas.dados && aba === 'vendas' && (
         <section className="indicadores">
           <Resumo rotulo="Pedidos encontrados" valor={String(vendas.dados.resumo.quantidade)}
-            nota={vendas.dados.resumo.cancelados ? `${vendas.dados.resumo.cancelados} cancelado(s), fora dos valores` : undefined} />
+            nota={vendas.dados.resumo.cancelados ? `${plural(vendas.dados.resumo.cancelados, 'cancelado', 'cancelados')}, fora dos valores` : undefined} />
           <Resumo rotulo="Valor total" valor={brl(vendas.dados.resumo.total)} />
           <Resumo rotulo="Ticket médio" valor={brl(vendas.dados.resumo.ticketMedio)} />
           {vendas.dados.resumo.devolvido > 0 && (

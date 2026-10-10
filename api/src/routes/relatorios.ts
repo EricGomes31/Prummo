@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { dia, intervalo, prisma } from '../lib.js'
+import { pessoasPorNome } from '../busca.js'
 import { NATUREZAS } from './pedidos.js'
 
 const periodo = { inicio: dia.optional(), fim: dia.optional(), busca: z.string().trim().optional() }
@@ -11,6 +12,7 @@ export async function rotasRelatorios(app: FastifyInstance) {
       .object({ ...periodo, status: z.enum(['ABERTO', 'FATURADO', 'CANCELADO']).optional(), natureza: z.enum(NATUREZAS).optional() })
       .parse(req.query)
     const numero = q.busca ? Number(q.busca.replace(/^#/, '')) : NaN
+    const pessoas = { in: await pessoasPorNome(q.busca) }
     const contem = { contains: q.busca, mode: 'insensitive' as const }
     const pedidos = await prisma.pedido.findMany({
       where: {
@@ -20,10 +22,10 @@ export async function rotasRelatorios(app: FastifyInstance) {
         ...(q.busca
           ? {
               OR: [
-                { cliente: { nome: contem } },
-                { vendedor: { nome: contem } },
-                { medico: { nome: contem } },
-                { paciente: { nome: contem } },
+                { clienteId: pessoas },
+                { vendedorId: pessoas },
+                { medicoId: pessoas },
+                { pacienteId: pessoas },
                 { observacao: contem },
                 ...(Number.isInteger(numero) ? [{ numero }] : []),
               ],
@@ -279,11 +281,12 @@ export async function rotasRelatorios(app: FastifyInstance) {
         status: z.enum(['ABERTA', 'PAGA', 'CANCELADA']).optional(),
       })
       .parse(req.query)
+    const pessoas = { in: await pessoasPorNome(q.busca) }
     const contem = { contains: q.busca, mode: 'insensitive' as const }
     const where = {
       vencimento: intervalo(q.inicio, q.fim),
       ...(q.status ? { status: q.status } : {}),
-      ...(q.busca ? { OR: [{ descricao: contem }, { pessoa: { nome: contem } }] } : {}),
+      ...(q.busca ? { OR: [{ descricao: contem }, { pessoaId: pessoas }] } : {}),
     }
     const opcoes = { where, include: { pessoa: { select: { nome: true } } }, take: 2000 } as const
     const [receber, pagar] = await Promise.all([

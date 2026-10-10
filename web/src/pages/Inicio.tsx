@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useDados } from '../api'
 import { useSessao } from '../auth'
-import { brl, dataBr, qtd } from '../format'
+import { brl, dataBr, qtd, plural } from '../format'
 import { Icone, type NomeIcone } from '../icones'
 import type { Resumo } from '../types'
 import { Cabecalho, EstadoLista, Selo } from '../ui'
@@ -24,15 +24,15 @@ export function Inicio() {
           <section className="indicadores em-3">
             {dados.vendas && (
               <Indicador icone="vendas" rotulo="Vendas faturadas" valor={brl(dados.vendas.total)}
-                nota={`${dados.vendas.quantidade} pedido(s) · ${dados.vendas.pedidosAbertos} em aberto`} />
+                nota={`${plural(dados.vendas.quantidade, 'pedido', 'pedidos')} · ${dados.vendas.pedidosAbertos} em aberto`} />
             )}
             {dados.receber && (
               <Indicador icone="receber" rotulo="A receber" valor={brl(dados.receber.total)}
-                nota={`${dados.receber.vencidas} parcela(s) vencida(s)`} alerta={dados.receber.vencidas > 0} />
+                nota={plural(dados.receber.vencidas, 'parcela vencida', 'parcelas vencidas')} alerta={dados.receber.vencidas > 0} />
             )}
             {dados.pagar && (
               <Indicador icone="pagar" rotulo="A pagar" valor={brl(dados.pagar.total)}
-                nota={`${dados.pagar.vencidas} parcela(s) vencida(s)`} alerta={dados.pagar.vencidas > 0} />
+                nota={plural(dados.pagar.vencidas, 'parcela vencida', 'parcelas vencidas')} alerta={dados.pagar.vencidas > 0} />
             )}
             {dados.saldoProjetado !== null && (
               <Indicador icone="saldo" rotulo="Saldo projetado" valor={brl(dados.saldoProjetado)} nota="A receber menos a pagar"
@@ -40,7 +40,7 @@ export function Inicio() {
             )}
             {dados.estoque && (
               <Indicador icone="produtos" rotulo="Estoque a custo" valor={brl(dados.estoque.valor)}
-                nota={`${dados.estoque.semEstoque} produto(s) sem estoque`} alerta={dados.estoque.semEstoque > 0} />
+                nota={`${plural(dados.estoque.semEstoque, 'produto', 'produtos')} sem estoque`} alerta={dados.estoque.semEstoque > 0} />
             )}
             {dados.entregas && (
               <Indicador icone="entregas" rotulo="Entregas a fazer" valor={String(dados.entregas.pendentes + dados.entregas.emRota + dados.entregas.falhas)}

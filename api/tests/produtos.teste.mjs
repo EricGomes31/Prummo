@@ -15,6 +15,7 @@ const semEan2 = await chamar('POST', '/produtos', { nome: 'Sem EAN 2', precoVend
 conferir('vários produtos sem EAN', semEan1.status === 201 && semEan2.status === 201 && semEan1.json.ean === null)
 conferir('busca ignora maiúsculas e minúsculas', (await chamar('GET', `/produtos?busca=${encodeURIComponent('SEM CÓD')}`)).json.some((p) => p.id === auto.json.id))
 conferir('busca por EAN',(await chamar('GET', '/produtos?busca=78912345')).json.some((p) => p.id === auto.json.id))
+conferir('busca de produto ignora acento e aceita várias palavras', (await chamar('GET', `/produtos?busca=${encodeURIComponent('sem codigo')}`)).json.some((p) => p.id === auto.json.id))
 
 // Editar sem mandar custo não zera o custo vindo da entrada
 await chamar('POST', '/entradas', { data: hoje, itens: [{ produtoId: auto.json.id, quantidade: 5, custoUnitario: 6000 }] })

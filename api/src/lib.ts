@@ -7,6 +7,9 @@ import { escoparPorEmpresa } from './empresa.js'
 export const prisma = new PrismaClient({ omit: { pessoa: { cadastroLinkHash: true } } }).$extends(escoparPorEmpresa)
 export type Transacao = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 
+// "1 parcela", "2 parcelas": a quantidade com a palavra no singular ou no plural.
+export const plural = (n: number, singular: string, varios: string) => `${n} ${n === 1 ? singular : varios}`
+
 export class AppError extends Error {
   constructor(
     public status: number,

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { definirEmpresa, semEmpresa } from '../empresa.js'
 import { conferirTentativas, registrarFalha } from '../limite.js'
 import { AppError, idParam, prisma, texto } from '../lib.js'
+import { pessoasPorNome, semCuringas } from '../busca.js'
 
 export const CLASSIFICACOES = ['cliente', 'fornecedor', 'prestador', 'paciente', 'medico', 'vendedor'] as const
 
@@ -43,14 +44,16 @@ export async function rotasPessoas(app: FastifyInstance) {
     const q = z
       .object({ busca: z.string().trim().optional(), classificacao: z.enum(CLASSIFICACOES).optional() })
       .parse(req.query)
-    const campos = ['nome', 'nomeFantasia', 'documento', 'email', 'telefone', 'celular'] as const
+    // Nome e nome fantasia: sem diferenciar acento e com várias palavras (busca.ts).
+    const campos = ['documento', 'email', 'telefone', 'celular'] as const
     // Documento e telefones ficam só com dígitos: "123.456.789" também acha quem foi gravado como "123456789".
     const digitos = q.busca?.replace(/\D/g, '') ?? ''
     const porDigitos = digitos.length >= 3 ? (['documento', 'telefone', 'celular'] as const).map((campo) => ({ [campo]: { contains: digitos } })) : []
+    const porNome = await pessoasPorNome(q.busca)
     return prisma.pessoa.findMany({
       where: {
         ...(q.classificacao ? { [q.classificacao]: true } : {}),
-        ...(q.busca ? { OR: [...campos.map((campo) => ({ [campo]: { contains: q.busca, mode: 'insensitive' as const } })), ...porDigitos] } : {}),
+        ...(q.busca ? { OR: [{ id: { in: porNome } }, ...campos.map((campo) => ({ [campo]: { contains: semCuringas(q.busca!), mode: 'insensitive' as const } })), ...porDigitos] } : {}),
       },
       orderBy: { nome: 'asc' },
     })

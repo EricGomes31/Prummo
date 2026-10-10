@@ -3,7 +3,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { api, lerEmBase64, useAcao, useDados } from '../api'
 import { confirmar } from '../confirmacao'
 import { useSessao } from '../auth'
-import { brl, dataBr } from '../format'
+import { brl, dataBr, plural } from '../format'
 import type { ArquivoOfx, Conta, ContaFinanceira, LinhaExtrato, Pessoa, SugestaoConciliacao } from '../types'
 import { Cabecalho, Campo, Dinheiro, Erro, EstadoLista, Modal, Selo, usePaginacao } from '../ui'
 import { Icone } from '../icones'
@@ -53,7 +53,7 @@ export function Conciliacao({ seletor }: { seletor: ReactNode }) {
       const r = await api<{ analisadas: number; conciliadas: number }>('/conciliacao/automatica', { method: 'POST' })
       setAviso(
         r.conciliadas
-          ? `${r.conciliadas} de ${r.analisadas} linha(s) conciliada(s) automaticamente. As demais ficaram para conferência.`
+          ? `${r.conciliadas} de ${plural(r.analisadas, 'linha conciliada', 'linhas conciliadas')} automaticamente. As demais ficaram para conferência.`
           : 'Nenhuma linha tinha uma única correspondência segura. Todas ficaram para conferência.',
       )
     })
@@ -278,7 +278,7 @@ function ImportarOfx({ onImportado }: { onImportado: () => void }) {
     if (!arquivo) return
     executar(async () => {
       const r = await api<{ importadas: number; duplicadas: number }>('/ofx/importar', { body: { ...arquivo, contaFinanceiraId: contaId } })
-      setAviso(`${r.importadas} transação(ões) importada(s)${r.duplicadas ? `; ${r.duplicadas} já estavam no sistema e foram ignoradas` : ''}.`)
+      setAviso(`${plural(r.importadas, 'transação importada', 'transações importadas')}${r.duplicadas ? `; ${r.duplicadas} já estavam no sistema e foram ignoradas` : ''}.`)
       limpar()
       onImportado()
     })
@@ -342,7 +342,7 @@ function ImportarOfx({ onImportado }: { onImportado: () => void }) {
               Descartar
             </button>
             <button className="botao botao-primario" disabled={ocupado || novas === 0}>
-              {novas === 0 ? 'Tudo já foi importado' : `Importar ${novas} transação(ões)`}
+              {novas === 0 ? 'Tudo já foi importado' : `Importar ${plural(novas, 'transação', 'transações')}`}
             </button>
           </div>
         )}

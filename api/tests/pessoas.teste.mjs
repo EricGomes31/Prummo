@@ -27,6 +27,10 @@ conferir('classificação inválida -> 400', (await chamar('GET', '/pessoas?clas
 conferir('busca ignora maiúsculas e minúsculas', (await chamar('GET', `/pessoas?busca=${encodeURIComponent('zeta COMÉRCIO')}`)).json.some((p) => p.id === id))
 conferir('busca por nome fantasia e celular',(await chamar('GET', '/pessoas?busca=Zeta')).json.some((p) => p.id === id) && (await chamar('GET', `/pessoas?busca=${encodeURIComponent('98888')}`)).json.some((p) => p.id === id))
 conferir('busca pelo documento formatado acha o gravado só com dígitos', (await chamar('GET', `/pessoas?busca=${encodeURIComponent('345.678/0001')}`)).json.some((p) => p.id === id))
+const achaZeta = async (termo) => (await chamar('GET', `/pessoas?busca=${encodeURIComponent(termo)}`)).json.some((p) => p.id === id)
+conferir('busca ignora acentos nos dois sentidos', (await achaZeta('comercio')) && (await achaZeta('ZÉTA')))
+conferir('busca aceita várias palavras em qualquer ordem', (await achaZeta('ltda zeta')) && !(await achaZeta('zeta inexistente')))
+conferir('% e _ na busca valem como letras', !(await achaZeta('z%a')) && !(await achaZeta('z_ta')))
 conferir('documento só com pontuação fica vazio', (await chamar('POST', '/pessoas', { nome: 'Sem documento', cliente: true, documento: '.-/' })).json.documento === null)
 
 const editada = await chamar('PUT', `/pessoas/${id}`, { ...completo, complemento: '', medico: false, vendedor: true, ativo: false })

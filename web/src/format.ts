@@ -161,3 +161,6 @@ const MASCARAS: Record<string, (v: string) => string> = {
   cep: mascaraCep,
 }
 export const mascarar = (campo: string, valor: string) => (MASCARAS[campo] ? MASCARAS[campo](valor) : valor)
+
+// "1 parcela", "2 parcelas": a quantidade com a palavra no singular ou no plural.
+export const plural = (n: number, singular: string, varios: string) => `${n} ${n === 1 ? singular : varios}`

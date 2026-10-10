@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { AppError, centavos, idParam, mmc, prisma } from '../lib.js'
+import { produtosPorTexto } from '../busca.js'
 
 export const UNIDADES = ['UN', 'CX', 'FR', 'AMP', 'PCT', 'KIT', 'PAR', 'DZ', 'KG', 'G', 'L', 'ML', 'M', 'SV'] as const
 
@@ -70,9 +71,8 @@ export async function rotasProdutos(app: FastifyInstance) {
   app.get('/produtos', async (req) => {
     const q = z.object({ busca: z.string().trim().optional() }).parse(req.query)
     return prisma.produto.findMany({
-      where: q.busca
-        ? { OR: (['nome', 'sku', 'ean'] as const).map((campo) => ({ [campo]: { contains: q.busca, mode: 'insensitive' as const } })) }
-        : {},
+      // Descrição, código e EAN, sem diferenciar acento e com várias palavras (busca.ts).
+      where: q.busca ? { id: { in: await produtosPorTexto(q.busca) } } : {},
       include: comUnidades,
       orderBy: { nome: 'asc' },
     })
