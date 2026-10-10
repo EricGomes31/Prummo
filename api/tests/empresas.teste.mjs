@@ -106,4 +106,21 @@ sessao.token = admin
 await chamar('PUT', `/sistema/empresas/${criada.json.id}`, { nome: 'Empresa Dois', ativa: true })
 conferir('reativada, volta a entrar', (await chamar('POST', '/auth/login', { email: 'dona@dois.test', senha: 'senha-da-dois' })).status === 200)
 
+// O administrador do sistema redefine a senha de quem esqueceu, em qualquer empresa.
+const usuariosDaDois = await chamar('GET', `/sistema/empresas/${criada.json.id}/usuarios`)
+conferir('lista os usuários da outra empresa', usuariosDaDois.status === 200 && usuariosDaDois.json.length === 1 && usuariosDaDois.json[0].email === 'dona@dois.test', JSON.stringify(usuariosDaDois.json))
+conferir('a lista não traz a senha', !('senhaHash' in usuariosDaDois.json[0]))
+const dona = usuariosDaDois.json[0]
+conferir('senha curta -> 400', (await chamar('PUT', `/sistema/empresas/${criada.json.id}/usuarios/${dona.id}/senha`, { senha: 'curta' })).status === 400)
+conferir('usuário de outra empresa pelo caminho errado -> 404', (await chamar('PUT', `/sistema/empresas/${eu.empresa.id}/usuarios/${dona.id}/senha`, { senha: 'senha-provisoria' })).status === 404)
+conferir('empresa que não existe -> 404', (await chamar('GET', '/sistema/empresas/99999/usuarios')).status === 404)
+conferir('redefinir senha', (await chamar('PUT', `/sistema/empresas/${criada.json.id}/usuarios/${dona.id}/senha`, { senha: 'senha-provisoria' })).status === 204)
+conferir('a senha antiga não entra mais', (await chamar('POST', '/auth/login', { email: 'dona@dois.test', senha: 'senha-da-dois' })).status === 401)
+const comProvisoria = await chamar('POST', '/auth/login', { email: 'dona@dois.test', senha: 'senha-provisoria' })
+conferir('entra com a senha provisória', comProvisoria.status === 200)
+sessao.token = comProvisoria.json.token
+conferir('quem não é do sistema não lista usuários de empresas -> 403', (await chamar('GET', `/sistema/empresas/${eu.empresa.id}/usuarios`)).status === 403)
+conferir('nem redefine senhas -> 403', (await chamar('PUT', `/sistema/empresas/${criada.json.id}/usuarios/${dona.id}/senha`, { senha: 'outra-senha-1' })).status === 403)
+sessao.token = admin
+
 encerrar()

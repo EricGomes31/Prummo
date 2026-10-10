@@ -55,6 +55,30 @@ export async function rotasEmpresas(app: FastifyInstance) {
     return reply.status(201).send({ ...empresa, usuarios: 1 })
   })
 
+  // Usuários de uma empresa, para o administrador do sistema redefinir a senha de quem a esqueceu
+  // (principalmente o administrador da empresa, que é quem redefiniria a dos outros).
+  app.get('/sistema/empresas/:id/usuarios', async (req) => {
+    const { id } = idParam.parse(req.params)
+    return semEmpresa(async () => {
+      await prisma.empresa.findUniqueOrThrow({ where: { id } })
+      return prisma.usuario.findMany({
+        where: { empresaId: id },
+        select: { id: true, nome: true, email: true, perfil: true, ativo: true, perfilAcesso: { select: { nome: true } } },
+        orderBy: { nome: 'asc' },
+      })
+    })
+  })
+
+  // Senha provisória: o usuário entra com ela e troca em "Alterar senha".
+  app.put('/sistema/empresas/:id/usuarios/:usuarioId/senha', async (req, reply) => {
+    const { id, usuarioId } = z.object({ id: z.coerce.number().int().positive(), usuarioId: z.coerce.number().int().positive() }).parse(req.params)
+    const { senha } = z.object({ senha: z.string().min(8, 'A senha precisa de pelo menos 8 caracteres').max(100) }).parse(req.body)
+    const senhaHash = await bcrypt.hash(senha, 10)
+    const alterados = await semEmpresa(async () => await prisma.usuario.updateMany({ where: { id: usuarioId, empresaId: id }, data: { senhaHash } }))
+    if (alterados.count === 0) throw new AppError(404, 'Usuário não encontrado nesta empresa.')
+    return reply.status(204).send()
+  })
+
   app.put('/sistema/empresas/:id', async (req) => {
     const { id } = idParam.parse(req.params)
     const dados = corpoEmpresa.extend({ ativa: z.boolean() }).parse(req.body)

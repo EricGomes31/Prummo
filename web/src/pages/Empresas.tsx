@@ -15,6 +15,7 @@ export function Empresas() {
   const { usuario } = useSessao()
   const empresas = useDados<Empresa[]>(usuario?.sistema ? '/sistema/empresas' : null)
   const [editando, setEditando] = useState<Rascunho | null>(null)
+  const [vendoUsuarios, setVendoUsuarios] = useState<Empresa | null>(null)
   const lista = empresas.dados ?? []
   const { ordenados: ordenados, titulo: titulo } = useOrdenacao(lista, {
     empresa: (e) => e.nome,
@@ -61,6 +62,9 @@ export function Empresas() {
                   <td>{dataBr(e.criadoEm)}</td>
                   <td><Selo valor={e.ativa ? 'Ativa' : 'Inativa'} tom={e.ativa ? 'bom' : 'apagado'} /></td>
                   <td className="num">
+                    <button type="button" className="botao botao-texto" onClick={() => setVendoUsuarios(e)}>
+                      Usuários
+                    </button>
                     <button type="button" className="botao botao-texto" onClick={() => setEditando({ ...vazia, id: e.id, nome: e.nome, documento: e.documento ?? '', ativa: e.ativa })}>
                       Editar
                     </button>
@@ -72,6 +76,8 @@ export function Empresas() {
         )}
         {paginas.controle}
       </section>
+
+      {vendoUsuarios && <UsuariosDaEmpresa empresa={vendoUsuarios} onFechar={() => setVendoUsuarios(null)} />}
 
       {editando && (
         <FormEmpresa
@@ -147,6 +153,94 @@ function FormEmpresa(props: { inicial: Rascunho; propria: boolean; onFechar: () 
           </button>
           <button className="botao botao-primario" disabled={ocupado}>
             {e.id ? 'Salvar' : 'Criar empresa'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+type UsuarioDaEmpresa = { id: number; nome: string; email: string; perfil: string; ativo: boolean; perfilAcesso: { nome: string } | null }
+
+// Usuários de uma empresa, para redefinir a senha de quem a esqueceu. É o caminho quando quem esqueceu é o
+// administrador da empresa: os demais ele mesmo redefine em Usuários.
+function UsuariosDaEmpresa(props: { empresa: Empresa; onFechar: () => void }) {
+  const usuarios = useDados<UsuarioDaEmpresa[]>(`/sistema/empresas/${props.empresa.id}/usuarios`)
+  const [redefinindo, setRedefinindo] = useState<UsuarioDaEmpresa | null>(null)
+  const lista = usuarios.dados ?? []
+
+  return (
+    <Modal titulo={`Usuários de ${props.empresa.nome}`} onFechar={props.onFechar} largo>
+      <p className="texto-suave">
+        Para quem esqueceu a senha: defina uma senha provisória e passe para a pessoa, que troca depois em "Alterar senha".
+      </p>
+      <EstadoLista carregando={usuarios.carregando} erro={usuarios.erro} vazia={lista.length === 0} textoVazio="Nenhum usuário." />
+      {lista.length > 0 && (
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Perfil</th>
+              <th>Situação</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {lista.map((u) => (
+              <tr key={u.id} className={u.ativo ? '' : 'linha-inativa'}>
+                <td>{u.nome}</td>
+                <td>{u.email}</td>
+                <td>{u.perfilAcesso?.nome ?? (u.perfil === 'ADMIN' ? 'Administrador' : 'Operador')}</td>
+                <td><Selo valor={u.ativo ? 'Ativo' : 'Inativo'} tom={u.ativo ? 'bom' : 'apagado'} /></td>
+                <td className="num">
+                  <button type="button" className="botao botao-texto" onClick={() => setRedefinindo(u)}>
+                    Redefinir senha
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {redefinindo && (
+        <RedefinirSenha
+          empresaId={props.empresa.id}
+          usuario={redefinindo}
+          onFechar={() => setRedefinindo(null)}
+          onFeito={() => setRedefinindo(null)}
+        />
+      )}
+    </Modal>
+  )
+}
+
+function RedefinirSenha(props: { empresaId: number; usuario: UsuarioDaEmpresa; onFechar: () => void; onFeito: () => void }) {
+  const [senha, setSenha] = useState('')
+  const { erro, ocupado, executar } = useAcao()
+
+  function enviar(ev: FormEvent) {
+    ev.preventDefault()
+    executar(async () => {
+      await api(`/sistema/empresas/${props.empresaId}/usuarios/${props.usuario.id}/senha`, { method: 'PUT', body: { senha } })
+      props.onFeito()
+    })
+  }
+
+  return (
+    <Modal titulo={`Redefinir a senha de ${props.usuario.nome}`} onFechar={props.onFechar}>
+      <form onSubmit={enviar} className="form">
+        <p className="texto-suave col-3">{props.usuario.email}</p>
+        <Campo rotulo="Senha provisória (mínimo de 8)" largura={2}>
+          <input type="password" required autoFocus minLength={8} autoComplete="new-password" value={senha} onChange={(v) => setSenha(v.target.value)} />
+        </Campo>
+        <Erro mensagem={erro} />
+        <div className="form-pe">
+          <button type="button" className="botao" onClick={props.onFechar}>
+            Cancelar
+          </button>
+          <button className="botao botao-primario" disabled={ocupado}>
+            Redefinir senha
           </button>
         </div>
       </form>

@@ -48,6 +48,7 @@ function confirmar(metodo: string, caminho: string) {
     : /\/estornar$/.test(caminho) ? 'Estorno registrado.'
     : /\/faturar$/.test(caminho) ? 'Pedido faturado.'
     : /\/baixar$/.test(caminho) ? 'Baixa registrada.'
+    : /\/senha$/.test(caminho) ? 'Senha alterada.'
     : 'Salvo.'
   avisar('sucesso', texto)
 }
