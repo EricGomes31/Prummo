@@ -1,6 +1,8 @@
 // Importa pedidos faturados, suas contas a receber e entregas a partir de arquivos JSON do SG Nexus.
 // Uso: npx tsx --env-file=.env.producao scripts/importar-vendas.mjs --empresa=<id> <pasta>
 // A pasta deve ter pedidos.json (GET /pedidos), contas-receber.json e infinity-entregas.json.
+// --descontar-estoque: para vendas feitas no SG Nexus DEPOIS de importar os saldos (importação complementar);
+// a saída do pedido baixa o saldo atual, em vez de subir o saldo inicial.
 // Rode depois de importar-pessoas e importar-produtos. O número do pedido no SG Nexus vira o número no
 // Prumo; pedidos já importados são ignorados, e um número já usado por outro pedido interrompe a importação.
 import { readFileSync } from 'node:fs'
@@ -24,7 +26,9 @@ async function acharPessoa(c) {
   return achadas[0]
 }
 
-await naEmpresa(async ([pasta], empresa) => {
+await naEmpresa(async (argumentos, empresa) => {
+  const descontar = argumentos.includes('--descontar-estoque')
+  const [pasta] = argumentos.filter((a) => !a.startsWith('--'))
   if (!pasta) {
     console.error('Informe a pasta com os arquivos JSON.')
     process.exitCode = 1
@@ -117,6 +121,13 @@ await naEmpresa(async ([pasta], empresa) => {
       // estoque), o saldo inicial sobe pela quantidade vendida e a saída do pedido o traz de volta.
       for (const i of itens.filter((x) => x.produto.controlaEstoque)) {
         const partes = i.quantidade * i.produto.divisor
+        if (descontar) {
+          const { saldo } = await tx.produto.update({ where: { id: i.produto.id }, data: { saldo: { decrement: partes } } })
+          await tx.movimentoEstoque.create({
+            data: { produtoId: i.produto.id, tipo: 'SAIDA', quantidade: partes, saldoApos: saldo, origem: 'PEDIDO', origemId: pedidoId, criadoEm: new Date(o.alteradoEm ?? o.criadoEm) },
+          })
+          continue
+        }
         const inicial = await tx.movimentoEstoque.findFirst({ where: { produtoId: i.produto.id, observacao: { startsWith: SALDO_INICIAL } } })
         if (inicial) {
           await tx.movimentoEstoque.update({
