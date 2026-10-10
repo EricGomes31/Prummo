@@ -105,6 +105,7 @@ Ficaram para depois, por decisão de 09/10/2026:
 
 ## Acabamento
 
+- [x] Trocar o CEP antes de salvar não atualizava rua e bairro (só preenchia os vazios). Corrigido em 10/10/2026 no cadastro de pessoas, na entrega em outro endereço do pedido e no link de atualização de cadastro: ao sair do campo com um CEP diferente, rua, bairro, cidade e UF vêm do CEP novo; passar pelo campo sem mudar o CEP não mexe no que foi digitado; CEP de cidade inteira (sem rua) mantém a rua digitada. Conferido na tela.
 - [x] Visual novo e telas responsivas. Feito em 08/10/2026: menu com ícones e grupos, gaveta no celular, tabelas largas em cartões, janelas em tela cheia com botões fixos.
 - [x] Reorganizar Devoluções e créditos. Feito em 08/10/2026: indicadores no topo, "Nova devolução" em janela, listas em painéis com título e paginação.
 - [ ] Conferir no celular as telas que não passaram por print depois do visual novo: Entradas, Devoluções, Logística, Promoções, Relatórios, Usuários, Despesas, Caixa e bancos e Conciliação.

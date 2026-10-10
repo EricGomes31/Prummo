@@ -2,6 +2,7 @@
 // enviou. Não usa login: vale a chave que vem depois do "#", e o link vale uma vez.
 import { useEffect, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
+import { comEnderecoDoCep, useBuscaCep } from '../cep'
 import { mascarar } from '../format'
 
 type Dados = {
@@ -60,17 +61,7 @@ export function AtualizarCadastro() {
   })
 
   // Preenche o endereço a partir do CEP usando o serviço público ViaCEP.
-  async function buscarCep() {
-    const cep = (dados?.cep ?? '').replace(/\D/g, '')
-    if (cep.length !== 8) return
-    try {
-      const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`).then((res) => res.json())
-      if (r.erro) return
-      setDados((atual) => atual && { ...atual, logradouro: atual.logradouro || r.logradouro, bairro: atual.bairro || r.bairro, cidade: r.localidade, uf: r.uf })
-    } catch {
-      // Sem o serviço de CEP, o endereço é preenchido à mão.
-    }
-  }
+  const buscaCep = useBuscaCep((achado) => setDados((atual) => atual && comEnderecoDoCep(atual, achado)))
 
   async function enviar(e: FormEvent) {
     e.preventDefault()
@@ -131,7 +122,7 @@ export function AtualizarCadastro() {
           </label>
           <label className="campo">
             <span>CEP</span>
-            <input inputMode="numeric" {...campo('cep')} onBlur={buscarCep} />
+            <input inputMode="numeric" {...campo('cep')} {...buscaCep} />
           </label>
           <label className="campo col-2">
             <span>Logradouro</span>

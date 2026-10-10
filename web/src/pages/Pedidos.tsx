@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
 import { Documentos } from '../Documentos'
-import { consultarCep } from '../cep'
+import { comEnderecoDoCep, useBuscaCep } from '../cep'
 import { brl, cepBr, dataBr, formasPagamento, hojeIso, inteiro, mascaraCep, motivosPerda, naturezasPedido, unidadesDe } from '../format'
 import type { Classificacao, Credito, EnderecoEntrega, ItemEdicao, NaturezaPedido, Pedido, Pessoa, PreviaAlteracao, Produto, Promocao } from '../types'
 import { Cabecalho, Campo, descontoDosItens, Dinheiro, EditorItens, Erro, EstadoLista, itemVazio, Modal, Selo, totalItens, useAtrasado, useOrdenacao, usePaginacao } from '../ui'
@@ -204,10 +204,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
   // Endereço de entrega diferente do cadastro do cliente; null = o do cliente.
   const [endereco, setEndereco] = useState<EnderecoEntrega | null>(pedido?.enderecoEntrega ?? null)
   const trocarEndereco = (parte: Partial<EnderecoEntrega>) => setEndereco((atual) => (atual ? { ...atual, ...parte } : atual))
-  async function completarPeloCep() {
-    const achado = await consultarCep(endereco?.cep)
-    if (achado) setEndereco((atual) => atual && { ...atual, logradouro: atual.logradouro || achado.logradouro, bairro: atual.bairro || achado.bairro, cidade: achado.cidade, uf: achado.uf })
-  }
+  const buscaCep = useBuscaCep((achado) => setEndereco((atual) => atual && comEnderecoDoCep(atual, achado)))
   // Data da venda: hoje, por padrão; pode ser anterior (venda lançada depois), nunca futura.
   const [dataVenda, setDataVenda] = useState(pedido ? new Date(pedido.data).toLocaleDateString('sv-SE') : hojeIso())
   // Parcelas com data e valor escolhidos à mão; null = mensais iguais.
@@ -502,7 +499,7 @@ function FormPedido(props: { pedido: Pedido | null; onFechar: () => void; onSalv
             {endereco && (
               <>
                 <Campo rotulo="CEP">
-                  <input inputMode="numeric" value={mascaraCep(endereco.cep ?? '')} onChange={(e) => trocarEndereco({ cep: e.target.value })} onBlur={completarPeloCep} />
+                  <input inputMode="numeric" value={mascaraCep(endereco.cep ?? '')} onChange={(e) => trocarEndereco({ cep: e.target.value })} {...buscaCep} />
                 </Campo>
                 <Campo rotulo="Rua" largura={2}>
                   <input required value={endereco.logradouro} onChange={(e) => trocarEndereco({ logradouro: e.target.value })} />

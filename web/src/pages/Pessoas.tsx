@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { api, useAcao, useDados } from '../api'
 import { useSessao } from '../auth'
+import { comEnderecoDoCep, useBuscaCep } from '../cep'
 import { documentoBr, mascarar, telefoneBr } from '../format'
 import type { Classificacao, Pessoa } from '../types'
 import { Cabecalho, Campo, Erro, EstadoLista, Modal, Selo, useOrdenacao, usePaginacao } from '../ui'
@@ -186,23 +187,7 @@ function FormPessoa(props: { inicial: Rascunho; onFechar: () => void; onSalvo: (
   })
 
   // Preenche o endereço a partir do CEP usando o serviço público ViaCEP.
-  async function buscarCep() {
-    const cep = (p.cep ?? '').replace(/\D/g, '')
-    if (cep.length !== 8) return
-    try {
-      const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`).then((res) => res.json())
-      if (r.erro) return
-      setP((atual) => ({
-        ...atual,
-        logradouro: atual.logradouro || r.logradouro,
-        bairro: atual.bairro || r.bairro,
-        cidade: r.localidade,
-        uf: r.uf,
-      }))
-    } catch {
-      // Sem o serviço de CEP, o endereço é preenchido à mão.
-    }
-  }
+  const buscaCep = useBuscaCep((achado) => setP((atual) => comEnderecoDoCep(atual, achado)))
 
   function enviar(e: FormEvent) {
     e.preventDefault()
@@ -251,7 +236,7 @@ function FormPessoa(props: { inicial: Rascunho; onFechar: () => void; onSalvo: (
 
         <h3 className="secao col-3">Endereço</h3>
         <Campo rotulo="CEP">
-          <input {...campo('cep')} onBlur={buscarCep} />
+          <input {...campo('cep')} {...buscaCep} />
         </Campo>
         <Campo rotulo="Logradouro" largura={2}>
           <input {...campo('logradouro')} />
