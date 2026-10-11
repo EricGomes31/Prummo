@@ -13,7 +13,8 @@
     "db:rls": "prisma db execute --file prisma/rls.sql --schema prisma/schema.prisma && prisma db execute --file prisma/empresas.sql --schema prisma/schema.prisma",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "banco": "node scripts/banco-local.mjs",
-    "banco:copiar": "node --env-file=.env.producao scripts/copiar-banco.mjs && node --env-file=.env scripts/carregar-copia.mjs"
+    "vps": "node scripts/com-tunel.mjs",
+    "banco:copiar": "node scripts/com-tunel.mjs node --env-file=.env.producao scripts/copiar-banco.mjs && node --env-file=.env scripts/carregar-copia.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

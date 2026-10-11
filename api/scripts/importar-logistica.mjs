@@ -1,5 +1,5 @@
 // Importa motoristas e veículos do SG Nexus e completa as entregas já importadas com peso, coordenadas e horário.
-// Uso: npx tsx --env-file=.env.producao scripts/importar-logistica.mjs --empresa=<id> <pasta>
+// Uso: npm run vps -- npx tsx --env-file=.env.producao scripts/importar-logistica.mjs --empresa=<id> <pasta>
 // A pasta deve ter infinity-motoristas.json, infinity-veiculos.json e infinity-entregas.json.
 // Rode depois de importar-vendas. Motoristas e veículos que já existem (pelo nome ou pela placa) são ignorados.
 import { readFileSync } from 'node:fs'

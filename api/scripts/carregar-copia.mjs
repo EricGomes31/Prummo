@@ -7,15 +7,16 @@ import path from 'node:path'
 import { PrismaClient } from '@prisma/client'
 
 const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? ''
-const host = (() => {
+const { hostname: host, port } = (() => {
   try {
-    return new URL(url).hostname
+    return new URL(url)
   } catch {
-    return ''
+    return { hostname: '', port: '' }
   }
 })()
-if (!['127.0.0.1', 'localhost', '::1'].includes(host)) {
-  console.error(`Recusado: o banco do .env (${host || 'sem endereço'}) não é o local. Este script só carrega cópias no banco desta máquina.`)
+// A porta 15433 é o túnel para o banco real (scripts/com-tunel.mjs): parece local, mas não é.
+if (!['127.0.0.1', 'localhost', '::1'].includes(host) || port === '15433') {
+  console.error(`Recusado: o banco do .env (${host ? `${host}:${port}` : 'sem endereço'}) não é o local. Este script só carrega cópias no banco desta máquina.`)
   process.exit(1)
 }
 

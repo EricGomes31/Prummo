@@ -1,5 +1,5 @@
 // Importa pedidos faturados, suas contas a receber e entregas a partir de arquivos JSON do SG Nexus.
-// Uso: npx tsx --env-file=.env.producao scripts/importar-vendas.mjs --empresa=<id> <pasta>
+// Uso: npm run vps -- npx tsx --env-file=.env.producao scripts/importar-vendas.mjs --empresa=<id> <pasta>
 // A pasta deve ter pedidos.json (GET /pedidos), contas-receber.json e infinity-entregas.json.
 // --descontar-estoque: para vendas feitas no SG Nexus DEPOIS de importar os saldos (importação complementar);
 // a saída do pedido baixa o saldo atual, em vez de subir o saldo inicial.

@@ -1,5 +1,5 @@
 // Importa produtos de um arquivo JSON exportado do SG Nexus (resposta de GET /produtos).
-// Uso: npx tsx --env-file=.env.producao scripts/importar-produtos.mjs --empresa=<id> <produtos.json> [saldos.json] [--remover-exemplos]
+// Uso: npm run vps -- npx tsx --env-file=.env.producao scripts/importar-produtos.mjs --empresa=<id> <produtos.json> [saldos.json] [--remover-exemplos]
 // saldos.json é um objeto { idDoProdutoNoSgNexus: saldo na unidade base }; gera um ajuste de inventário inicial.
 // Pode ser rodado de novo: produtos cujo código já existe na empresa são ignorados.
 import { readFileSync } from 'node:fs'

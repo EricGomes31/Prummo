@@ -1,5 +1,5 @@
 // Confere o saldo de cada produto com o saldo atual do SG Nexus e, onde diferir, lança um ajuste de estoque.
-// Uso: npx tsx --env-file=.env.producao scripts/acertar-saldos.mjs --empresa=<id> <produtos.json> <saldos.json> [--gravar]
+// Uso: npm run vps -- npx tsx --env-file=.env.producao scripts/acertar-saldos.mjs --empresa=<id> <produtos.json> <saldos.json> [--gravar]
 // saldos.json é { idDoProdutoNoSgNexus: saldo na unidade base } (scripts/sgnexus/baixar-saldos.mjs).
 // Sem --gravar só mostra as diferenças. Rode depois de uma importação complementar de vendas.
 import { readFileSync } from 'node:fs'

@@ -1,5 +1,5 @@
 // Importa pessoas de um arquivo JSON exportado do SG Nexus (resposta de GET /pessoas).
-// Uso: npx tsx --env-file=.env.producao scripts/importar-pessoas.mjs --empresa=<id> <arquivo.json> [--remover-exemplos]
+// Uso: npm run vps -- npx tsx --env-file=.env.producao scripts/importar-pessoas.mjs --empresa=<id> <arquivo.json> [--remover-exemplos]
 // Pode ser rodado de novo: quem já existe com o mesmo nome, documento e celular é ignorado.
 import { readFileSync } from 'node:fs'
 import { naEmpresa, prisma } from './empresa.mjs'

@@ -1,6 +1,6 @@
 # Andamento do Prumo
 
-Registro do que foi feito até 09/10/2026 e de como retomar. O que falta está em `PENDENCIAS.md`; as regras de negócio e o modo de rodar estão no `README.md`.
+Registro do que foi feito até 11/10/2026 e de como retomar. O que falta está em `PENDENCIAS.md`; as regras de negócio e o modo de rodar estão no `README.md`.
 
 ## Situação
 
@@ -10,9 +10,10 @@ O Prumo está publicado e funcionando, com os dados do SG Nexus importados. Dos 
 
 | O quê | Onde |
 |---|---|
-| Sistema publicado | https://prumo-production-1731.up.railway.app |
-| Hospedagem | Railway, projeto e serviço `prumo`, conta `labsinfinitys@gmail.com`, região US East. Volume `/data` para os anexos |
-| Banco de dados | Supabase, projeto `nufzrlourvsxujwxwufn`, região São Paulo. É o mesmo banco para o ambiente local e para o publicado |
+| Sistema publicado | https://prummo.tech (o endereço antigo do Railway desvia para ele) |
+| Hospedagem | VPS Hostinger KVM 1 em São Paulo, IP 179.236.68.14, Ubuntu 24.04. Acesso só pela chave `~/.ssh/prumo_vps` desta máquina. Serviço `prumo`, versões em `/opt/prumo/versoes`, variáveis em `/etc/prumo/prumo.env`, anexos em `/var/lib/prumo/uploads` |
+| Banco de dados | PostgreSQL 16 na própria VPS, só local. Daqui, pelo túnel SSH (`npm run vps -- <comando>`, com o `api/.env.producao`). Cópia diária na VPS (`prumo-copia`, 02:30, 14 dias) e no GitHub Actions (30 dias) |
+| Hospedagem antiga | Railway (projeto `prumo`, conta `labsinfinitys@gmail.com`) e Supabase (`nufzrlourvsxujwxwufn`), parados desde 09/10/2026 como garantia; o `.env.producao` do Supabase fica em `api/.env.supabase` |
 | Login do administrador | `admin@prumo.local`; a senha é `SEED_ADMIN_PASSWORD` no `api/.env` (trocada em 08/10/2026 por uma aleatória) |
 | Sistema de origem | https://infinitylabs.sgnexus.com.br (SG Nexus), API em `sg-nexus-infinitylabs-api.onrender.com` |
 | Domínio da empresa | `labsinfinity.com.br`, DNS na Cloudflare. O site atual fica na HostGator, que não roda Node |
@@ -24,6 +25,7 @@ O Prumo está publicado e funcionando, com os dados do SG Nexus importados. Dos 
 - Banco trocado de SQLite para PostgreSQL no Supabase, com RLS em todas as tabelas (`api/prisma/rls.sql`, encadeado no `npm run db:push`).
 - A API passou a entregar também o frontend em produção (`WEB_DIST`), em um serviço único, com `Dockerfile`. A configuração do serviço no Railway (Dockerfile, verificação de saúde, reinício, volume) está em `.railway/railway.ts` desde 09/10/2026, no lugar do `railway.json`, que deixa de ser lido em 01/12/2026.
 - Publicação no Railway, com as variáveis de ambiente e o volume dos anexos.
+- Em 09/10/2026, mudança para uma VPS em São Paulo (`infra/vps`), com o domínio prummo.tech e HTTPS automático pelo Caddy. A publicação passou a ser `bash scripts/publicar-vps.sh`. Em 11/10/2026, o acesso ao banco real a partir desta máquina passou a ser por túnel SSH (`api/scripts/com-tunel.mjs`).
 - Instalados na máquina: Ghidra 12.1.4, JDK 21 e a CLI do Railway. As skills `reverse-engineer-anything` e as duas do Supabase estão em `.claude/skills`.
 
 ### Dados importados do SG Nexus
@@ -37,7 +39,7 @@ O Prumo está publicado e funcionando, com os dados do SG Nexus importados. Dos 
 | Entregas pendentes | 2 | `api/scripts/importar-vendas.mjs` |
 | Motoristas e veículo | 2 e 1 | `api/scripts/importar-logistica.mjs` |
 
-Os importadores podem ser rodados de novo sem duplicar. Desde 09/10/2026 eles gravam na empresa informada e rodam pelo tsx: `npx tsx --env-file=.env.producao scripts/importar-<x>.mjs --empresa=<id> ...` (sem `--empresa`, listam as empresas e param). Os arquivos JSON baixados ficaram em uma pasta temporária e não existem mais; para baixar de novo, use `api/scripts/sgnexus/baixar.mjs`, que explica no cabeçalho como abrir o Chrome e fazer o login.
+Os importadores podem ser rodados de novo sem duplicar. Desde 09/10/2026 eles gravam na empresa informada e rodam pelo tsx, com o túnel para a VPS: `npm run vps -- npx tsx --env-file=.env.producao scripts/importar-<x>.mjs --empresa=<id> ...` (sem `--empresa`, listam as empresas e param). Os arquivos JSON baixados ficaram em uma pasta temporária e não existem mais; para baixar de novo, use `api/scripts/sgnexus/baixar.mjs`, que explica no cabeçalho como abrir o Chrome e fazer o login.
 
 ### Módulos acrescentados ao Prumo
 
@@ -122,32 +124,30 @@ cd web; npm run dev
 
 # Depois de mudar o api/prisma/schema.prisma
 cd api; npx prisma generate      # o banco local se atualiza sozinho ao reiniciar o npm run banco
-# No banco real: cópia de segurança, migração SQL e conferência, sempre com o .env.producao
-cd api; node --env-file=.env.producao scripts/copiar-banco.mjs
-cd api; node --env-file=.env.producao node_modules/prisma/build/index.js db execute --file prisma/migracoes/<arquivo>.sql --schema prisma/schema.prisma
+# No banco real (VPS, pelo túnel): cópia de segurança, migração SQL e conferência, sempre com o .env.producao
+cd api; npm run vps -- node --env-file=.env.producao scripts/copiar-banco.mjs
+cd api; npm run vps -- node --env-file=.env.producao node_modules/prisma/build/index.js db execute --file prisma/migracoes/<arquivo>.sql --schema prisma/schema.prisma
 # Depois, o RLS e as travas de empresa: o mesmo comando com prisma/rls.sql e com prisma/empresas.sql
 
 # Conferir antes de publicar
 cd api; npm run typecheck; npm test
 cd web; npm run build
 
-# Publicar (na raiz do projeto)
-railway up --service prumo --ci
+# Publicar o último commit (na raiz do projeto, no Git Bash). Confere se o banco está igual ao esquema e,
+# se a versão nova não responder, volta sozinho para a anterior.
+bash scripts/publicar-vps.sh
 ```
 
 Cuidados ao retomar:
 
-- **O banco é um só.** Toda mudança de estrutura e todo cadastro feito localmente caem nos dados reais e aparecem no site publicado.
+- **O banco local é separado do real.** O `api/.env` aponta para o banco desta máquina (`npm run banco`). O real só é acessado com `npm run vps -- <comando>` e o `.env.producao`, que abrem o túnel SSH para a VPS.
 - **Pare a API antes do `prisma generate`.** No Windows, a API em execução segura o arquivo do Prisma e o comando falha com `EPERM`.
-- **O código está no Git desde 08/10/2026.** Repositório privado `github.com/labsinfinitys-svg/Prumo`, branch `main`. Faça um commit ao concluir cada etapa (`git add -A`, `git commit -m "..."`, `git push`). O envio ao GitHub não publica o sistema: a publicação continua por `railway up`.
-- **Configuração do Railway** (`.railway/railway.ts`): a publicação não a lê. Depois de mudar o arquivo, rode `railway config plan` e `railway config apply`. No Windows o pacote `railway` não acha a CLI pelo atalho do npm; chame o executável e informe o caminho dele em `_`: `env _='C:/Users/Eric/AppData/Roaming/npm/node_modules/@railway/cli/bin/railway.exe' /c/Users/Eric/AppData/Roaming/npm/node_modules/@railway/cli/bin/railway.exe config plan`. O reinício em caso de falha não aparece no arquivo porque é o padrão do Railway.
-- **Sessão do Railway.** Se a CLI pedir login de novo, rode `railway login` e confirme no navegador.
+- **O código está no Git desde 08/10/2026.** Repositório privado `github.com/labsinfinitys-svg/Prumo`, branch `main`. Faça um commit ao concluir cada etapa (`git add -A`, `git commit -m "..."`, `git push`). O envio ao GitHub não publica o sistema: a publicação é por `bash scripts/publicar-vps.sh`, que manda o último commit.
 
 ## Próximos passos, na ordem sugerida
 
-1. **Segurança, antes de qualquer uso real:** redefinir a senha do banco no Supabase. A senha do administrador já foi trocada.
-2. **Cadastros que destravam o uso:** fornecedores e prestadores, contas bancárias com o número da conta, e as classificações de vendedor, médico e paciente nas pessoas.
-3. **Cartões e operadoras:** o último módulo do SG Nexus que falta (liquidações, taxas e prazo de recebimento).
+1. **Cadastros que destravam o uso:** fornecedores e prestadores, contas bancárias com o número da conta, e as classificações de vendedor, médico e paciente nas pessoas.
+2. **Cartões e operadoras:** o último módulo do SG Nexus que falta (liquidações, taxas e prazo de recebimento).
 4. **Testar a conciliação com um extrato OFX real** dos bancos usados.
 5. **Decidir a hospedagem definitiva** (VPS em São Paulo ou banco em East US) e apontar o subdomínio.
 6. **Separar o banco de desenvolvimento.**

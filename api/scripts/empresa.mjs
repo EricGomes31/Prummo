@@ -1,6 +1,6 @@
 // Empresa de destino dos importadores. Eles usam o mesmo cliente do Prisma da API (src/lib.ts), que
 // acrescenta a empresa em toda consulta e gravação; por isso rodam pelo tsx, que lê o TypeScript:
-//   npx tsx --env-file=.env.producao scripts/importar-<x>.mjs --empresa=<id> ...
+//   npm run vps -- npx tsx --env-file=.env.producao scripts/importar-<x>.mjs --empresa=<id> ...
 // Sem --empresa, ou com uma empresa que não existe, lista as empresas e para.
 import { prisma } from '../src/lib.js'
 import { comEmpresa, semEmpresa } from '../src/empresa.js'

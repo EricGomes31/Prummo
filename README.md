@@ -4,7 +4,7 @@ ERP web com vendas, estoque e financeiro. O nome e a identidade visual são prov
 
 ## Estrutura
 
-- `api/` — API REST em Node, Fastify e Prisma. Banco PostgreSQL no Supabase.
+- `api/` — API REST em Node, Fastify e Prisma. Banco PostgreSQL.
 - `web/` — Frontend em React, Vite e TypeScript.
 
 ## Como rodar
@@ -15,7 +15,7 @@ Requer Node 22 ou mais novo.
 # 1. API (porta 3333)
 cd api
 npm install
-npm run setup   # cria o .env e para: preencha DATABASE_URL e DIRECT_URL com as URLs do Supabase
+npm run setup   # cria o .env e para: preencha DATABASE_URL e DIRECT_URL com o endereço do PostgreSQL
 npm run setup   # cria as tabelas e o usuário administrador
 npm run dev
 
@@ -27,7 +27,7 @@ npm run dev
 
 ### Banco de desenvolvimento
 
-No dia a dia a API local usa um PostgreSQL nesta máquina, não o banco real: o `api/.env` aponta para ele (`127.0.0.1:5433`) e os endereços do banco real ficam só no `api/.env.producao` (fora do Git).
+No dia a dia a API local usa um PostgreSQL nesta máquina, não o banco real: o `api/.env` aponta para ele (`127.0.0.1:5433`) e os endereços do banco real ficam só no `api/.env.producao` (fora do Git). O banco real fica na VPS e só aceita conexões de dentro dela; daqui, ele é acessado por um túnel SSH em `127.0.0.1:15433`, aberto pelo `npm run vps -- <comando>` (`api/scripts/com-tunel.mjs`, com a chave `~/.ssh/prumo_vps`). O `.env.producao` é gerado por `bash scripts/env-producao-vps.sh`, na raiz do projeto.
 
 ```powershell
 cd api
@@ -35,7 +35,7 @@ npm run banco          # sobe o banco local e atualiza as tabelas; deixe o termi
 npm run banco:copiar   # em outro terminal: copia o banco real (só leitura) e carrega no local
 ```
 
-O `banco:copiar` grava a cópia em `backups/` e apaga o que houver no banco local antes de carregar. O script de carga se recusa a escrever em qualquer banco que não seja desta máquina. Scripts que devem mexer no banco real (cópia de segurança, migrações, importadores) recebem `--env-file=.env.producao` de propósito.
+O `banco:copiar` grava a cópia em `backups/` e apaga o que houver no banco local antes de carregar. O script de carga se recusa a escrever em qualquer banco que não seja desta máquina. Scripts que devem mexer no banco real (cópia de segurança, migrações, importadores) recebem `--env-file=.env.producao` de propósito e rodam pelo túnel, por exemplo `npm run vps -- node --env-file=.env.producao scripts/copiar-banco.mjs`.
 
 Abra http://localhost:5173 e entre com `admin@prumo.local`. A senha inicial foi gerada pelo setup e está em `api/.env`, na variável `SEED_ADMIN_PASSWORD`. Troque-a em "Alterar senha" no primeiro acesso.
 
@@ -50,7 +50,7 @@ npm test -- --detalhe    # mostra cada verificação, não só as falhas
 
 São testes de ponta a ponta da API, em `api/tests`. O executor (`tests/rodar.mjs`) sobe um PostgreSQL local e descartável (pacote `embedded-postgres`, sem Docker), cria as tabelas, e dá a cada suíte um banco novo e uma API própria. **Os testes nunca usam o banco do `.env`**: as suítes criam e cancelam registros e se recusam a rodar fora do executor.
 
-O que os testes não cobrem: o frontend e o que é próprio do Supabase (o pool de conexões da porta 6543 e o acesso pela API REST dele, que o RLS bloqueia).
+O que os testes não cobrem: o frontend.
 
 ## O que a fase 1 cobre
 
@@ -106,7 +106,9 @@ Ainda não implementados: cartões e operadoras, e anexos em pedidos e contas (a
 
 ## Produção
 
-- Banco: aponte `DATABASE_URL` (pool, porta 6543) e `DIRECT_URL` (direta, porta 5432) para o projeto de produção no Supabase.
+- Onde está: VPS em São Paulo, com o domínio https://prummo.tech. A instalação do servidor fica em `infra/vps` (serviço, Caddy, cópia diária) e as variáveis em `/etc/prumo/prumo.env` no servidor.
+- Publicar: `bash scripts/publicar-vps.sh`, na raiz do projeto, no Git Bash. Envia o último commit (não o que está só no disco), monta o site e a API no servidor, confere se o banco está igual ao esquema e troca a versão; se a nova não responder, volta para a anterior. Mudanças de estrutura do banco são aplicadas antes, pelo túnel, com cópia de segurança.
+- Banco: `DATABASE_URL` e `DIRECT_URL` apontam para o PostgreSQL da própria VPS.
 - API: defina `JWT_SECRET` e `CORS_ORIGIN` (endereço público do frontend) no ambiente.
 - Anexos: os arquivos ficam em `api/uploads` (ou na pasta de `UPLOADS_DIR`). Essa pasta precisa de disco persistente e de backup junto com o banco.
 - Frontend: `npm run build` gera `web/dist`. Com `WEB_DIST` apontando para essa pasta, a própria API entrega o frontend e passa a atender em `/api/*`, num serviço único; defina também `HOST=0.0.0.0`. Sem `WEB_DIST`, o servidor que publicar os arquivos precisa repassar `/api/*` para a API, como o proxy do Vite faz em desenvolvimento.
